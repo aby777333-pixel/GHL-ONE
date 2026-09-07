@@ -1,0 +1,16 @@
+name: Deploy to Netlify
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+jobs:
+  trigger-netlify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fire Netlify build hook
+        env:
+          HOOK_URL: ${{ secrets.NETLIFY_BUILD_HOOK }}
+        run: |
+          set -euo pipefail
+          URL="${HOOK_URL}?trigger_title=push%3A%20${GITHUB_SHA:0:7}"
+          curl --silent --show-error --fail -X POST "${URL}"

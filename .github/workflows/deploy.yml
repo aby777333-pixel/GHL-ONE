@@ -13,6 +13,9 @@ jobs:
     env:
       NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
       NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+      # Build-time public config (inlined into the client bundle). Runtime secrets stay in Netlify's environment.
+      NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -21,14 +24,9 @@ jobs:
           cache: npm
       - name: Install
         run: npm ci
-      - name: Diagnose Netlify auth (no secret values printed)
-        run: |
-          echo "token length ${#NETLIFY_AUTH_TOKEN}, site id length ${#NETLIFY_SITE_ID}"
-          for path in user "sites/${NETLIFY_SITE_ID}" "sites/${NETLIFY_SITE_ID}/env"; do
-            code=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer ${NETLIFY_AUTH_TOKEN}" "https://api.netlify.com/api/v1/${path}")
-            echo "${path} -> ${code}"
-          done
-      - name: Build and deploy (Netlify CLI, Linux runner)
+      - name: Build (Netlify build, offline — no API calls)
+        run: npx --yes netlify-cli@24 build --offline --context production
+      - name: Deploy prebuilt output
         run: |
           set -euo pipefail
-          npx --yes netlify-cli@24 deploy --prod --message "push: ${GITHUB_SHA:0:7}"
+          npx --yes netlify-cli@24 deploy --prod --no-build --message "push: ${GITHUB_SHA:0:7}" --debug 2>&1 | tail -40

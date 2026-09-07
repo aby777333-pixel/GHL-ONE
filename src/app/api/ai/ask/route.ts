@@ -122,7 +122,7 @@ export async function POST(req: Request) {
       }),
       betaZodTool({
         name: "propose_actions",
-        description: "Propose tasks, decisions or meetings for the user to confirm. Nothing is created until the user clicks confirm. Include assignee_id from list_people when known.",
+        description: "Propose tasks, decisions or meetings for the user to confirm. Nothing is created until the user clicks confirm. Always include assignee_id (from list_people) and project_id when the work belongs to a project; keep the original due_date when re-assigning an existing task.",
         inputSchema: z.object({ actions: z.array(ProposalSchema).min(1).max(12) }),
         run: async ({ actions }) => {
           proposals.push(...actions);

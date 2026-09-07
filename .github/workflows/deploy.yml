@@ -3,14 +3,25 @@ on:
   push:
     branches: [main]
   workflow_dispatch: {}
+concurrency:
+  group: netlify-prod
+  cancel-in-progress: false
 jobs:
-  trigger-netlify:
+  build-and-deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - name: Fire Netlify build hook
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Build and deploy (Netlify CLI, Linux runner)
         env:
-          HOOK_URL: ${{ secrets.NETLIFY_BUILD_HOOK }}
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
         run: |
           set -euo pipefail
-          URL="${HOOK_URL}?trigger_title=push%3A%20${GITHUB_SHA:0:7}"
-          curl --silent --show-error --fail -X POST "${URL}"
+          npx --yes netlify-cli@24 deploy --build --prod --message "push: ${GITHUB_SHA:0:7}"

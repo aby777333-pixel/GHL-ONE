@@ -1,0 +1,10 @@
+{
+  "name": "GHL ONE",
+  "short_name": "GHL ONE",
+  "description": "Company operating system of GHL India Ventures",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b0f17",
+  "theme_color": "#1e3a8a",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}

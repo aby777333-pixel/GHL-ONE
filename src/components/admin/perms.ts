@@ -38,9 +38,9 @@ export function hasPerm(perms: string[], ...keys: string[]) {
 
 export type AdminTab =
   | "now" | "people" | "invites" | "hr" | "workflows" | "structure" | "responsibilities" | "departments" | "access" | "roles" | "screens" | "visibility" | "features" | "security"
-  | "organization" | "escalation" | "integrations" | "templates" | "ai" | "audit";
+  | "organization" | "escalation" | "integrations" | "templates" | "ai" | "audit" | "access-log";
 
-export const ADMIN_TABS: AdminTab[] = ["now", "people", "invites", "hr", "workflows", "structure", "responsibilities", "departments", "access", "roles", "screens", "visibility", "features", "security", "organization", "escalation", "integrations", "templates", "ai", "audit"];
+export const ADMIN_TABS: AdminTab[] = ["now", "people", "invites", "hr", "workflows", "structure", "responsibilities", "departments", "access", "roles", "screens", "visibility", "features", "security", "organization", "escalation", "integrations", "templates", "ai", "audit", "access-log"];
 
 export function isAdminTab(v: unknown): v is AdminTab {
   return typeof v === "string" && (ADMIN_TABS as string[]).includes(v);
@@ -79,6 +79,8 @@ export function tabAllowed(tab: AdminTab, role: RoleLevel, perms: string[]): boo
     case "templates": return manager || has("projects.manage");
     case "ai": return admin || has("ai.manage");
     case "audit": return manager || has("audit.read");
+    // Who viewed / exported what (`access_event_summary`): security or audit admins.
+    case "access-log": return admin || has("security.manage", "audit.read");
     default: return false;
   }
 }

@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { useSession } from "@/components/providers/SessionProvider";
 import { WhatIsRecorded } from "@/components/people/PrivacyCenter";
 import { ClockCard } from "./ClockWidget";
+import { MyExceptions } from "./MyExceptions";
 import { ATT_STATUS_COLOR, ATT_STATUS_LABEL, ATT_STATUS_TONE, MODE_LABEL, dayLabel, fmtHours, fmtMinutes, isoWeekday, istDay, istTime, monthBounds, type AttendanceDay } from "./attendanceUtils";
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -172,6 +173,8 @@ export function MyAttendance({ initialDays, initialMonth }: { initialDays: Atten
             )}
           </div>
         </Card>
+
+        <MyExceptions from={bounds.from} to={bounds.to > today ? today : bounds.to} />
 
         <Card>
           <CardHeader title={<span className="inline-flex items-center gap-2"><ShieldCheck size={15} className="text-muted" /> What is recorded about me</span>} subtitle="Plain language, no surprises" />

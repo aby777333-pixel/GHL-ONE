@@ -10,6 +10,8 @@ import { AnnouncementsCard, ApprovalsCard, MeetingsCard, MessagesCard, ProjectsC
 import { BriefCard } from "@/components/ai/BriefCard";
 import { TeamTodayCard } from "@/components/attendance";
 import { TeamGoalsCard } from "@/components/goals/GoalMini";
+import { WhileYouWereAway } from "./WhileYouWereAway";
+import { ConnectQueueCard } from "@/components/connect/ConnectQueueCard";
 
 export type WorkloadRow = { user_id: string; full_name: string; avatar_url: string | null; designation: string | null; department_id: string | null; presence: string; open_tasks: number; urgent: number; overdue: number; blocked: number; waiting: number; due_week: number; on_leave: boolean; est_hours: number };
 
@@ -60,6 +62,7 @@ export function HomeManager({ personal, workload, teamTasks, projects }: { perso
       <PageHeader eyebrow={fmtDate(new Date())} title={greeting(profile.full_name)} subtitle={personalBrief(personal) + ` ${blocked.length} team item${blocked.length === 1 ? "" : "s"} blocked, ${overdue.length} overdue.`} actions={<Link href="/people/team" className="btn btn-secondary btn-sm"><Users size={14} /> My team</Link>} />
       <div className="grid lg:grid-cols-3 gap-[var(--s3)] stagger">
         <div className="lg:col-span-2 space-y-[var(--s3)]">
+          <WhileYouWereAway />
           <BriefCard variant="manager" />
           <div className="grid md:grid-cols-2 gap-[var(--s3)]">
             <Card>
@@ -79,6 +82,7 @@ export function HomeManager({ personal, workload, teamTasks, projects }: { perso
           <TeamTodayCard departmentId={profile.role === "manager" || profile.role === "team_lead" || profile.role === "department_head" ? profile.department_id : null} />
           <TeamGoalsCard />
           <ApprovalsCard items={personal.approvals} />
+          <ConnectQueueCard />
           <MessagesCard unread={personal.unreadTotal} />
           <MeetingsCard items={personal.meetings} />
           <AnnouncementsCard items={personal.announcements} />

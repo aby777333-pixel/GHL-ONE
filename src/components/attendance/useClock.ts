@@ -5,7 +5,8 @@ import { createClient } from "@/lib/supabase/client";
 import { useSession } from "@/components/providers/SessionProvider";
 import { deriveClock, istDay, istDayRange, type AttendanceEvent, type ClockKind, type ClockMode, type ClockSnapshot } from "./attendanceUtils";
 
-export type ClockActionInput = { kind: ClockKind; mode?: ClockMode; note?: string; shareLocation?: boolean };
+export type ClockActionInput = { kind: ClockKind; mode?: ClockMode; note?: string; shareLocation?: boolean; /** `break_types.key` for `break_start` (defaults to tea) */ breakType?: string };
+export type ClockActionResult = { error?: string; /** true when nobody else is marked available in the department (the on-duty lead was told) */ coverageWarning?: boolean; breakMaxMinutes?: number | null };
 
 /**
  * Today's attendance for the signed-in person: loads events, keeps the "hours so far" ticking each minute and
@@ -52,7 +53,7 @@ export function useClock() {
 
   const snapshot: ClockSnapshot | null = React.useMemo(() => (events ? deriveClock(events, now) : null), [events, now]);
 
-  const act = React.useCallback(async (input: ClockActionInput): Promise<{ error?: string }> => {
+  const act = React.useCallback(async (input: ClockActionInput): Promise<ClockActionResult> => {
     setBusy(true);
     try {
       let location: { lat: number; lng: number; accuracy: number } | null = null;
@@ -65,17 +66,19 @@ export function useClock() {
           );
         });
       }
-      const { error } = await createClient().rpc("clock", {
+      const { data, error } = await createClient().rpc("clock", {
         p_kind: input.kind,
         p_mode: input.mode || snapshot?.mode || "office",
         p_note: input.note?.trim() || undefined,
         p_location: location || undefined,
         p_source: "web",
+        p_break_type: input.kind === "break_start" ? input.breakType || undefined : undefined,
       });
       if (error) return { error: error.message };
       setNow(Date.now());
       await reload();
-      return {};
+      const r = data && typeof data === "object" && !Array.isArray(data) ? (data as { coverage_warning?: boolean; break_max_minutes?: number | null }) : {};
+      return { coverageWarning: !!r.coverage_warning, breakMaxMinutes: r.break_max_minutes ?? null };
     } finally {
       setBusy(false);
     }

@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { BookOpen, Bug, Check, Copy, Focus, Gavel, GraduationCap, KeyRound, LifeBuoy, ListChecks, MessageSquare, Palmtree, Send, ShieldAlert, Siren, UserPlus, Video } from "lucide-react";
+import { BookOpen, Bug, Check, Copy, FileText, Focus, Gavel, GraduationCap, Handshake, KeyRound, LifeBuoy, ListChecks, MessageSquare, Palmtree, Send, ShieldAlert, ShieldCheck, Siren, UserPlus, Video } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useSession } from "@/components/providers/SessionProvider";
 import { Button, Field, Input, Pill, Select, Textarea, useToast } from "@/components/ui";
@@ -62,6 +62,9 @@ const KIND_META: Record<BuddyActionKind, { label: string; noun: string; icon: Re
   war_room: { label: "War room", noun: "war room", icon: <Siren size={11} />, cta: "Start war room" },
   focus: { label: "Focus session", noun: "focus session", icon: <Focus size={11} />, cta: "Start focus" },
   learning: { label: "Learning interest", noun: "learning interest", icon: <GraduationCap size={11} />, cta: "Save interest" },
+  commitment: { label: "Promise", noun: "promise", icon: <Handshake size={11} />, cta: "Record promise" },
+  request: { label: "Request", noun: "request", icon: <FileText size={11} />, cta: "Submit request" },
+  admin_action: { label: "Organisation change (needs human approval)", noun: "change proposal", icon: <ShieldCheck size={11} />, cta: "Review in Organization Control" },
 };
 
 const SEVERITY_PRIORITY: Record<string, TaskPriority> = { critical: "critical", blocker: "critical", high: "high", urgent: "urgent", medium: "normal", normal: "normal", low: "low" };
@@ -227,7 +230,7 @@ export function BuddyProposals({ proposals, conversationId, actionLevel, onNavig
       router.refresh();
       return true;
     };
-    if (["task", "decision", "meeting", "help_request", "bug_report", "knowledge_article", "escalation", "war_room", "learning", "access_request"].includes(d.kind) && !d.title.trim()) return fail("Give it a title first");
+    if (["task", "decision", "meeting", "help_request", "bug_report", "knowledge_article", "escalation", "war_room", "learning", "access_request", "commitment", "request"].includes(d.kind) && !d.title.trim()) return fail("Give it a title first");
     setStatus(i, "creating");
 
     try {
@@ -396,6 +399,26 @@ export function BuddyProposals({ proposals, conversationId, actionLevel, onNavig
           const { data, error } = await supabase.from("learning_interests").insert({ user_id: profile.id, topic: d.title.trim(), note: d.description || null }).select("id").single();
           if (error || !data) return fail(error?.message || "Could not save");
           return done("/academy", "Saved — you'll see matching courses in GHL Academy", { id: data.id });
+        }
+        case "commitment": {
+          const { data, error } = await supabase.from("commitments").insert({ org_id: profile.org_id, promised_by: profile.id, promised_to_user: d.person || null, promised_to_label: d.fields.to_label || null, text: d.title.trim(), due_at: d.due ? new Date(d.due).toISOString() : null, source_type: "buddy" } as never).select("id").single();
+          if (error || !data) return fail(error?.message || "Could not record the promise");
+          return done("/my-work", "Promise recorded — it will remind you before it is due", { id: (data as { id: string }).id });
+        }
+        case "request": {
+          const kind = d.fields.kind || "other";
+          const amount = d.fields.amount ? Number(String(d.fields.amount).replace(/[^0-9.]/g, "")) : null;
+          const { data, error } = await supabase.from("requests").insert({ org_id: profile.org_id, user_id: profile.id, kind, title: d.title.trim(), details: d.description || null, amount: amount != null && Number.isFinite(amount) ? amount : null, starts_on: d.fields.from || null, ends_on: d.fields.to || d.fields.from || null, payload: { ...d.fields, source: "buddy" } } as never).select("id").single();
+          if (error || !data) return fail(error?.message || "Could not submit the request");
+          return done("/requests", "Request submitted — routed to your approver", { id: (data as { id: string }).id });
+        }
+        case "admin_action": {
+          const params = new URLSearchParams({ tab: "people", propose: d.fields.action || "", user: d.person || "", target: d.fields.target || "", reason: d.reason || d.description || "" });
+          const link = `/admin/organization?${params.toString()}`;
+          toast.push("Opened for human review — nothing changes until you apply it there", "info");
+          setStatus(i, "created", { link, note: "Review and apply in Organization Control" });
+          void markAction(d, "performed", { handed_to: "organization_control" });
+          return true;
         }
       }
     } catch (e) {
@@ -645,6 +668,37 @@ function ProposalCard({ draft: d, readOnly, lookups, onChange, onConfirm, onDism
       )}
 
       {d.kind === "learning" && <Input value={d.description} onChange={(e) => onChange({ description: e.target.value })} placeholder="Why / what you want to get out of it (optional)" disabled={dis} />}
+
+      {d.kind === "commitment" && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <Field label="Promised to"><PersonPicker value={d.person} onChange={(v) => onChange({ person: v || "" })} placeholder="Someone in GHL (optional)" /></Field>
+          <Field label="Or an outside party"><Input value={d.fields.to_label || ""} onChange={(e) => setField("to_label", e.target.value)} placeholder="e.g. Mr Sharma (customer)" disabled={dis} /></Field>
+          <Field label="Due"><Input type="datetime-local" value={d.due} onChange={(e) => onChange({ due: e.target.value })} disabled={dis} /></Field>
+        </div>
+      )}
+
+      {d.kind === "request" && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <Field label="Kind">
+            <Select value={d.fields.kind || "other"} onChange={(e) => setField("kind", e.target.value)} disabled={dis}>
+              {["expense", "travel", "purchase", "wfh", "field_duty", "late_explanation", "overtime", "comp_off", "training", "other"].map((k) => <option key={k} value={k}>{k.replace(/_/g, " ")}</option>)}
+            </Select>
+          </Field>
+          <Field label="Amount (INR, if any)"><Input value={d.fields.amount || ""} onChange={(e) => setField("amount", e.target.value)} placeholder="0" disabled={dis} /></Field>
+          <Field label="From"><Input type="date" value={d.fields.from || ""} onChange={(e) => setField("from", e.target.value)} disabled={dis} /></Field>
+          <Field label="To"><Input type="date" value={d.fields.to || ""} onChange={(e) => setField("to", e.target.value)} disabled={dis} /></Field>
+          <div className="sm:col-span-2"><Textarea value={d.description} onChange={(e) => onChange({ description: e.target.value })} placeholder="Details for the approver" className="!min-h-[60px] text-sm" disabled={dis} /></div>
+        </div>
+      )}
+
+      {d.kind === "admin_action" && (
+        <div className="text-xs space-y-1">
+          <div className="card tone-warn p-2">Buddy never changes the organisation by itself. This opens the proposal in Organization Control where a human reviews the impact and applies it.</div>
+          <div><span className="text-muted">Action:</span> <strong>{(d.fields.action || "change").replace(/_/g, " ")}</strong>{d.fields.target ? <> to <strong>{d.fields.target}</strong></> : null}</div>
+          <Field label="Person affected"><PersonPicker value={d.person} onChange={(v) => onChange({ person: v || "" })} placeholder="Who" /></Field>
+          <Field label="Reason"><Input value={d.reason} onChange={(e) => onChange({ reason: e.target.value })} placeholder="Why this change" disabled={dis} /></Field>
+        </div>
+      )}
 
       <div className="flex justify-end gap-2 pt-0.5 flex-wrap">
         {d.kind === "message_draft" && <Button size="sm" variant="ghost" onClick={onCopy}><Copy size={13} /> Copy</Button>}

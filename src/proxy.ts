@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { matchScreen, type Screen } from "@/lib/screens";
 
 const PUBLIC_PATHS = ["/login", "/auth", "/pending"];
 
@@ -48,6 +49,22 @@ export async function proxy(request: NextRequest) {
     url.pathname = "/";
     url.search = "";
     return NextResponse.redirect(url);
+  }
+
+  // Screen governance — server-side, never only hidden menu items. Precedence lives in effective_screens().
+  if (user && !isPublic && !pathname.startsWith("/api/") && pathname !== "/no-access") {
+    const { data } = await supabase.rpc("effective_screens");
+    const screens = (data || []) as Screen[];
+    const screen = matchScreen(screens, pathname);
+    if (screen && !screen.allowed) {
+      await supabase.rpc("log_access_event", { p_kind: "denied", p_type: "screen", p_id: null, p_path: pathname, p_details: { screen: screen.key, source: screen.source } });
+      const url = request.nextUrl.clone();
+      url.pathname = "/no-access";
+      url.search = "";
+      url.searchParams.set("screen", screen.key);
+      url.searchParams.set("from", pathname);
+      return NextResponse.redirect(url);
+    }
   }
   return response;
 }

@@ -10,6 +10,8 @@ import { BriefCard } from "@/components/ai/BriefCard";
 import { ClockCard } from "@/components/attendance";
 import { BuddyHomeCard } from "@/components/ai/BuddyHomeCard";
 import { KudosCard } from "@/components/growth/Recognition";
+import { WhileYouWereAway } from "./WhileYouWereAway";
+import { ConnectQueueCard } from "@/components/connect/ConnectQueueCard";
 
 export function HomeEmployee({ personal }: { personal: Personal }) {
   const { profile } = useSession();
@@ -18,6 +20,7 @@ export function HomeEmployee({ personal }: { personal: Personal }) {
       <PageHeader eyebrow={fmtDate(new Date())} title={greeting(profile.full_name)} subtitle={personalBrief(personal)} />
       <div className="grid lg:grid-cols-3 gap-[var(--s3)] stagger">
         <div className="lg:col-span-2 space-y-[var(--s3)]">
+          <WhileYouWereAway />
           <ClockCard />
           <BuddyHomeCard />
           <BriefCard variant="employee" />
@@ -32,6 +35,7 @@ export function HomeEmployee({ personal }: { personal: Personal }) {
         </div>
         <div className="space-y-[var(--s3)]">
           <MessagesCard unread={personal.unreadTotal} />
+          <ConnectQueueCard />
           <ApprovalsCard items={personal.approvals} />
           <MeetingsCard items={personal.meetings} />
           <KudosCard />

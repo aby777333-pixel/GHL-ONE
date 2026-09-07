@@ -11,6 +11,7 @@ import { Blink, useSeen } from "@/components/providers/ActivityProvider";
 import { APPROVAL_STATUS_LABEL, APPROVAL_STATUS_TONE, cn, fmtDate, isAdminRole, isLeadPlus, isManagerPlus } from "@/lib/utils";
 import { addDays, dayLabel, istDay } from "@/components/attendance/attendanceUtils";
 import { ApplyLeaveModal } from "./ApplyLeaveModal";
+import { LeaveImpact } from "./LeaveImpact";
 import { fmtDays, timelineFor, type Balance, type HandoverTask, type Holiday, type LeaveRow, type LeaveType } from "./leaveUtils";
 
 export type LeaveData = {
@@ -41,6 +42,7 @@ export function LeaveClient({ data, initialTab }: { data: LeaveData; initialTab?
   const [busy, setBusy] = React.useState<string | null>(null);
   const [noteFor, setNoteFor] = React.useState<string | null>(null);
   const [note, setNote] = React.useState("");
+  const [impactFor, setImpactFor] = React.useState<string | null>(null);
 
   const typeOf = (l: LeaveRow) => data.types.find((t) => t.id === l.leave_type_id);
   const typeName = (l: LeaveRow) => typeOf(l)?.name || l.kind.replace(/_/g, " ");
@@ -171,10 +173,12 @@ export function LeaveClient({ data, initialTab }: { data: LeaveData; initialTab?
                               <span className="flex items-center gap-1 ml-auto">
                                 <Button size="xs" variant="success" loading={busy === l.id} onClick={() => decide(l, "approved")}><Check size={12} /> Approve</Button>
                                 <Button size="xs" variant="ghost" disabled={busy === l.id} onClick={() => { setNoteFor(noteFor === l.id ? null : l.id); setNote(""); }}><X size={12} /> Decline</Button>
+                                <Button size="xs" variant={impactFor === l.id ? "primary" : "secondary"} onClick={() => setImpactFor(impactFor === l.id ? null : l.id)} title="Coverage collisions and what depends on this person"><Sparkles size={12} /> What breaks?</Button>
                               </span>
                             )}
                           </div>
                           {l.note && <div className="text-xs text-muted mt-1">“{l.note}”</div>}
+                          {impactFor === l.id && <LeaveImpact leaveId={l.id} userId={l.user_id} from={l.starts_on} to={l.ends_on} />}
                           {noteFor === l.id && (
                             <div className="mt-2 flex items-end gap-2">
                               <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Tell them why (optional)" style={{ minHeight: 44 }} className="flex-1" />

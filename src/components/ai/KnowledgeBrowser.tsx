@@ -23,7 +23,7 @@ export function isOwnerOf(o: Ownership, departmentId: string | null | undefined)
 }
 export const isOutdated = (review_at: string | null | undefined, today: string) => !!review_at && review_at < today;
 
-export function KnowledgeBrowser({ rows, ownership, initial }: { rows: KnowledgeRow[]; ownership: Ownership; initial?: { q?: string; dept?: string; create?: boolean } }) {
+export function KnowledgeBrowser({ rows, ownership, initial }: { rows: KnowledgeRow[]; ownership: Ownership; initial?: { q?: string; dept?: string; create?: boolean; title?: string; body?: string; tags?: string } }) {
   const { profile, departments, people } = useSession();
   const router = useRouter();
   const [tab, setTab] = React.useState<TabKey>("approved");
@@ -172,7 +172,7 @@ export function KnowledgeBrowser({ rows, ownership, initial }: { rows: Knowledge
       <KnowledgeEditor
         open={create}
         onClose={() => setCreate(false)}
-        initial={emptyKnowledge(profile.department_id)}
+        initial={{ ...emptyKnowledge(initial?.dept || profile.department_id), title: initial?.title || "", body: initial?.body || "", tags: initial?.tags || "" }}
         canApprove={ownership.all || (!!profile.department_id && ownership.departments.includes(profile.department_id))}
         onSaved={(id) => {
           router.push(`/wiki/knowledge/${id}`);

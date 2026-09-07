@@ -11,6 +11,9 @@ import { QuickTaskForm } from "@/components/tasks/QuickTaskForm";
 import { useSession, usePerson } from "@/components/providers/SessionProvider";
 import { ago, fmtDate, fmtTime, greeting, humanize, isManagerPlus, isAdminRole, PROJECT_STATUS_LABEL, PROJECT_STATUS_TONE, relDate, cn } from "@/lib/utils";
 import { BriefCard } from "@/components/ai/BriefCard";
+import { MyCommitments } from "@/components/commitments/MyCommitments";
+import { Standup } from "@/components/standups/Standup";
+import { WaitingOnMe } from "@/components/mywork/WaitingOnMe";
 
 type T = TaskRowData & { owner_id: string | null; delegated_by: string | null; created_at: string; updated_at: string };
 type Approval = { id: string; title: string; type: string; priority: string; due_date: string | null; created_at: string; requested_by: string | null; project_id: string | null };
@@ -18,12 +21,13 @@ type Mention = { id: string; title: string; body: string | null; link: string | 
 type Proj = { id: string; name: string; status: string; due_date: string | null; progress: number; department_id: string | null; owner_id: string | null };
 type Meeting = { id: string; title: string; starts_at: string; ends_at: string | null; project_id: string | null };
 
-type TabKey = "today" | "next" | "urgent" | "waiting" | "approvals" | "mentions" | "projects";
+type TabKey = "today" | "next" | "urgent" | "waiting" | "approvals" | "mentions" | "projects" | "commitments";
+const TAB_KEYS: TabKey[] = ["today", "next", "urgent", "waiting", "approvals", "mentions", "projects", "commitments"];
 
-export function MyWorkView({ userId, tasks, waitingOnMe, approvals, mentions, projects, meetings }: { userId: string; tasks: T[]; waitingOnMe: TaskRowData[]; approvals: Approval[]; mentions: Mention[]; projects: Proj[]; meetings: Meeting[] }) {
+export function MyWorkView({ userId, tasks, waitingOnMe, approvals, mentions, projects, meetings, initialTab }: { userId: string; tasks: T[]; waitingOnMe: TaskRowData[]; approvals: Approval[]; mentions: Mention[]; projects: Proj[]; meetings: Meeting[]; initialTab?: string }) {
   const { profile } = useSession();
   const router = useRouter();
-  const [tab, setTab] = React.useState<TabKey>("today");
+  const [tab, setTab] = React.useState<TabKey>(TAB_KEYS.includes(initialTab as TabKey) ? (initialTab as TabKey) : "today");
   const [newOpen, setNewOpen] = React.useState(false);
 
   const assigned = tasks.filter((t) => t.assignee_id === userId);
@@ -44,6 +48,7 @@ export function MyWorkView({ userId, tasks, waitingOnMe, approvals, mentions, pr
     { key: "approvals", label: "Approvals", count: approvals.length },
     { key: "mentions", label: "Mentions", count: unreadMentions.length },
     { key: "projects", label: "Projects", count: projects.length },
+    { key: "commitments", label: "Commitments" },
   ];
 
   const brief = buildBrief({ today: today.length, overdue: overdue.length, approvals: approvals.length, waitingOnMe: waitingOnMe.length, meetingsToday: meetingsToday.length, mentions: unreadMentions.length, dueSoon: next.filter((t) => t.due_date && differenceInCalendarDays(new Date(t.due_date), new Date()) <= 2).length });
@@ -78,6 +83,7 @@ export function MyWorkView({ userId, tasks, waitingOnMe, approvals, mentions, pr
       <div className="anim-fade-in" key={tab}>
         {tab === "today" && (
           <Section>
+            <div className="mb-3"><Standup compact /></div>
             {today.length === 0 ? (
               <EmptyState icon={<Sun size={18} />} title="Nothing due today" hint="Your next items are under Next. Enjoy the focus time." />
             ) : (
@@ -129,8 +135,9 @@ export function MyWorkView({ userId, tasks, waitingOnMe, approvals, mentions, pr
 
         {tab === "waiting" && (
           <div className="grid lg:grid-cols-2 gap-3">
+            <div className="lg:col-span-2"><WaitingOnMe title="Everything waiting on you" compact /></div>
             <Card>
-              <CardHeader title="Waiting on you" subtitle="Others cannot move until you act" />
+              <CardHeader title="Tasks waiting on you" subtitle="Others cannot move until you act" />
               {waitingOnMe.length === 0 ? <EmptyState title="Nobody is waiting on you" className="py-8" /> : <div className="px-2 pb-2">{waitingOnMe.map((t) => <TaskRow key={t.id} task={t} />)}</div>}
             </Card>
             <Card>
@@ -184,6 +191,8 @@ export function MyWorkView({ userId, tasks, waitingOnMe, approvals, mentions, pr
             )}
           </Section>
         )}
+
+        {tab === "commitments" && <MyCommitments />}
 
         {tab === "projects" && (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 stagger">

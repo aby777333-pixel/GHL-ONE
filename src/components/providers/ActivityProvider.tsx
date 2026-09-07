@@ -35,7 +35,7 @@ const NAV_BY_PATH: Array<[string, string]> = [
   ["/chat", "nav:/chat"], ["/tasks", "nav:/tasks"], ["/my-work", "nav:/my-work"], ["/help", "nav:/help"], ["/approvals", "nav:/approvals"],
   ["/inbox", "nav:/inbox"], ["/attendance", "nav:/attendance"], ["/admin", "nav:/admin"], ["/projects", "nav:/projects"], ["/common", "nav:/common"],
   ["/announcements", "nav:/announcements"], ["/decisions", "nav:/decisions"], ["/departments", "nav:/departments"], ["/people", "nav:/people"],
-  ["/leave", "nav:/leave"], ["/meetings", "nav:/meetings"], ["/ideas", "nav:/ideas"], ["/files", "nav:/files"],
+  ["/leave", "nav:/leave"], ["/meetings", "nav:/meetings"], ["/ideas", "nav:/ideas"], ["/files", "nav:/files"], ["/connect", "nav:/connect"],
 ];
 
 type Row = Record<string, unknown>;
@@ -84,8 +84,8 @@ export function ActivityProvider({ children, muted = false }: { children: React.
   React.useEffect(() => {
     const clear: string[] = [];
     for (const [prefix, zone] of NAV_BY_PATH) if (pathname === prefix || pathname.startsWith(prefix + "/")) clear.push(zone);
-    const m = pathname.match(/^\/(chat|projects|tasks|departments|people|help)\/([^/?]+)/);
-    if (m) clear.push(`${{ chat: "channel", projects: "project", tasks: "task", departments: "dept", people: "user", help: "help" }[m[1]]}:${m[2]}`);
+    const m = pathname.match(/^\/(chat|projects|tasks|departments|people|help|connect)\/([^/?]+)/);
+    if (m) clear.push(`${{ chat: "channel", projects: "project", tasks: "task", departments: "dept", people: "user", help: "help", connect: "conversation" }[m[1]]}:${m[2]}`);
     if (clear.length) {
       const t = setTimeout(() => seen(clear), 0);
       return () => clearTimeout(t);
@@ -198,13 +198,26 @@ export function ActivityProvider({ children, muted = false }: { children: React.
           if (p.eventType === "UPDATE" && s("presence") !== String((p.old || {}).presence ?? "")) light([`user:${s("id")}`, ...(s("team_id") && s("team_id") === myTeam ? [`team:${s("team_id")}`] : [])], "success", "Presence");
           return;
         }
+        case "conversations": {
+          // GHL Connect: RLS already limits this to inboxes / conversations the viewer can open.
+          if (p.eventType === "DELETE") return;
+          const zones = [`conversation:${s("id")}`];
+          if (s("status") === "open" || s("status") === "pending") zones.push("nav:/connect");
+          light(zones, s("sla_breached") === "true" ? "danger" : s("vip") === "true" || s("priority") === "urgent" || s("priority") === "critical" ? "warn" : "brand", "Conversation");
+          return;
+        }
+        case "conversation_messages": {
+          if (p.eventType !== "INSERT" || s("author_id") === me || s("kind") === "system") return;
+          light([`conversation:${s("conversation_id")}`, "nav:/connect"], s("status") === "pending_approval" ? "warn" : "brand", s("direction") === "inbound" ? "New reply" : "Message");
+          return;
+        }
         default:
           return;
       }
     };
 
     const supabase = createClient();
-    const tables = ["messages", "tasks", "help_requests", "approvals", "notifications", "attendance_events", "access_requests", "handoffs", "leaves", "announcements", "decisions", "projects", "channels", "channel_members", "profiles"];
+    const tables = ["messages", "tasks", "help_requests", "approvals", "notifications", "attendance_events", "access_requests", "handoffs", "leaves", "announcements", "decisions", "projects", "channels", "channel_members", "profiles", "conversations", "conversation_messages"];
     let ch = supabase.channel("activity-lights");
     for (const table of tables) ch = ch.on("postgres_changes", { event: "*", schema: "public", table }, (p) => handle(p as unknown as Payload));
     // Realtime evaluates RLS with the token present at join time — make sure it is the user's, not the anon key.

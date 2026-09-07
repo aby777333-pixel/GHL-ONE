@@ -17,5 +17,5 @@ export default async function KnowledgePage({ searchParams }: { searchParams: Pr
     knowledgeOwnership(supabase, session.userId, session.profile.role),
   ]);
   const one = (v: string | string[] | undefined) => (typeof v === "string" ? v : undefined);
-  return <KnowledgeBrowser rows={(data || []) as KnowledgeRow[]} ownership={ownership} initial={{ q: one(sp.q), dept: one(sp.dept), create: sp.new === "1" }} />;
+  return <KnowledgeBrowser rows={(data || []) as KnowledgeRow[]} ownership={ownership} initial={{ q: one(sp.q), dept: one(sp.dept), create: sp.new === "1", title: one(sp.title), body: one(sp.body), tags: one(sp.tags) }} />;
 }

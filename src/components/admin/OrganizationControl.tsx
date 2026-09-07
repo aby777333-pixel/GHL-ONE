@@ -9,7 +9,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { Button, Card, CardHeader, EmptyState, Field, Input, Modal, PageHeader, Pill, Progress, Select, Spinner, Tabs, Textarea, useToast } from "@/components/ui";
 import { DepartmentPicker, PersonPicker } from "@/components/pickers";
-import { useSession } from "@/components/providers/SessionProvider";
+import { useSession, usePerson } from "@/components/providers/SessionProvider";
 import { useSeen } from "@/components/providers/ActivityProvider";
 import { ago, cn, fmtDate, humanize, ROLE_LABEL, type RoleLevel, type Tables } from "@/lib/utils";
 import type { Json } from "@/lib/database.types";
@@ -32,7 +32,31 @@ export type OrgControlData = {
 };
 
 /** Organization Control — the master switchboard (`/admin/organization`). */
-export function OrganizationControl({ data, tab: initialTab }: { data: OrgControlData; tab: OrgTab }) {
+export type OrgProposal = { action: string; user: string; target: string; reason: string };
+
+/** Banner for a change GHL Buddy proposed — the AI never applies it; a human does, here. */
+function BuddyProposalBanner({ proposal, onDismiss }: { proposal: OrgProposal; onDismiss: () => void }) {
+  const person = usePerson(proposal.user || null);
+  return (
+    <Card className="mb-[var(--s4)] tone-warn">
+      <div className="flex flex-wrap items-start gap-3 p-[var(--s3)]">
+        <ShieldCheck size={18} className="shrink-0 mt-0.5" />
+        <div className="min-w-0 flex-1 text-sm">
+          <div className="font-medium">GHL Buddy proposed: {humanize(proposal.action || "change")}{person ? <> for <strong>{person.full_name}</strong></> : null}{proposal.target ? <> → <strong>{proposal.target}</strong></> : null}</div>
+          {proposal.reason ? <div className="text-xs opacity-80 mt-0.5">Reason: {proposal.reason}</div> : null}
+          <div className="text-xs opacity-80 mt-0.5">Nothing has changed. Review the impact below and apply it yourself — the change is recorded in the audit trail with your name.</div>
+        </div>
+        <div className="flex gap-2 shrink-0">
+          {person ? <Link href={`/people/${person.id}`} className="btn btn-secondary btn-sm">Open profile</Link> : null}
+          <Link href="/admin?tab=hr&view=people" className="btn btn-primary btn-sm">Employee Center</Link>
+          <Button size="sm" variant="ghost" onClick={onDismiss}><X size={13} /></Button>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+export function OrganizationControl({ data, tab: initialTab, proposal }: { data: OrgControlData; tab: OrgTab; proposal?: OrgProposal | null }) {
   const router = useRouter();
   const { profile } = useSession();
   useSeen("nav:/admin");
@@ -50,6 +74,7 @@ export function OrganizationControl({ data, tab: initialTab }: { data: OrgContro
   return (
     <div className="page page-wide">
       <PageHeader eyebrow="Company" title={<span className="inline-flex items-center gap-2"><Crown size={22} className="text-[var(--brand)]" /> Organization Control</span>} subtitle="One place to see and steer people, structure, roles, screens, policies and security — with an undo trail." actions={<Link href="/admin" className="btn btn-secondary btn-sm">Admin console <ArrowRight size={13} /></Link>} />
+      {proposal ? <BuddyProposalBanner proposal={proposal} onDismiss={() => router.replace(`/admin/organization?tab=${tab}`, { scroll: false })} /> : null}
       <Tabs<OrgTab> tabs={ORG_TABS.map((k) => ({ key: k, label: labels[k] }))} value={tab} onChange={go} className="mb-[var(--s4)]" />
       <div key={tab} className="anim-fade-in">
         {tab === "health" && <HealthTab />}
@@ -331,6 +356,11 @@ function EmergencyTab({ data, canSecurity }: { data: OrgControlData; canSecurity
     <div className="space-y-[var(--s4)]">
       <Note tone="danger" icon={<Siren size={14} />}>Emergency controls act immediately and are audited with your name and reason. {data.isPrimary ? "" : "Freezing a department needs the primary admin; locking features needs Security."}</Note>
       <Field label="Reason (applies to the next action)"><Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Suspected credential leak — IT investigating" /></Field>
+      <Card className="px-[var(--s4)] py-[var(--s3)] flex flex-wrap items-center gap-3">
+        <span className="w-9 h-9 rounded-full tone-danger inline-flex items-center justify-center shrink-0"><Siren size={16} /></span>
+        <div className="min-w-0 flex-1"><div className="font-medium">Emergency broadcast</div><div className="text-xs text-muted">Reach everyone (or a department) instantly, with acknowledgement and safety check-in. Also see <Link href="/status" className="underline">service status</Link>.</div></div>
+        <Link href="/broadcasts/new" className="btn btn-danger btn-sm"><Siren size={14} /> New broadcast</Link>
+      </Card>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-[var(--s4)] items-start">
         <Card>
           <CardHeader title={<span className="inline-flex items-center gap-2"><Snowflake size={15} className="text-[var(--info)]" /> Freeze a department</span>} subtitle="Everyone in it is treated as inactive until unfrozen: no access, approvals reroute to managers outside the department." />

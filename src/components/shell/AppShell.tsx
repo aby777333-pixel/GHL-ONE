@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useSession } from "@/components/providers/SessionProvider";
 import { Avatar, Button, Kbd, Menu, MenuItem, ToastProvider } from "@/components/ui";
 import { cn, fmtTime, ROLE_LABEL } from "@/lib/utils";
-import { navFor } from "./nav";
+import { navFor, filterNav } from "./nav";
 import { CommandPalette } from "./CommandPalette";
 import { NotificationsPanel } from "./NotificationsPanel";
 import { QuickCapture } from "./QuickCapture";
@@ -37,7 +37,7 @@ function useTheme() {
 }
 
 export function AppShell({ children, initialCounts }: { children: React.ReactNode; initialCounts: Counts }) {
-  const { profile, departments } = useSession();
+  const { profile, departments, screens } = useSession();
   const pathname = usePathname();
   const router = useRouter();
   const { dark, toggle } = useTheme();
@@ -49,7 +49,7 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
   const closeAsk = React.useCallback(() => setAskOpen(false), []);
   const { open: buddyOpen } = useBuddy();
   const [counts, setCounts] = React.useState<Counts>(initialCounts);
-  const sections = React.useMemo(() => navFor(profile.role), [profile.role]);
+  const sections = React.useMemo(() => filterNav(navFor(profile.role), screens), [profile.role, screens]);
   const dept = departments.find((d) => d.id === profile.department_id);
 
   // Do not disturb (notification_prefs.dnd_until) — read once, refreshed every minute so the moon disappears on expiry.

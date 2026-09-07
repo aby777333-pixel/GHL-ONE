@@ -8,6 +8,7 @@ import { useSession } from "@/components/providers/SessionProvider";
 import { createClient } from "@/lib/supabase/client";
 import { PeopleMultiSelect } from "./PeopleMultiSelect";
 import { DURATIONS, addMinutesIso, localToIso, nextSlot, todayLocal } from "./meetingUtils";
+import { MeetingLoadWarning } from "./MeetingHygiene";
 
 export type ScheduleDefaults = { project_id?: string | null; department_id?: string | null; participants?: string[]; title?: string };
 
@@ -85,6 +86,7 @@ export function ScheduleMeetingModal({ open, onClose, defaults = {}, onCreated }
             </Select>
           </Field>
         </div>
+        <MeetingLoadWarning day={date} startsAt={date && time ? localToIso(date, time) : null} departmentId={departmentId || null} addMinutes={duration} />
         <Field label="Participants" hint="You are included automatically.">
           <PeopleMultiSelect value={participants} onChange={setParticipants} exclude={[profile.id]} />
         </Field>

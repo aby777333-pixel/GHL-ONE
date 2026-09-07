@@ -59,9 +59,12 @@ const CONTEXT_ICON: Record<BuddyContextItem["kind"], React.ReactNode> = {
   my_work: <ListChecks size={12} />,
   hr: <Users size={12} />,
   memory: <Sparkles size={12} />,
+  org: <Building2 size={12} />,
+  attendance: <ListChecks size={12} />,
+  connect: <MessageSquare size={12} />,
 };
 const CONTEXT_LABEL: Record<BuddyContextItem["kind"], string> = {
-  task: "Task", project: "Project", channel: "Conversation", knowledge: "Knowledge article", person: "Person", department: "Department", help_request: "Help request", file: "File", meeting: "Meeting", decision: "Decision", my_work: "Your work", hr: "Your HR data", memory: "Your notes",
+  task: "Task", project: "Project", channel: "Conversation", knowledge: "Knowledge article", person: "Person", department: "Department", help_request: "Help request", file: "File", meeting: "Meeting", decision: "Decision", my_work: "Your work", hr: "Your HR data", memory: "Your notes", org: "Organisation", attendance: "Attendance", connect: "GHL Connect",
 };
 
 function accessType(t: string): AccessResourceType {

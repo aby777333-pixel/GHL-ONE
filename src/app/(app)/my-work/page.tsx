@@ -5,8 +5,8 @@ import { MyWorkView } from "@/components/home/MyWorkView";
 
 export const metadata: Metadata = { title: "My Work" };
 
-export default async function MyWorkPage() {
-  const { userId } = await getSession();
+export default async function MyWorkPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const [{ userId }, sp] = await Promise.all([getSession(), searchParams]);
   const supabase = await createClient();
   const now = new Date();
   const in7 = new Date(now.getTime() + 7 * 86400000).toISOString();
@@ -41,6 +41,7 @@ export default async function MyWorkPage() {
       mentions={mentions || []}
       projects={(projects || []).map((p) => p.project).filter((p): p is NonNullable<typeof p> => !!p)}
       meetings={meetings || []}
+      initialTab={typeof sp.tab === "string" ? sp.tab : undefined}
     />
   );
 }

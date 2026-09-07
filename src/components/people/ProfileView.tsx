@@ -21,6 +21,9 @@ import { FeedbackModal } from "@/components/growth/FeedbackModal";
 import { KudosModal } from "@/components/growth/KudosModal";
 import { EmploymentCard, MyAssetsCard, MyDocumentsCard, useIsHr } from "./EmployeeSelfService";
 import { DelegationCard } from "./DelegationCard";
+import { CapacityCalendar } from "./CapacityCalendar";
+import { WhatIfAbsent } from "./WhatIfAbsent";
+import { AllocationsCard } from "./AllocationsCard";
 
 export type ProfileData = Profile & {
   manager: { id: string; full_name: string; avatar_url: string | null; designation: string | null } | null;
@@ -156,7 +159,11 @@ export function ProfileView({ person, tasks, projects, reports, leaves, edit }: 
           </Card>
 
           {/* Delegations — me, HR, or my manager */}
-          {hrView && <DelegationCard userId={person.id} self={self} canManage={!!isHr || managerOf || isAdminRole(me.role)} />}
+          {hrView && <div id="delegation" className="scroll-mt-24"><DelegationCard userId={person.id} self={self} canManage={!!isHr || managerOf || isAdminRole(me.role)} /></div>}
+
+          {/* Org intelligence: what breaks if away, allocations (manager / HR) */}
+          {(self || managerOf || isManagerPlus(me.role)) && <WhatIfAbsent userId={person.id} title={self ? "What breaks if I am away?" : "What breaks if they are away?"} />}
+          {(managerOf || !!isHr || isManagerPlus(me.role)) && <AllocationsCard userId={person.id} canEdit={managerOf || !!isHr || isManagerPlus(me.role)} />}
 
           {/* Employee self-service — me, HR, or my manager (RLS filters what each can actually see) */}
           {hrView && <MyAssetsCard userId={person.id} self={self} />}
@@ -209,6 +216,9 @@ export function ProfileView({ person, tasks, projects, reports, leaves, edit }: 
               <ProfileSkills key={person.skills.join("|")} person={person} self={self} />
             </div>
           </Card>
+
+          {/* Capacity: the person, their manager and leadership */}
+          {(self || managerOf || isManagerPlus(me.role)) && <CapacityCalendar userId={person.id} />}
 
           {/* Availability */}
           <Card>

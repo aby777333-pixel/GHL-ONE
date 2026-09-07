@@ -2,14 +2,18 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Activity, Check, Eye, EyeOff, Save, ShieldCheck, X } from "lucide-react";
+import { Activity, AlertTriangle, Check, Eye, EyeOff, KeyRound, Save, ShieldCheck, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button, Field, Input, Pill, Skeleton, Textarea, useToast } from "@/components/ui";
 import { useSession } from "@/components/providers/SessionProvider";
 import { ago, cn, fmtDate, type Tables } from "@/lib/utils";
+import { MyExceptions } from "@/components/attendance/MyExceptions";
+import { addDays, istDay } from "@/components/attendance/attendanceUtils";
 
 type PrivateRow = Tables<"profiles_private">;
 type TimelineRow = { occurred_at: string; kind: string; title: string; link: string | null };
+type AccessRow = Pick<Tables<"access_events">, "id" | "kind" | "entity_type" | "entity_id" | "path" | "created_at">;
+const ACCESS_TONE: Record<string, string> = { view: "tone-neutral", search: "tone-neutral", export: "tone-warn", download: "tone-warn", print: "tone-warn", share: "tone-orange", view_as: "tone-violet", denied: "tone-danger" };
 type Emergency = { name?: string; relation?: string; phone?: string };
 
 const RECORDED: { what: string; why: string }[] = [
@@ -72,6 +76,7 @@ export function PrivacyCenter() {
   const { profile } = useSession();
   const toast = useToast();
   const [timeline, setTimeline] = React.useState<TimelineRow[] | null>(null);
+  const [access, setAccess] = React.useState<AccessRow[] | null>(null);
   const [priv, setPriv] = React.useState<PrivateRow | null | undefined>(undefined);
   const [saving, setSaving] = React.useState(false);
   const [emergency, setEmergency] = React.useState<Emergency>({});
@@ -87,12 +92,14 @@ export function PrivacyCenter() {
     const to = new Date();
     const from = new Date(to.getTime() - 7 * 86400000);
     (async () => {
-      const [{ data: tl }, { data: p }] = await Promise.all([
+      const [{ data: tl }, { data: p }, { data: ae }] = await Promise.all([
         supabase.rpc("activity_timeline", { p_user: profile.id, p_from: from.toISOString(), p_to: to.toISOString() }),
         supabase.from("profiles_private").select("*").eq("user_id", profile.id).maybeSingle(),
+        supabase.from("access_events").select("id,kind,entity_type,entity_id,path,created_at").eq("user_id", profile.id).order("created_at", { ascending: false }).limit(50),
       ]);
       if (!alive) return;
       setTimeline((tl || []) as TimelineRow[]);
+      setAccess((ae || []) as AccessRow[]);
       const row = (p as PrivateRow | null) || null;
       setPriv(row);
       if (row) {
@@ -167,6 +174,37 @@ export function PrivacyCenter() {
             ))}
           </ul>
         )}
+      </div>
+
+      {/* Attendance exceptions — the same list a manager would see, shown to the person first */}
+      <div>
+        <div className="eyebrow mb-2 inline-flex items-center gap-1.5"><AlertTriangle size={12} /> Attendance exceptions · last 30 days</div>
+        <MyExceptions from={addDays(istDay(), -30)} to={istDay()} compact />
+        <div className="text-[11px] text-muted mt-2">Late, early leave, missing check-out, short day, long breaks and absent days. Managers and HR see exactly this list on Workforce Live — nothing more. <Link href="/attendance?tab=corrections" className="link">Request a correction</Link> if something is wrong.</div>
+      </div>
+
+      {/* Access log — who-opened-what events recorded under your name */}
+      <div>
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <div className="eyebrow inline-flex items-center gap-1.5"><KeyRound size={12} /> My access log</div>
+          {access && <span className="text-[11px] text-muted num">{access.length} recent</span>}
+        </div>
+        {!access ? (
+          <div className="space-y-2"><Skeleton className="h-5" /><Skeleton className="h-5 w-3/4" /></div>
+        ) : access.length === 0 ? (
+          <div className="text-sm text-muted rounded-[var(--radius-sm)] sunken p-3">No access events recorded yet. Exports, downloads, prints, shares and views of governed records will appear here.</div>
+        ) : (
+          <ul className="rounded-[var(--radius-sm)] border divide-y max-h-72 overflow-y-auto">
+            {access.map((a) => (
+              <li key={a.id} className="flex items-center gap-3 px-3 py-1.5 text-sm">
+                <Pill tone={ACCESS_TONE[a.kind] || "tone-neutral"} className="shrink-0">{a.kind.replace(/_/g, " ")}</Pill>
+                <span className="truncate flex-1 text-xs">{a.entity_type ? a.entity_type.replace(/_/g, " ") : "—"}{a.path ? <span className="text-muted"> · {a.path}</span> : null}</span>
+                <span className="text-[11px] text-muted num shrink-0" title={fmtDate(a.created_at, true)}>{ago(a.created_at)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="text-[11px] text-muted mt-2">These are explicit events (open / export / share / denied) on governed records — never browsing history or device activity. Security admins see the same events across the company; you always see your own.</div>
       </div>
 
       {/* Private record */}

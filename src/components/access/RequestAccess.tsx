@@ -8,7 +8,7 @@ import { Button, Card, Field, Input, Modal, Select, Textarea, useToast } from "@
 import { useSession } from "@/components/providers/SessionProvider";
 import { fmtDate, type Tables } from "@/lib/utils";
 
-export type AccessResourceType = "project" | "file" | "channel" | "department" | "task" | "wiki" | "folder" | "dataset";
+export type AccessResourceType = "project" | "file" | "channel" | "department" | "task" | "wiki" | "folder" | "dataset" | "module";
 export type AccessLevel = "view" | "comment" | "edit" | "download";
 export type AccessDuration = "once" | "until_date" | "project_active" | "permanent";
 

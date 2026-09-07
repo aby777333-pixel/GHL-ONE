@@ -18,6 +18,7 @@ import { ActionItems, type LinkedTask, type MeetingAction } from "./ActionItems"
 import { PeopleMultiSelect } from "./PeopleMultiSelect";
 import { PrepareMe, type PrepareData } from "./PrepareMe";
 import { durationLabel, durationMinutes, extractLinks } from "./meetingUtils";
+import { MeetingCostLine } from "./MeetingHygiene";
 
 export type MeetingRoomProps = {
   meeting: Meeting;
@@ -107,6 +108,7 @@ export function MeetingRoom({ meeting: m, participantIds, actions, tasks, decisi
               {project && <Link href={`/projects/${project.id}`} className="inline-flex items-center gap-1 hover:underline"><FolderKanban size={14} /> {project.name}</Link>}
               <span className="inline-flex items-center gap-1.5 text-xs text-muted">Organised by <PersonChip id={m.organizer_id} size={18} /></span>
               {m.location && <span className="inline-flex items-center gap-1 text-xs text-muted"><MapPin size={12} /> {m.location}</span>}
+              <MeetingCostLine meetingId={m.id} />
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">

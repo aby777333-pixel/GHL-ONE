@@ -37,5 +37,7 @@ export default async function OrganizationControlPage({ searchParams }: { search
     : [...new Set((myAssignments || []).filter((a) => !a.expires_at || new Date(a.expires_at).getTime() > nowMs).flatMap((a) => { const r = Array.isArray(a.role) ? a.role[0] : a.role; return (r as { permissions: string[] } | null)?.permissions || []; }))];
 
   const data: OrgControlData = { org: org || null, isPrimary: !!isPrimary, perms, policies: policies || [], courses: courses || [], featureFlags: featureFlags || [] };
-  return <OrganizationControl data={data} tab={asOrgTab(sp.tab)} />;
+  const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) || "";
+  const proposal = one(sp.propose) ? { action: one(sp.propose), user: one(sp.user), target: one(sp.target), reason: one(sp.reason) } : null;
+  return <OrganizationControl data={data} tab={asOrgTab(sp.tab)} proposal={proposal} />;
 }

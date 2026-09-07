@@ -82,11 +82,11 @@ export type BuddyRequest = {
   language?: string;                  // e.g. "Tamil", "Hindi" — answer in this language
 };
 
-export type BuddyContextItem = { kind: "task" | "project" | "channel" | "knowledge" | "person" | "department" | "help_request" | "file" | "meeting" | "decision" | "my_work" | "hr" | "memory"; id?: string | null; title: string; link?: string | null };
+export type BuddyContextItem = { kind: "task" | "project" | "channel" | "knowledge" | "person" | "department" | "help_request" | "file" | "meeting" | "decision" | "my_work" | "hr" | "memory" | "org" | "attendance" | "connect"; id?: string | null; title: string; link?: string | null };
 
 export type BuddyRestrictedHit = { resource_type: string; resource_id: string; label: string; approver_id: string | null; classification: string | null };
 
-export type BuddyActionKind = "task" | "decision" | "meeting" | "help_request" | "leave_request" | "bug_report" | "message_draft" | "knowledge_article" | "access_request" | "bring_in" | "escalation" | "war_room" | "focus" | "learning";
+export type BuddyActionKind = "task" | "decision" | "meeting" | "help_request" | "leave_request" | "bug_report" | "message_draft" | "knowledge_article" | "access_request" | "bring_in" | "escalation" | "war_room" | "focus" | "learning" | "commitment" | "request" | "admin_action";
 
 export type BuddyProposal = {
   kind: BuddyActionKind;

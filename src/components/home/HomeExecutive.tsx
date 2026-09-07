@@ -10,6 +10,7 @@ import { ago, fmtDate, greeting, humanize, PRIORITY_TONE, PROJECT_STATUS_LABEL, 
 import { AnnouncementsCard, ApprovalsCard, MeetingsCard, MessagesCard, SectionLink, TodayCard, personalBrief, type Personal } from "./shared";
 import { PulseStrip, DepartmentHealthGrid, HealthRing, computeHealth, type Pulse, type DeptHealth } from "@/components/command/CommandBits";
 import { BriefCard } from "@/components/ai/BriefCard";
+import { WhileYouWereAway } from "./WhileYouWereAway";
 
 type Proj = { id: string; name: string; status: string; due_date: string | null; progress: number; department_id: string | null; owner_id: string | null; priority: string };
 type Appr = { id: string; title: string; type: string; created_at: string; approver_id: string | null; requested_by: string | null; priority: string };
@@ -49,6 +50,7 @@ export function HomeExecutive({ personal, pulse, departments, projects, pendingA
 
       <div className="grid lg:grid-cols-3 gap-[var(--s3)] stagger">
         <div className="lg:col-span-2 space-y-[var(--s3)]">
+          <WhileYouWereAway />
           <BriefCard variant="executive" />
           <Card>
             <CardHeader title="Department health" action={<SectionLink href="/departments">Departments</SectionLink>} />

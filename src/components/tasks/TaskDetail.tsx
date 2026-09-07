@@ -21,6 +21,7 @@ import { humaniseHistory } from "@/components/projects/humanise";
 import { BuddyQuickActions } from "@/components/ai/BuddyQuickActions";
 import { stagesFor, stageOf, withStage } from "@/components/departments/stages";
 import { AckBar, AssigneeLoadPill, DefinitionOfDone, fetchLoad, ReopenModal } from "@/components/tasks/TaskGovernance";
+import { WhoHasBall } from "@/components/mywork/WhoHasBall";
 import {
   ago, cn, fmtDate, isManagerPlus, relDate, APPROVAL_STATUS_LABEL, APPROVAL_STATUS_TONE, APPROVAL_TYPES, STATUS_LABEL, STATUS_TONE, WAITING_LABEL, humanize,
   type ApprovalType, type Task, type Tables, type TaskStatus, type WaitingOn,
@@ -376,6 +377,7 @@ export function TaskDetail({ data }: { data: TaskDetailData }) {
             {stage && <Pill tone="tone-info" size="lg">Stage · {stage}</Pill>}
             {recurrence && <Pill tone="tone-info" size="lg" className="cursor-help"><Repeat size={11} /> Recurring · {describeRecurrence(recurrence)}</Pill>}
             {pendingHandoff && <a href="#handoff" className="pill pill-lg tone-warn"><ArrowRightLeft size={11} /> Handoff pending</a>}
+            {!done && <WhoHasBall type="task" id={task.id} refreshKey={task.updated_at} />}
             <span className="text-xs text-muted">Created {ago(task.created_at)}</span>
           </div>
         </div>

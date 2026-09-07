@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button, Field, Input, Textarea, useToast } from "@/components/ui";
@@ -93,7 +94,7 @@ export function QuickTaskForm({ defaults = {}, onCreated, onCancel, compact }: {
         <Field label="Assign to">
           <PersonPicker value={assignee} onChange={setAssignee} />
           <div className="mt-1 min-h-[18px]"><AssigneeLoadPill assignee={assignee} due={due ? new Date(due).toISOString() : null} onLoad={(info) => setLoad({ assignee, info })} /></div>
-          {blocked && <span className="block text-[11px] text-danger mt-1">You cannot assign work to this person directly. Use Request Help so their manager can route it.</span>}
+          {blocked && <span className="block text-[11px] text-danger mt-1">You cannot assign work to this person directly. <Link href="/help?tab=ask" className="underline">Request help</Link> so their manager can route it.</span>}
         </Field>
         <Field label="Priority">
           <PriorityPicker value={priority} onChange={setPriority} />

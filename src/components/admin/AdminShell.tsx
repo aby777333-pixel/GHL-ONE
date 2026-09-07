@@ -13,6 +13,7 @@ import { InvitesAdmin, type InviteItem } from "./InvitesAdmin";
 import { DepartmentsAdmin } from "./DepartmentsAdmin";
 import { OrganizationAdmin } from "./OrganizationAdmin";
 import { AuditLog } from "./AuditLog";
+import { AccessLog } from "./AccessLog";
 import { TemplatesAdmin } from "./TemplatesAdmin";
 import { IntelligenceAdmin } from "./IntelligenceAdmin";
 import { EscalationAdmin } from "./EscalationAdmin";
@@ -112,6 +113,7 @@ export function AdminShell({ tab, people, invites, departments, teams, org, proj
     templates: { label: <span className="inline-flex items-center gap-1.5"><LayoutTemplate size={14} /> Templates</span> },
     ai: { label: <span className="inline-flex items-center gap-1.5"><Sparkles size={14} /> Intelligence</span> },
     audit: { label: <span className="inline-flex items-center gap-1.5"><ScrollText size={14} /> Audit log</span> },
+    "access-log": { label: <span className="inline-flex items-center gap-1.5"><Eye size={14} /> Access log</span> },
   };
   const allowedTabs = ADMIN_TABS.filter(allowed).map((key) => ({ key, ...labels[key] }));
   const current = allowedTabs.some((t) => t.key === tab) ? tab : allowedTabs[0]?.key;
@@ -145,6 +147,7 @@ export function AdminShell({ tab, people, invites, departments, teams, org, proj
           {current === "templates" && <TemplatesAdmin projectTemplates={projectTemplates} taskTemplates={taskTemplates} />}
           {current === "ai" && <IntelligenceAdmin />}
           {current === "audit" && <AuditLog />}
+          {current === "access-log" && <AccessLog />}
         </>
       )}
     </div>

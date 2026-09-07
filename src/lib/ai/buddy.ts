@@ -98,7 +98,7 @@ export async function scopeContext(ctx: Ctx, scope: BuddyScope, used: BuddyConte
 /* ------------------------------------------------------------------ tools ---- */
 
 const ProposalSchema = z.object({
-  kind: z.enum(["task", "decision", "meeting", "help_request", "leave_request", "bug_report", "message_draft", "knowledge_article", "access_request", "bring_in", "escalation", "war_room", "focus", "learning"]),
+  kind: z.enum(["task", "decision", "meeting", "help_request", "leave_request", "bug_report", "message_draft", "knowledge_article", "access_request", "bring_in", "escalation", "war_room", "focus", "learning", "commitment", "request", "admin_action"]),
   title: z.string(),
   description: z.string().nullable().optional(),
   assignee_id: z.string().nullable().optional(),
@@ -267,7 +267,7 @@ export function buildTools(ctx: Ctx, assistant: AssistantRow, state: BuddyToolSt
     }),
     betaZodTool({
       name: "propose_actions",
-      description: "Propose actions for the person to confirm — nothing happens until they confirm in the UI. Kinds: task, decision, meeting, help_request (department_id + service_id + title + description + priority + due_date), leave_request (fields.leave_type, fields.from, fields.to, fields.half_day, fields.backup_id, reason), bug_report (title + fields.steps/expected/actual/severity/environment, department_id of IT), message_draft (channel_id + body), knowledge_article (title + body + department_id), access_request (resource_type + resource_id + reason + fields.level/duration), bring_in (channel_id + person_id + reason), escalation (department_id + title + body with customer issue/troubleshooting/impact/priority), war_room (title + department_id + fields.severity + description), focus (title of task + assignee = self), learning (title = topic to learn). Include ids from tools.",
+      description: "Propose actions for the person to confirm — nothing happens until they confirm in the UI. Kinds: task, decision, meeting, help_request (department_id + service_id + title + description + priority + due_date), leave_request (fields.leave_type, fields.from, fields.to, fields.half_day, fields.backup_id, reason), bug_report (title + fields.steps/expected/actual/severity/environment, department_id of IT), message_draft (channel_id + body), knowledge_article (title + body + department_id), access_request (resource_type + resource_id + reason + fields.level/duration), bring_in (channel_id + person_id + reason), escalation (department_id + title + body with customer issue/troubleshooting/impact/priority), war_room (title + department_id + fields.severity + description), focus (title of task + assignee = self), learning (title = topic to learn), commitment (a promise the person is making: title = what, person_id = to whom (or fields.to_label for an outside party), due_date), request (self-service request: fields.kind = expense|travel|purchase|wfh|field_duty|late_explanation|overtime|comp_off|training|other, title, description, fields.amount, fields.from, fields.to), admin_action (ONLY for managers/admins — an organisational change to be reviewed by a human in Organization Control, never executed by you: fields.action = change_manager|change_department|change_role|freeze_user|unfreeze_user|set_status|grant_screen|revoke_screen|delegate|set_backup, person_id = the person affected, fields.target = new manager/department/role/screen/backup id or name, reason). Include ids from tools.",
       inputSchema: z.object({ actions: z.array(ProposalSchema).min(1).max(12) }),
       run: async ({ actions }) => {
         const level = assistant.action_level;
@@ -294,7 +294,79 @@ export function buildTools(ctx: Ctx, assistant: AssistantRow, state: BuddyToolSt
       run: async () => { const c = await companyContext(ctx.db); push({ kind: "my_work", title: "Company overview", link: "/command" }); return c.text; },
     }),
   ] : [];
-  return [...tools, ...leadTools, ...managerTools];
+
+  const orgTools = [
+    betaZodTool({
+      name: "org_who_reports_to",
+      description: "Reporting lines: direct and indirect reports of a person (use list_people for ids). Answers who reports to X, who is X's manager, how big is Y's team.",
+      inputSchema: z.object({ person_id: z.string(), depth: z.number().int().min(1).max(4).optional() }),
+      run: async ({ person_id, depth }) => { const { data, error } = await ctx.db.rpc("reports_of", { p_user: person_id, p_depth: depth ?? 2 } as never); if (error) return "not available: " + error.message; push({ kind: "org", id: person_id, title: "Reporting lines", link: `/people/${person_id}` }); return JSON.stringify(data); },
+    }),
+    betaZodTool({
+      name: "org_who_owns",
+      description: "Who owns a responsibility, process, system or area (responsibilities register + glossary + department services). Answers who owns invoicing, who handles the website, who approves X.",
+      inputSchema: z.object({ query: z.string().max(120) }),
+      run: async ({ query }) => { const { data, error } = await ctx.db.rpc("who_owns", { q: query } as never); if (error) return "not available: " + error.message; push({ kind: "org", title: `Ownership: ${query}`, link: "/admin/organization?tab=responsibilities" }); return JSON.stringify(data); },
+    }),
+    betaZodTool({
+      name: "org_what_if_absent",
+      description: "What breaks if a person is away between two dates: responsibilities without backup, tasks due, people they block, meetings, approvals, suggested backup. Allowed for yourself, your reports (managers) or management.",
+      inputSchema: z.object({ person_id: z.string(), from: z.string().describe("YYYY-MM-DD"), to: z.string().describe("YYYY-MM-DD") }),
+      run: async ({ person_id, from, to }) => { const { data, error } = await ctx.db.rpc("what_if_absent", { p_user: person_id, p_from: from, p_to: to } as never); if (error) return "not available: " + error.message; push({ kind: "org", id: person_id, title: "What-if absence", link: `/people/${person_id}` }); return JSON.stringify(data); },
+    }),
+    betaZodTool({
+      name: "get_waiting_on_me",
+      description: "Everything that is waiting on this person right now: tasks waiting, approvals, leave to approve, help requests, access requests, self-service requests, promises, delegation acknowledgements, workflow steps.",
+      inputSchema: z.object({}),
+      run: async () => { const { data, error } = await ctx.db.rpc("waiting_on_me", {} as never); if (error) return "not available: " + error.message; push({ kind: "my_work", title: "Waiting on you", link: "/my-work" }); return JSON.stringify(data); },
+    }),
+    betaZodTool({
+      name: "who_has_the_ball",
+      description: "For a task, project, help request, approval or request id: who it is currently with and why (waiting, approval, dependency, handoff).",
+      inputSchema: z.object({ type: z.enum(["task", "project", "help_request", "approval", "request"]), id: z.string() }),
+      run: async ({ type, id }) => { const { data, error } = await ctx.db.rpc("who_has_ball", { p_type: type, p_id: id } as never); if (error) return "not available: " + error.message; return JSON.stringify(data); },
+    }),
+    betaZodTool({
+      name: "get_my_attendance",
+      description: "This person's own attendance: recent days, hours, late marks, break minutes, and their own attendance exceptions (late/early/missing check-out/short day). Their own data only — the same thing they see in Privacy Center.",
+      inputSchema: z.object({ days: z.number().int().min(1).max(60).optional() }),
+      run: async ({ days }) => {
+        if (!allow("hr")) return "not available";
+        const n = days ?? 30; const to = new Date(); const from = new Date(to.getTime() - n * 86400000);
+        const f = from.toISOString().slice(0, 10), t = to.toISOString().slice(0, 10);
+        const [{ data: att }, { data: exc }] = await Promise.all([ctx.db.rpc("my_attendance", { p_from: f, p_to: t } as never), ctx.db.rpc("my_attendance_exceptions", { p_from: f, p_to: t } as never)]);
+        push({ kind: "attendance", title: "Your attendance", link: "/attendance" });
+        return JSON.stringify({ from: f, to: t, days: att, exceptions: exc });
+      },
+    }),
+    betaZodTool({
+      name: "get_my_commitments",
+      description: "Promises this person made and promises made to them (with due dates and overdue flags), plus their GHL Connect follow-ups/callbacks if they use Connect.",
+      inputSchema: z.object({}),
+      run: async () => { const [{ data: c }, { data: q }] = await Promise.all([ctx.db.rpc("my_commitments", {} as never), ctx.db.rpc("my_connect_queue", {} as never)]); push({ kind: "my_work", title: "Your promises", link: "/my-work" }); return JSON.stringify({ commitments: c, connect: q }); },
+    }),
+  ];
+  const orgManagerTools = opts.isManager ? [
+    betaZodTool({
+      name: "org_health",
+      description: "Organisation health: people without managers, teams without leads, groups without owners, unowned tasks, critical responsibilities without backup, probation overdue, contracts ending, floating users. Management only. Use before proposing admin_action fixes.",
+      inputSchema: z.object({}),
+      run: async () => { const { data, error } = await ctx.db.rpc("org_health", {} as never); if (error) return "not available: " + error.message; push({ kind: "org", title: "Organisation health", link: "/admin/organization" }); return JSON.stringify(data); },
+    }),
+    betaZodTool({
+      name: "org_change_impact",
+      description: "Preview (read-only) what changes if a person gets a new manager / department / role: reports, approvals, grants, channels affected. Use before proposing an admin_action; the human applies it in Organization Control.",
+      inputSchema: z.object({ person_id: z.string(), new_manager_id: z.string().nullable().optional(), new_department_id: z.string().nullable().optional(), new_role: z.string().nullable().optional() }),
+      run: async ({ person_id, new_manager_id, new_department_id, new_role }) => { const { data, error } = await ctx.db.rpc("change_impact", { p_user: person_id, p_new_manager: new_manager_id ?? null, p_new_department: new_department_id ?? null, p_new_role: new_role ?? null } as never); if (error) return "not available: " + error.message; return JSON.stringify(data); },
+    }),
+    betaZodTool({
+      name: "workforce_now",
+      description: "Live workforce picture for the departments this manager may see: present, remote, on break, not clocked in, missing check-outs, coverage gaps, operational inactivity (no task/message activity — never device monitoring). Never rank or judge people from it.",
+      inputSchema: z.object({}),
+      run: async () => { const { data, error } = await ctx.db.rpc("workforce_live", {} as never); if (error) return "not available: " + error.message; push({ kind: "attendance", title: "Workforce live", link: "/workforce" }); return JSON.stringify(data); },
+    }),
+  ] : [];
+  return [...tools, ...orgTools, ...leadTools, ...managerTools, ...orgManagerTools];
 }
 
 /* ------------------------------------------------------------------ answer post-processing ---- */

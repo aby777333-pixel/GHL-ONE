@@ -3,8 +3,9 @@
 import * as React from "react";
 import Link from "next/link";
 import { Check, Clock, Coffee, LogIn, LogOut, MapPin, Play, ShieldCheck, ChevronRight } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 import { Button, Card, CardHeader, Modal, Pill, Skeleton, Textarea, useToast } from "@/components/ui";
-import { cn } from "@/lib/utils";
+import { cn, type Tables } from "@/lib/utils";
 import { useClock } from "./useClock";
 import { fmtMinutes, istTime, MODES, MODE_LABEL, SHARE_LOCATION_KEY, type ClockMode, type ClockSnapshot } from "./attendanceUtils";
 
@@ -94,6 +95,66 @@ function ClockInForm({ onClose, onSubmit, busy, defaultMode }: { onClose: () => 
   );
 }
 
+/* --------------------------------------------------------- break modal */
+type BreakTypeRow = Pick<Tables<"break_types">, "id" | "key" | "name" | "max_minutes" | "paid" | "requires_note" | "color">;
+
+/** Break-type picker (from `break_types`) + optional note. Limits and coverage are enforced by the `clock` RPC. */
+export function BreakModal({ open, onClose, onSubmit, busy }: { open: boolean; onClose: () => void; onSubmit: (type: string, note: string) => Promise<void>; busy: boolean }) {
+  return (
+    <Modal open={open} onClose={onClose} title={<span className="inline-flex items-center gap-2"><Coffee size={15} className="text-muted" /> Start a break</span>} width={480}>
+      {open && <BreakForm onClose={onClose} onSubmit={onSubmit} busy={busy} />}
+    </Modal>
+  );
+}
+
+function BreakForm({ onClose, onSubmit, busy }: { onClose: () => void; onSubmit: (type: string, note: string) => Promise<void>; busy: boolean }) {
+  const [types, setTypes] = React.useState<BreakTypeRow[] | null>(null);
+  const [type, setType] = React.useState<string>("");
+  const [note, setNote] = React.useState("");
+  React.useEffect(() => {
+    let alive = true;
+    createClient().from("break_types").select("id,key,name,max_minutes,paid,requires_note,color").eq("active", true).order("sort_order").then(({ data }) => {
+      if (!alive) return;
+      const list = (data || []) as BreakTypeRow[];
+      setTypes(list);
+      setType((t) => t || list.find((x) => x.key === "tea")?.key || list[0]?.key || "tea");
+    });
+    return () => { alive = false; };
+  }, []);
+  const chosen = types?.find((t) => t.key === type);
+  const needsNote = !!chosen?.requires_note;
+  return (
+    <form onSubmit={(e) => { e.preventDefault(); if (needsNote && !note.trim()) return; onSubmit(type || "tea", note); }} className="space-y-[var(--s3)]">
+      <div>
+        <div className="label">What kind of break?</div>
+        {!types ? (
+          <div className="grid grid-cols-2 gap-2"><Skeleton className="h-12" /><Skeleton className="h-12" /></div>
+        ) : types.length === 0 ? (
+          <div className="text-xs text-muted">No break types are set up — a standard 15-minute break will be recorded.</div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {types.map((t) => (
+              <button key={t.id} type="button" onClick={() => setType(t.key)} className={cn("text-left rounded-[var(--radius-sm)] border p-2.5 transition-colors", type === t.key ? "border-[var(--brand)] bg-[var(--info-bg)]" : "hover:border-[var(--line-strong)]")}>
+                <div className="flex items-center gap-1.5 text-sm font-medium"><span className="w-2 h-2 rounded-full shrink-0" style={{ background: t.color }} />{t.name}</div>
+                <div className="text-[11px] text-muted mt-0.5 leading-snug num">up to {t.max_minutes} min{t.paid ? "" : " · unpaid"}{t.requires_note ? " · note needed" : ""}</div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <label className="block">
+        <span className="label">Note {needsNote ? <span className="text-danger">(required for this break type)</span> : <span className="text-muted font-normal">(optional)</span>}</span>
+        <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder={needsNote ? "e.g. Bank errand, back by 3" : "Anything your team should know"} style={{ minHeight: 48 }} maxLength={200} required={needsNote} />
+      </label>
+      <div className="text-[11px] text-muted">Your team sees that you are on a break, and you get a nudge when the time is up. Nothing else is tracked.</div>
+      <div className="flex items-center justify-end gap-2 pt-1">
+        <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
+        <Button type="submit" variant="primary" loading={busy} disabled={!types}><Coffee size={14} /> Start break{chosen ? ` · ${chosen.name}` : ""}</Button>
+      </div>
+    </form>
+  );
+}
+
 /* -------------------------------------------------------- action buttons */
 function ActionButtons({ snapshot, busy, onClockIn, onAct, size = "sm", full }: { snapshot: ClockSnapshot; busy: boolean; onClockIn: () => void; onAct: (kind: "clock_out" | "break_start" | "break_end") => void; size?: "xs" | "sm" | "md"; full?: boolean }) {
   const cls = full ? "flex-1" : undefined;
@@ -120,6 +181,7 @@ function useClockController() {
   const clock = useClock();
   const toast = useToast();
   const [modal, setModal] = React.useState(false);
+  const [breakModal, setBreakModal] = React.useState(false);
 
   async function clockIn(mode: ClockMode, note: string, share: boolean) {
     const r = await clock.act({ kind: "clock_in", mode, note, shareLocation: share });
@@ -128,11 +190,19 @@ function useClockController() {
     toast.push(`Clocked in · ${MODE_LABEL[mode]}${share ? " · location shared once" : ""}`, "success");
   }
   async function act(kind: "clock_out" | "break_start" | "break_end") {
+    if (kind === "break_start") { setBreakModal(true); return; }
     const r = await clock.act({ kind });
     if (r.error) return toast.push(r.error, "danger");
-    toast.push(kind === "clock_out" ? "Clocked out — have a good evening" : kind === "break_start" ? "Break started" : "Welcome back", kind === "clock_out" ? "info" : "success");
+    toast.push(kind === "clock_out" ? "Clocked out — have a good evening" : "Welcome back", kind === "clock_out" ? "info" : "success");
   }
-  return { ...clock, modal, setModal, clockIn, act };
+  async function startBreak(type: string, note: string) {
+    const r = await clock.act({ kind: "break_start", breakType: type, note });
+    if (r.error) return toast.push(r.error, "danger");
+    setBreakModal(false);
+    toast.push(r.breakMaxMinutes ? `Break started · up to ${r.breakMaxMinutes} min` : "Break started", "success");
+    if (r.coverageWarning) toast.push("Heads up: nobody else is marked available in your department right now — your lead has been told so they can cover.", "info");
+  }
+  return { ...clock, modal, setModal, breakModal, setBreakModal, clockIn, act, startBreak };
 }
 
 /* ------------------------------------------------------------ top bar */
@@ -191,6 +261,7 @@ export function ClockWidget({ className }: { className?: string }) {
         </div>
       )}
       <ClockInModal open={c.modal} onClose={() => c.setModal(false)} onSubmit={c.clockIn} busy={c.busy} defaultMode={s?.mode} />
+      <BreakModal open={c.breakModal} onClose={() => c.setBreakModal(false)} onSubmit={c.startBreak} busy={c.busy} />
     </div>
   );
 }
@@ -240,6 +311,7 @@ export function ClockCard({ className }: { className?: string }) {
         )}
       </div>
       <ClockInModal open={c.modal} onClose={() => c.setModal(false)} onSubmit={c.clockIn} busy={c.busy} defaultMode={s?.mode} />
+      <BreakModal open={c.breakModal} onClose={() => c.setBreakModal(false)} onSubmit={c.startBreak} busy={c.busy} />
     </Card>
   );
 }

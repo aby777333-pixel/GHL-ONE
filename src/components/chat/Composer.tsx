@@ -8,6 +8,10 @@ import { cn, bytes } from "@/lib/utils";
 import { VoiceRecorder } from "./VoiceRecorder";
 import { QUICK_EMOJIS, MORE_EMOJIS, draftKey, loadDraft, saveDraft, pruneMentions, storagePath, isImage } from "./lib";
 import type { ChatAttachment, PersonLite, SendPayload } from "./types";
+import { Sparkles } from "lucide-react";
+import { BUDDY_MENTION_ID } from "@/components/ai/buddyChat";
+
+const BUDDY_CANDIDATE: PersonLite = { id: BUDDY_MENTION_ID, full_name: "GHLBuddy", avatar_url: null, designation: "Ask GHL Buddy here" };
 
 type Pending = { id: string; file: File; preview?: string };
 
@@ -104,7 +108,9 @@ export function Composer({
   const candidates = React.useMemo(() => {
     if (!mention) return [];
     const q = mention.query.toLowerCase();
-    return people.filter((p) => (p.full_name || "").toLowerCase().includes(q)).slice(0, 6);
+    const list = people.filter((p) => (p.full_name || "").toLowerCase().includes(q)).slice(0, 6);
+    if ("ghlbuddy".startsWith(q.replace(/\s/g, "")) || "buddy".startsWith(q)) list.unshift(BUDDY_CANDIDATE);
+    return list.slice(0, 7);
   }, [mention, people]);
 
   function detectMention(value: string, caret: number) {
@@ -139,6 +145,11 @@ export function Composer({
     if (!mention) return;
     const el = taRef.current;
     const caret = el ? el.selectionStart : text.length;
+    if (p.id === BUDDY_MENTION_ID) {
+      insertAt("@GHLBuddy ", mention.start, caret);
+      setMention(null);
+      return;
+    }
     insertAt(`[@${p.full_name}] `, mention.start, caret);
     setMentionIds((ids) => (ids.includes(p.id) ? ids : [...ids, p.id]));
     setMention(null);
@@ -269,7 +280,11 @@ export function Composer({
               onClick={() => pickMention(p)}
               className={cn("w-full flex items-center gap-2.5 px-2 h-9 rounded-[var(--radius-sm)] text-left text-sm", i === mention.index ? "bg-[var(--neutral-bg)]" : "hover:bg-[var(--neutral-bg)]")}
             >
-              <Avatar name={p.full_name} src={p.avatar_url} size={24} />
+              {p.id === BUDDY_MENTION_ID ? (
+                <span className="w-6 h-6 rounded-full flex items-center justify-center text-white shrink-0" style={{ background: "linear-gradient(135deg, var(--brand), var(--violet))" }}><Sparkles size={12} /></span>
+              ) : (
+                <Avatar name={p.full_name} src={p.avatar_url} size={24} />
+              )}
               <span className="truncate">{p.full_name}</span>
               {p.designation && <span className="ml-auto text-[11px] text-muted truncate max-w-[40%]">{p.designation}</span>}
             </button>

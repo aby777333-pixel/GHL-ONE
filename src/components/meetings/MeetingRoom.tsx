@@ -12,6 +12,7 @@ import { cn, fmtDate, isManagerPlus, type Decision, type Meeting } from "@/lib/u
 import { RecordDecisionForm } from "@/components/decisions/RecordDecisionForm";
 import { MeetingAssistant, type MeetingAssistantHandle } from "@/components/ai/MeetingAssistant";
 import { useAIStatus } from "@/components/ai/useAIStatus";
+import { BuddyQuickActions } from "@/components/ai/BuddyQuickActions";
 import { AutosaveField } from "./AutosaveField";
 import { ActionItems, type LinkedTask, type MeetingAction } from "./ActionItems";
 import { PeopleMultiSelect } from "./PeopleMultiSelect";
@@ -108,9 +109,12 @@ export function MeetingRoom({ meeting: m, participantIds, actions, tasks, decisi
               {m.location && <span className="inline-flex items-center gap-1 text-xs text-muted"><MapPin size={12} /> {m.location}</span>}
             </div>
           </div>
-          {m.meeting_link && (
-            <a href={m.meeting_link} target="_blank" rel="noreferrer" className="btn btn-primary"><Video size={15} /> Join meeting</a>
-          )}
+          <div className="flex items-center gap-2 flex-wrap">
+            <BuddyQuickActions scope={{ meetingId: m.id, projectId: m.project_id || undefined, path: `/meetings/${m.id}` }} />
+            {m.meeting_link && (
+              <a href={m.meeting_link} target="_blank" rel="noreferrer" className="btn btn-primary"><Video size={15} /> Join meeting</a>
+            )}
+          </div>
         </div>
       </Card>
 

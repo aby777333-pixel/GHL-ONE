@@ -18,6 +18,7 @@ import { HandoffModal } from "@/components/tasks/HandoffModal";
 import { RecurrenceControl, describeRecurrence, parseRecurrence } from "@/components/tasks/RecurrenceControl";
 import type { TaskLite } from "@/components/tasks/TaskListView";
 import { humaniseHistory } from "@/components/projects/humanise";
+import { BuddyQuickActions } from "@/components/ai/BuddyQuickActions";
 import { stagesFor, stageOf, withStage } from "@/components/departments/stages";
 import {
   ago, cn, fmtDate, isManagerPlus, relDate, APPROVAL_STATUS_LABEL, APPROVAL_STATUS_TONE, APPROVAL_TYPES, STATUS_LABEL, STATUS_TONE, WAITING_LABEL, humanize,
@@ -366,6 +367,7 @@ export function TaskDetail({ data }: { data: TaskDetailData }) {
           </div>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
+          <BuddyQuickActions scope={{ taskId: task.id, projectId: task.project_id || undefined, path: `/tasks/${task.id}` }} />
           {!done && <Button variant="success" size="sm" onClick={() => setStatus("done")} className="hidden sm:inline-flex"><CheckCircle2 size={14} /> Mark done</Button>}
           {!done && !pendingHandoff && <Button variant="secondary" size="sm" onClick={() => setHandoffOpen(true)} className="hidden md:inline-flex" title="Hand off to another department"><ArrowRightLeft size={14} /> Hand off</Button>}
           <Menu

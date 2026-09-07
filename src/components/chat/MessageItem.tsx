@@ -8,6 +8,8 @@ import { cn } from "@/lib/utils";
 import { AttachmentView } from "./Attachment";
 import { QUICK_EMOJIS, MORE_EMOJIS, TOKEN_RE, groupReactions, parseAttachments, timeLabel, fullStamp, personName } from "./lib";
 import type { ChatMessage, MessageAction, PersonLite } from "./types";
+import { AIMarkdown } from "@/components/ai/AIMarkdown";
+import { buddyBody, isBuddyMessage } from "@/components/ai/buddyChat";
 
 /* ----------------------------------------------------------- Message body */
 export function MessageBody({ body, me, className }: { body: string; me?: string; className?: string }) {
@@ -127,6 +129,7 @@ export const MessageItem = React.memo(function MessageItem({ m, author, me, grou
   const [saving, setSaving] = React.useState(false);
   const pressRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const mine = m.author_id === me;
+  const buddy = isBuddyMessage(m.body);
   const attachments = React.useMemo(() => parseAttachments(m.attachments), [m.attachments]);
   const mentionsMe = m.mentions.includes(me);
 
@@ -188,6 +191,8 @@ export const MessageItem = React.memo(function MessageItem({ m, author, me, grou
       <div className="w-8 sm:w-9 shrink-0 pt-0.5">
         {grouped ? (
           <span className="hidden group-hover:block text-[10px] text-muted num leading-6 text-right pr-0.5">{timeLabel(m.created_at)}</span>
+        ) : buddy ? (
+          <span className="w-[34px] h-[34px] rounded-full flex items-center justify-center text-white" style={{ background: "linear-gradient(135deg, var(--brand), var(--violet))" }} title="GHL Buddy"><Sparkles size={16} /></span>
         ) : (
           <Link href={author ? `/people/${author.id}` : "#"} className="block">
             <Avatar name={author?.full_name} src={author?.avatar_url} size={34} />
@@ -198,7 +203,11 @@ export const MessageItem = React.memo(function MessageItem({ m, author, me, grou
       <div className="min-w-0 flex-1">
         {!grouped && (
           <div className="flex items-baseline gap-2 min-w-0">
-            <span className="font-semibold text-sm truncate">{mine ? "You" : personName(author)}</span>
+            {buddy ? (
+              <span className="font-semibold text-sm truncate text-[var(--violet)]">GHL Buddy <span className="font-normal text-muted">· asked by {mine ? "you" : personName(author)}</span></span>
+            ) : (
+              <span className="font-semibold text-sm truncate">{mine ? "You" : personName(author)}</span>
+            )}
             <span className="text-[11px] text-muted num shrink-0" title={fullStamp(m.created_at)}>
               {timeLabel(m.created_at)}
             </span>
@@ -238,9 +247,13 @@ export const MessageItem = React.memo(function MessageItem({ m, author, me, grou
           </div>
         ) : (
           <>
-            {m.body && (
+            {m.body && buddy ? (
+              <div className="mt-1 rounded-[var(--radius)] border-l-2 border-[var(--violet)] bg-[color-mix(in_oklab,var(--violet)_7%,transparent)] px-3 py-2">
+                <AIMarkdown source={buddyBody(m.body)} className="text-[15px] sm:text-sm" />
+              </div>
+            ) : m.body ? (
               <MessageBody body={m.body} me={me} />
-            )}
+            ) : null}
             {attachments.length > 0 && (
               <div className={cn("flex flex-wrap gap-2", m.body ? "mt-1.5" : "mt-0.5")}>
                 {attachments.map((a) => (

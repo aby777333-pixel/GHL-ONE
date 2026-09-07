@@ -12,7 +12,7 @@ import { navFor } from "./nav";
 import { CommandPalette } from "./CommandPalette";
 import { NotificationsPanel } from "./NotificationsPanel";
 import { QuickCapture } from "./QuickCapture";
-import { AskPanel } from "@/components/ai/AskPanel";
+import { BuddyPanel, useBuddy } from "@/components/ai";
 import { Blink } from "@/components/providers/ActivityProvider";
 import { ClockWidget } from "@/components/attendance";
 
@@ -47,6 +47,7 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
   const [captureOpen, setCaptureOpen] = React.useState(false);
   const [askOpen, setAskOpen] = React.useState(false);
   const closeAsk = React.useCallback(() => setAskOpen(false), []);
+  const { open: buddyOpen } = useBuddy();
   const [counts, setCounts] = React.useState<Counts>(initialCounts);
   const sections = React.useMemo(() => navFor(profile.role), [profile.role]);
   const dept = departments.find((d) => d.id === profile.department_id);
@@ -211,10 +212,10 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
               <Button variant="primary" size="sm" icon onClick={() => setCaptureOpen(true)} className="sm:hidden" aria-label="New">
                 <Plus size={16} />
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => setAskOpen(true)} className="hidden sm:inline-flex" title="Ask GHL (Ctrl+J)">
-                <Sparkles size={15} className="text-[var(--violet)]" /> Ask
+              <Button variant="ghost" size="sm" onClick={() => setAskOpen(true)} className="hidden sm:inline-flex" title="GHL Buddy (Ctrl+J)">
+                <Sparkles size={15} className="text-[var(--violet)]" /> Buddy
               </Button>
-              <Button variant="ghost" size="sm" icon onClick={() => setAskOpen(true)} className="sm:hidden" aria-label="Ask GHL">
+              <Button variant="ghost" size="sm" icon onClick={() => setAskOpen(true)} className="sm:hidden" aria-label="GHL Buddy">
                 <Sparkles size={16} className="text-[var(--violet)]" />
               </Button>
               <Button variant="ghost" size="sm" icon onClick={toggle} aria-label="Toggle theme">
@@ -261,13 +262,13 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
           <main className="flex-1 min-w-0 pb-16 lg:pb-0">{children}</main>
 
           {/* Mobile: floating Ask GHL button above the bottom nav (hidden inside chat conversations where the composer lives) */}
-          {!askOpen && !pathname.startsWith("/chat/") && (
+          {!askOpen && !buddyOpen && !pathname.startsWith("/chat/") && (
             <button
               type="button"
               onClick={() => setAskOpen(true)}
               className="lg:hidden fixed right-4 z-30 w-11 h-11 rounded-full text-white flex items-center justify-center active:scale-95 transition-transform"
               style={{ bottom: "calc(56px + 16px + env(safe-area-inset-bottom))", background: "linear-gradient(135deg, var(--brand), var(--violet))", boxShadow: "var(--shadow-lg)" }}
-              aria-label="Ask GHL"
+              aria-label="GHL Buddy"
             >
               <Sparkles size={20} />
             </button>
@@ -294,7 +295,7 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} onCapture={() => { setPaletteOpen(false); setCaptureOpen(true); }} onAsk={() => { setPaletteOpen(false); setAskOpen(true); }} />
       <NotificationsPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
       <QuickCapture open={captureOpen} onClose={() => setCaptureOpen(false)} />
-      <AskPanel open={askOpen} onClose={closeAsk} />
+      <BuddyPanel open={askOpen} onClose={closeAsk} />
     </ToastProvider>
   );
 }

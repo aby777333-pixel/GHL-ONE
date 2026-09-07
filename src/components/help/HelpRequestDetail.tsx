@@ -14,6 +14,7 @@ import { ago, bytes, cn, fmtDate, relDate, type Tables } from "@/lib/utils";
 import { HelpStatusPill, SlaCountdown, StatusStepper, useNow } from "./HelpBits";
 import { parseFormData, parseHelpAttachments, parseSchema, slaLabel, type HelpRequest, type Service } from "./lib";
 import { RequestActions, useCanWork } from "./RequestActions";
+import { BuddyQuickActions } from "@/components/ai/BuddyQuickActions";
 
 export type HelpDetailData = {
   request: HelpRequest;
@@ -114,6 +115,7 @@ export function HelpRequestDetail({ data }: { data: HelpDetailData }) {
             </div>
           </div>
           <div className="flex flex-col items-end gap-1.5 shrink-0">
+            <BuddyQuickActions scope={{ helpId: r.id, projectId: r.project_id || undefined, path: `/help/${r.id}` }} size="xs" />
             <span className="text-[11px] text-muted">Owner</span>
             {r.owner_id ? <PersonChip id={r.owner_id} size={24} /> : <span className="text-xs text-muted">Not yet accepted</span>}
             <SlaCountdown r={r} now={now} />

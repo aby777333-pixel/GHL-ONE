@@ -16,6 +16,7 @@ import { ProjectTaskBoard } from "@/components/projects/ProjectTaskBoard";
 import { Gantt } from "@/components/projects/Gantt";
 import { TeamPanel, MilestonesPanel, ChatPanel, FilesPanel, MeetingsPanel, DecisionsPanel, ApprovalsPanel, RisksPanel, ActivityPanel } from "@/components/projects/ProjectPanels";
 import { ProjectSummary } from "@/components/ai/ProjectSummary";
+import { BuddyQuickActions } from "@/components/ai/BuddyQuickActions";
 import { cn, isManagerPlus, relDate, CLASSIFICATION_LABEL, PROJECT_STATUSES, PROJECT_STATUS_LABEL, PROJECT_STATUS_TONE, type Project, type ProjectStatus, type Tables, type Classification, type TaskPriority } from "@/lib/utils";
 
 export type ProjectTask = TaskLite & { waiting_note: string | null };
@@ -124,6 +125,7 @@ export function ProjectRoom({ data }: { data: ProjectRoomData }) {
             </div>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
+            <BuddyQuickActions scope={{ projectId: project.id, path: `/projects/${project.id}` }} />
             {canEdit && <Button size="sm" variant="secondary" onClick={() => setEditOpen(true)}><Pencil size={14} /> Edit</Button>}
             {canEdit && !project.archived && <Button size="sm" variant="ghost" onClick={archive} title="Archive"><Archive size={14} /><span className="hidden sm:inline">Archive</span></Button>}
           </div>

@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BookOpen, Plus, Layers, SlidersHorizontal, ChevronRight } from "lucide-react";
+import { BookOpen, Plus, Layers, SlidersHorizontal, ChevronRight, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Avatar, Button, EmptyState, Modal, PageHeader, SearchInput, Spinner } from "@/components/ui";
 import { useSession } from "@/components/providers/SessionProvider";
@@ -81,7 +81,7 @@ export function WikiBrowser({ pages, initial }: { pages: WikiListItem[]; initial
         eyebrow="Knowledge"
         title="Company Wiki"
         subtitle="Policies, handbooks, standards and procedures — the single source of truth."
-        actions={isLeadPlus(profile.role) ? <Button variant="primary" onClick={() => setCreate(true)}><Plus size={15} /> New page</Button> : undefined}
+        actions={<><Link href="/wiki/knowledge" className="btn btn-secondary"><Sparkles size={14} className="text-[var(--accent)]" /> Approved knowledge</Link>{isLeadPlus(profile.role) && <Button variant="primary" onClick={() => setCreate(true)}><Plus size={15} /> New page</Button>}</>}
       />
 
       <div className="flex flex-col lg:flex-row gap-[var(--s4)]">

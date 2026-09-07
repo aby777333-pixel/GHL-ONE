@@ -10,6 +10,7 @@ import { PersonChip, PriorityPill, StatusPill } from "@/components/tasks/TaskBit
 import { useSession } from "@/components/providers/SessionProvider";
 import { createClient } from "@/lib/supabase/client";
 import { ago, cn, fmtDate, relDate, type Notification, type Task } from "@/lib/utils";
+import { InboxDigest } from "@/components/ai/InboxDigest";
 
 type Kind = Notification["kind"];
 type DueTask = Pick<Task, "id" | "title" | "status" | "priority" | "due_date" | "project_id" | "assignee_id" | "waiting_on" | "waiting_on_user_id">;
@@ -129,6 +130,8 @@ export function InboxClient({ initial, dueTasks }: { initial: Notification[]; du
           </>
         }
       />
+
+      <InboxDigest className="mb-[var(--s3)]" />
 
       {/* Today's focus */}
       <Card className="px-[var(--s4)] py-[var(--s3)] mb-[var(--s3)]">

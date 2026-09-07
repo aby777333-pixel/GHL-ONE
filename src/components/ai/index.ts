@@ -1,0 +1,11 @@
+export { BuddyPanel } from "./BuddyPanel";
+export { useBuddy, openBuddy, closeBuddy, toggleBuddy } from "./buddyStore";
+export type { BuddyOpenOptions } from "./buddyStore";
+export { BuddyQuickActions } from "./BuddyQuickActions";
+export { BuddyHomeCard } from "./BuddyHomeCard";
+export { InboxDigest } from "./InboxDigest";
+export { BuddyProposals } from "./BuddyProposals";
+export { AIMarkdown } from "./AIMarkdown";
+export { AIDisabledNote } from "./AIDisabledNote";
+export { useAIStatus } from "./useAIStatus";
+export { scopeFor, MODE_META } from "./buddyModes";

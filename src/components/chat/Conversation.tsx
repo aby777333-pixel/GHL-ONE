@@ -15,6 +15,8 @@ import { MessageItem, MessageActionSheet, MessageBody } from "./MessageItem";
 import { ThreadPanel } from "./ThreadPanel";
 import { RecordDecisionModal, ForwardModal, CatchUpModal, MembersDrawer } from "./ChatModals";
 import { ExtractTasksModal } from "@/components/ai/ExtractTasksModal";
+import { BuddyQuickActions } from "@/components/ai/BuddyQuickActions";
+import { BUDDY_MENTION_RE, askBuddyInChannel, isBuddyMessage } from "@/components/ai/buddyChat";
 import { BringInModal } from "./BringInModal";
 import { ConvertProjectModal } from "./ConvertProjectModal";
 import { VisibilityPill, OwnerChip } from "./VisibilityPill";
@@ -540,6 +542,16 @@ export function Conversation({
         return false;
       }
       handleIncoming({ ...data, reactions: [] });
+      // @GHLBuddy in the message → ask Buddy with this channel as context and post its answer as a reply from you.
+      if (p.body && BUDDY_MENTION_RE.test(p.body) && !isBuddyMessage(p.body)) {
+        askBuddyInChannel(channel.id, p.body)
+          .then(async ({ body }) => {
+            const { data: reply, error: rErr } = await createClient().from("messages").insert({ channel_id: channel.id, author_id: me, body, kind: "text", parent_id: parentId }).select("*").single();
+            if (rErr || !reply) throw new Error(rErr?.message || "Could not post Buddy's answer");
+            handleIncoming({ ...reply, reactions: [] });
+          })
+          .catch((e: Error & { disabled?: boolean }) => toastRef.current.push(e.disabled ? "GHL Buddy is not configured yet" : e.message || "GHL Buddy could not answer", "danger"));
+      }
       return true;
     },
     [channel.id, me, handleIncoming]
@@ -735,6 +747,11 @@ export function Conversation({
               <UserPlus size={17} />
             </Button>
           )}
+          <BuddyQuickActions
+            scope={{ channelId: channel.id, projectId: channel.project_id || undefined, path: `/chat/${channel.id}` }}
+            actions={[{ label: "What am I looking at", mode: "looking_at" }, { label: "Who can help", mode: "who_can_help" }, { label: "Draft a reply", mode: "draft", message: "Draft a reply to the latest message in this conversation" }, { label: "I'm stuck", mode: "stuck" }]}
+            extra={[{ label: "Summarise", mode: "chat", message: "Summarise this conversation: key points, decisions and who owes what" }, { label: "Unresolved", mode: "chat", message: "List the unresolved questions and open requests in this conversation, with who should answer each" }, { label: "Tasks we agreed", mode: "breakdown", message: "Extract the tasks we agreed in this conversation and propose them" }]}
+          />
           {unreadCount > 20 && (
             <Button size="sm" variant="secondary" onClick={() => setModal({ kind: "catchup" })} className="hidden sm:inline-flex">
               <Sparkles size={14} className="text-[var(--accent)]" /> Catch me up
@@ -859,7 +876,7 @@ export function Conversation({
                       m={m}
                       author={authorOf(m.author_id)}
                       me={me}
-                      grouped={!newDay && isContinuation(prev, m)}
+                      grouped={!newDay && isContinuation(prev, m) && !isBuddyMessage(m.body) && !isBuddyMessage(prev?.body)}
                       highlighted={highlightId === m.id}
                       canPin={canPin(m)}
                       replyCount={replyCounts[m.id]}

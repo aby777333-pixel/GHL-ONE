@@ -9,6 +9,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { Avatar, Button, Card, CardHeader, EmptyState, Field, Input, Modal, Select, useToast } from "@/components/ui";
 import { ClassificationPicker } from "@/components/pickers";
+import { BuddyQuickActions } from "@/components/ai/BuddyQuickActions";
 import { useSession } from "@/components/providers/SessionProvider";
 import { ago, bytes, cn, fmtDate, humanize, isAdminRole, isManagerPlus, type Classification } from "@/lib/utils";
 import type { Json } from "@/lib/database.types";
@@ -126,6 +127,7 @@ export function FileDetail({ file, audit }: { file: FileDetailItem; audit: FileA
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap shrink-0">
+          <BuddyQuickActions scope={{ fileId: file.id, projectId: file.project?.id || undefined, path: `/files/${file.id}` }} />
           {cv && <Button variant="primary" onClick={() => download(cv.storage_path, file.name)}><Download size={15} /> Download</Button>}
           <Button onClick={() => setNewVersion(true)}><Upload size={15} /> New version</Button>
           <Link href={`/approvals?new=1&file=${file.id}&title=${encodeURIComponent(`Approve ${file.name}`)}`} className="btn btn-secondary"><CheckSquare size={15} /> Request approval</Link>

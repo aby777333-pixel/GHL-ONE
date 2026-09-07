@@ -10,6 +10,7 @@ import { callAI, type AskResponse } from "@/lib/ai/types";
 import { cn, humanize } from "@/lib/utils";
 import { useAIStatus } from "@/components/ai/useAIStatus";
 import { AIMarkdown } from "@/components/ai/AIMarkdown";
+import { BuddyControlCenter } from "./BuddyControlCenter";
 
 type UsageRow = { feature: string; user_id: string | null; input_tokens: number; output_tokens: number; cache_read_tokens: number; cache_write_tokens: number; created_at: string; latency_ms: number | null };
 type Totals = { calls: number; input: number; output: number; cacheRead: number; cacheWrite: number; cost: number };
@@ -30,8 +31,11 @@ const FEATURE_LABEL: Record<string, string> = {
   delegate_parse: "Delegation parsing",
   catch_up: "Catch me up",
   search: "AI search",
+  inbox_digest: "Inbox digest",
+  "buddy:chat": "GHL Buddy",
+  "buddy:stuck": "Buddy · I'm stuck",
 };
-const featureLabel = (f: string) => FEATURE_LABEL[f] || humanize(f);
+const featureLabel = (f: string) => FEATURE_LABEL[f] || (f.startsWith("buddy:") ? `Buddy · ${humanize(f.slice(6))}` : humanize(f));
 
 function emptyTotals(): Totals {
   return { calls: 0, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 };
@@ -184,6 +188,9 @@ export function IntelligenceAdmin() {
           </div>
         </Card>
       </div>
+
+      {/* GHL Buddy control center */}
+      <BuddyControlCenter />
 
       {/* Usage */}
       <div className="flex items-center justify-between gap-2">

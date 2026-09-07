@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Button, Field, Input, Modal, Select, Textarea, useToast } from "@/components/ui";
+import { Button, Field, Input, Modal, Textarea, useToast } from "@/components/ui";
 import { DepartmentPicker, ProjectPicker } from "@/components/pickers";
 import { useSession } from "@/components/providers/SessionProvider";
 import { createClient } from "@/lib/supabase/client";

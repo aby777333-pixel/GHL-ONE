@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { isToday, isPast, isTomorrow, differenceInCalendarDays } from "date-fns";
-import { AtSign, CheckSquare, Clock, FolderKanban, Hourglass, ListChecks, Plus, Sun, Video, Zap } from "lucide-react";
+import { AtSign, CheckSquare, FolderKanban, Hourglass, ListChecks, Plus, Sun, Video, Zap } from "lucide-react";
 import { Button, Card, CardHeader, EmptyState, Modal, PageHeader, Pill, Progress, Tabs, Avatar } from "@/components/ui";
 import { TaskRow, PersonChip, type TaskRowData } from "@/components/tasks/TaskBits";
 import { QuickTaskForm } from "@/components/tasks/QuickTaskForm";

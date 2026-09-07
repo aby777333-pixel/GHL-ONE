@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { RealtimeChannel, RealtimePostgresInsertPayload, RealtimePostgresUpdatePayload } from "@supabase/supabase-js";
-import { ChevronLeft, Search, Pin, Bell, BellOff, MoreVertical, Users, FolderKanban, Hash, Lock, Megaphone, Building2, CheckSquare, Sparkles, ArrowDown, X, Link2, LogOut, Info, MoonStar } from "lucide-react";
+import { ChevronLeft, Search, Pin, Bell, BellOff, MoreVertical, Users, FolderKanban, Hash, Lock, Megaphone, Building2, CheckSquare, Sparkles, ArrowDown, X, Link2, LogOut, Info, MoonStar, UserPlus, FolderPlus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useSession } from "@/components/providers/SessionProvider";
 import { Avatar, AvatarStack, Button, Menu, MenuItem, Modal, Pill, Spinner, useToast } from "@/components/ui";
@@ -15,6 +15,9 @@ import { MessageItem, MessageActionSheet, MessageBody } from "./MessageItem";
 import { ThreadPanel } from "./ThreadPanel";
 import { RecordDecisionModal, ForwardModal, CatchUpModal, MembersDrawer } from "./ChatModals";
 import { ExtractTasksModal } from "@/components/ai/ExtractTasksModal";
+import { BringInModal } from "./BringInModal";
+import { ConvertProjectModal } from "./ConvertProjectModal";
+import { VisibilityPill, OwnerChip } from "./VisibilityPill";
 import { PAGE_SIZE, INITIAL_PAGE, dayLabel, isContinuation, isNewDay, mergeMessages, personName, firstName, timeLabel, parseAttachments } from "./lib";
 import type { ChannelMember, ChatMessage, MessageAction, PersonLite, Reaction, SendPayload } from "./types";
 
@@ -51,7 +54,7 @@ function inQuietHours(q: QuietHours | null, nowMin: number) {
   const e = toMinutes(q.end, 8 * 60);
   return s < e ? nowMin >= s && nowMin < e : nowMin >= s || nowMin < e;
 }
-type ModalState = { kind: "task" | "extract" | "decision" | "forward" | "catchup" | "members"; m?: ChatMessage } | null;
+type ModalState = { kind: "task" | "extract" | "decision" | "forward" | "catchup" | "members" | "bringin" | "convert"; m?: ChatMessage } | null;
 
 function DateSeparator({ label }: { label: string }) {
   return (
@@ -677,6 +680,9 @@ export function Conversation({
   const myRow = members.find((m) => m.user_id === me);
   const isMember = !!myRow;
   const muted = !!myRow?.muted;
+  const isOwner = channel.owner_id === me || channel.co_owner_id === me;
+  const canBringIn = !isDm && isMember;
+  const canConvert = !isDm && channel.type !== "project" && channel.type !== "task" && channel.type !== "help" && !channel.project_id && (isOwner || managerPlus);
   const canPin = (m: ChatMessage) => m.author_id === me || managerPlus;
   const lastMine = React.useMemo(() => [...messages].reverse().find((m) => m.author_id === me && !m.deleted_at && m.kind !== "system"), [messages, me]);
   const seenLabel = React.useMemo(() => {
@@ -714,13 +720,21 @@ export function Conversation({
           <span className="min-w-0">
             <span className="flex items-center gap-1.5 font-semibold text-sm truncate">
               <span className="truncate">{title}</span>
-              {channel.is_private && !isDm && <Lock size={12} className="text-muted shrink-0" />}
+              {!isDm && <VisibilityPill visibility={channel.visibility} />}
               {channel.is_readonly && <Pill tone="tone-warn" className="shrink-0">read-only</Pill>}
             </span>
-            <span className={cn("block text-[11px] truncate", isDm && other && onlineSet.has(other.id) ? "text-success" : "text-muted")}>{subtitle}</span>
+            <span className="flex items-center gap-1.5 min-w-0">
+              <span className={cn("block text-[11px] truncate min-w-0", isDm && other && onlineSet.has(other.id) ? "text-success" : "text-muted")}>{subtitle}</span>
+              {!isDm && channel.owner_id && <OwnerChip id={channel.owner_id} className="hidden sm:inline-flex" />}
+            </span>
           </span>
         </button>
         <div className="flex items-center gap-0.5 shrink-0">
+          {canBringIn && (
+            <Button variant="ghost" size="sm" icon onClick={() => setModal({ kind: "bringin" })} aria-label="Add people" title="Bring someone in">
+              <UserPlus size={17} />
+            </Button>
+          )}
           {unreadCount > 20 && (
             <Button size="sm" variant="secondary" onClick={() => setModal({ kind: "catchup" })} className="hidden sm:inline-flex">
               <Sparkles size={14} className="text-[var(--accent)]" /> Catch me up
@@ -748,6 +762,8 @@ export function Conversation({
           >
             <MenuItem icon={<Sparkles size={14} className="text-[var(--accent)]" />} onClick={() => setModal({ kind: "catchup" })}>{unreadCount > 20 ? "Catch me up" : "Summarise recent"}</MenuItem>
             <MenuItem icon={<Info size={14} />} onClick={() => setModal({ kind: "members" })}>Details & members</MenuItem>
+            {canBringIn && <MenuItem icon={<UserPlus size={14} />} onClick={() => setModal({ kind: "bringin" })}>Bring someone in</MenuItem>}
+            {canConvert && <MenuItem icon={<FolderPlus size={14} />} onClick={() => setModal({ kind: "convert" })}>Convert to project</MenuItem>}
             {isMember && <MenuItem icon={muted ? <Bell size={14} /> : <BellOff size={14} />} onClick={toggleMute}>{muted ? "Unmute" : "Mute"} notifications</MenuItem>}
             {channel.project_id && <MenuItem icon={<FolderKanban size={14} />} onClick={() => router.push(`/projects/${channel.project_id}`)}>Open project</MenuItem>}
             <MenuItem icon={<Link2 size={14} />} onClick={() => navigator.clipboard.writeText(`${window.location.origin}/chat/${channel.id}`).then(() => toast.push("Link copied", "success"))}>Copy channel link</MenuItem>
@@ -984,6 +1000,21 @@ export function Conversation({
       />
 
       <MembersDrawer open={modal?.kind === "members"} onClose={() => setModal(null)} channel={channel} members={members} online={online} onAdd={addMember} onLeave={leave} />
+
+      <BringInModal
+        open={modal?.kind === "bringin"}
+        onClose={() => setModal(null)}
+        channel={channel}
+        memberIds={members.map((m) => m.user_id)}
+        onAdded={(userId) => {
+          if (members.some((m) => m.user_id === userId)) return;
+          const p = people.find((x) => x.id === userId) || null;
+          const now = new Date().toISOString();
+          setMembers((ms) => [...ms, { channel_id: channel.id, user_id: userId, role: "member", last_read_at: now, muted: false, joined_at: now, profile: p }]);
+        }}
+      />
+
+      <ConvertProjectModal open={modal?.kind === "convert"} onClose={() => setModal(null)} channel={channel} />
     </div>
   );
 }

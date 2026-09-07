@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plug, Plus, Pencil, Trash2, Hash, Webhook, ArrowDownToLine, Copy, RefreshCw, Eye, EyeOff, CalendarDays, GitBranch, MessageCircle, Video, PenTool, Palette, HardDrive, ChevronDown, ChevronRight, Info, Workflow } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { Button, Card, CardHeader, EmptyState, Field, Input, Modal, Pill, Select, Spinner, useToast } from "@/components/ui";
+import { Button, Card, CardHeader, Field, Input, Modal, Pill, Select, Spinner, useToast } from "@/components/ui";
 import { PersonPicker, DepartmentPicker, ProjectPicker } from "@/components/pickers";
 import { useSession } from "@/components/providers/SessionProvider";
 import { ago, cn, fmtDate, PRIORITIES, PRIORITY_LABEL, type Tables } from "@/lib/utils";

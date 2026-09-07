@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Mail, Phone, Clock, Globe, CalendarDays, Pencil, Video, PhoneCall, CalendarPlus, ListPlus, Briefcase, FolderKanban, Users, Palmtree, ExternalLink, ChevronRight, BellRing, Rss } from "lucide-react";
+import { ArrowLeft, Mail, Phone, Clock, Globe, CalendarDays, Pencil, Video, PhoneCall, CalendarPlus, ListPlus, Briefcase, FolderKanban, Users, Palmtree, ExternalLink, ChevronRight, BellRing, Rss, ShieldCheck } from "lucide-react";
 import { Avatar, Button, Card, CardHeader, EmptyState, Pill, Progress } from "@/components/ui";
 import { TaskRow, type TaskRowData } from "@/components/tasks/TaskBits";
 import { useSession } from "@/components/providers/SessionProvider";
@@ -13,6 +13,7 @@ import { ChatButton, RolePill } from "./PeopleBits";
 import { ProfileEditor } from "./ProfileEditor";
 import { NotificationSettings } from "./NotificationSettings";
 import { CalendarFeedCard } from "@/components/calendar/CalendarFeedCard";
+import { PrivacyCenter } from "./PrivacyCenter";
 
 export type ProfileData = Profile & {
   manager: { id: string; full_name: string; avatar_url: string | null; designation: string | null } | null;
@@ -147,6 +148,10 @@ export function ProfileView({ person, tasks, projects, reports, leaves, edit }: 
               <Card id="calendar" className="scroll-mt-24">
                 <CardHeader title="Calendar subscription" subtitle="See your GHL ONE schedule inside Google, Outlook or Apple Calendar." action={<Rss size={15} className="text-muted" />} />
                 <div className="px-[var(--s4)] pb-[var(--s4)]"><CalendarFeedCard /></div>
+              </Card>
+              <Card id="privacy" className="scroll-mt-24">
+                <CardHeader title="Privacy Center" subtitle="Exactly what GHL ONE records about you, who can see it, and your private record." action={<ShieldCheck size={15} className="text-muted" />} />
+                <div className="px-[var(--s4)] pb-[var(--s4)]"><PrivacyCenter /></div>
               </Card>
             </>
           )}

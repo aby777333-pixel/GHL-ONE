@@ -14,6 +14,7 @@ import { NotificationsPanel } from "./NotificationsPanel";
 import { QuickCapture } from "./QuickCapture";
 import { AskPanel } from "@/components/ai/AskPanel";
 import { Blink } from "@/components/providers/ActivityProvider";
+import { ClockWidget } from "@/components/attendance";
 
 export type Counts = { inbox: number; approvals: number; chat: number };
 
@@ -203,6 +204,7 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
               <span className="ml-auto hidden sm:inline-flex gap-1"><Kbd>Ctrl</Kbd><Kbd>K</Kbd></span>
             </button>
             <div className="ml-auto flex items-center gap-1 shrink-0">
+              <ClockWidget className="mr-1" />
               <Button variant="primary" size="sm" onClick={() => setCaptureOpen(true)} className="hidden sm:inline-flex">
                 <Plus size={15} /> New
               </Button>

@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Pencil, Check, X, Trash2, Users, ChevronDown, ChevronRight, UserRound } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { Avatar, Button, Card, CardHeader, EmptyState, Field, Input, Modal, Textarea, useToast } from "@/components/ui";
+import { Avatar, Button, Card, EmptyState, Field, Input, Modal, Textarea, useToast } from "@/components/ui";
 import { PersonPicker } from "@/components/pickers";
 import { useSession } from "@/components/providers/SessionProvider";
 import { cn, slugify, type Tables } from "@/lib/utils";

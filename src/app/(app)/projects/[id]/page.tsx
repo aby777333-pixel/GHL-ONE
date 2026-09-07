@@ -2,15 +2,20 @@ import { notFound } from "next/navigation";
 import { getSession } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { ProjectRoom, type ProjectRoomData } from "@/components/projects/ProjectRoom";
+import { RestrictedResource } from "@/components/access/RequestAccess";
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export default async function ProjectPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string }> }) {
   const { id } = await params;
   const { tab } = await searchParams;
+  if (!UUID_RE.test(id)) notFound();
   await getSession();
   const supabase = await createClient();
 
   const { data: project } = await supabase.from("projects").select("*").eq("id", id).maybeSingle();
-  if (!project) notFound();
+  // RLS hides projects the viewer may not open — offer "Request access" instead of a dead end.
+  if (!project) return <RestrictedResource kind="project" backHref="/projects" backLabel="All projects" resource_type="project" resource_id={id} resource_label={`Project ${id.slice(0, 8)}`} project_id={id} />;
 
   const [
     { data: members },

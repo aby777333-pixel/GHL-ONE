@@ -4,9 +4,10 @@ import Link from "next/link";
 import { Card, CardHeader, EmptyState, PageHeader, Pill, Avatar } from "@/components/ui";
 import { TaskRow, type TaskRowData } from "@/components/tasks/TaskBits";
 import { useSession } from "@/components/providers/SessionProvider";
-import { cn, fmtDate, greeting } from "@/lib/utils";
+import { fmtDate, greeting } from "@/lib/utils";
 import { AnnouncementsCard, ApprovalsCard, MeetingsCard, MessagesCard, ProjectsCard, SectionLink, TodayCard, personalBrief, type Personal } from "./shared";
 import { BriefCard } from "@/components/ai/BriefCard";
+import { TeamTodayCard } from "@/components/attendance";
 
 export type WorkloadRow = { user_id: string; full_name: string; avatar_url: string | null; designation: string | null; department_id: string | null; presence: string; open_tasks: number; urgent: number; overdue: number; blocked: number; waiting: number; due_week: number; on_leave: boolean; est_hours: number };
 
@@ -73,6 +74,7 @@ export function HomeManager({ personal, workload, teamTasks, projects }: { perso
           <TodayCard p={personal} />
         </div>
         <div className="space-y-[var(--s3)]">
+          <TeamTodayCard departmentId={profile.role === "manager" || profile.role === "team_lead" || profile.role === "department_head" ? profile.department_id : null} />
           <ApprovalsCard items={personal.approvals} />
           <MessagesCard unread={personal.unreadTotal} />
           <MeetingsCard items={personal.meetings} />

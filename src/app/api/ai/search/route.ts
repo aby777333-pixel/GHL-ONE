@@ -36,6 +36,6 @@ export async function POST(req: Request) {
     const listing = results.map((r) => `- ${r.kind}: [${r.title}](${r.link}) — ${r.subtitle || ""}`).join("\n") || "No results.";
     const { text, usage: u2 } = await complete({ system: SEARCH_SYSTEM, user: `Query: ${q}\nIntent: ${exp.intent}\n\nResults:\n${listing}`, effort: "low", maxTokens: 600 });
     await logUsage(ctx.db, { orgId: ctx.orgId, userId: ctx.userId, feature: "search", usage: { input_tokens: (u1.input_tokens || 0) + (u2.input_tokens || 0), output_tokens: (u1.output_tokens || 0) + (u2.output_tokens || 0), cache_read_input_tokens: (u1.cache_read_input_tokens || 0) + (u2.cache_read_input_tokens || 0), cache_creation_input_tokens: (u1.cache_creation_input_tokens || 0) + (u2.cache_creation_input_tokens || 0) }, latencyMs: Date.now() - started });
-    return { answer: text, terms, results: results.map(({ score: _s, ...r }) => r) };
+    return { answer: text, terms, results: results.map((r) => ({ kind: r.kind, id: r.id, title: r.title, subtitle: r.subtitle, link: r.link })) };
   });
 }

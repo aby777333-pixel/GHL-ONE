@@ -15,7 +15,10 @@ import { HandoffActions, readPackage, type HandoffRow } from "@/components/tasks
 import { ProjectCard, type ProjectSummary } from "@/components/projects/ProjectCard";
 import { DepartmentHealth, departmentScore, HealthRing, scoreTone } from "@/components/departments/DepartmentCard";
 import { stagesFor, stageTag } from "@/components/departments/stages";
-import { cn, fmtDate, isAdminRole, isLeadPlus, relDate, ROLE_LABEL, STATUS_LABEL, TASK_STATUSES, type Department, type Tables } from "@/lib/utils";
+import { DepartmentChannels, DepartmentOpenRequests, DepartmentServices, DepartmentStatusPanel } from "@/components/departments/DepartmentPortal";
+import type { HelpRow } from "@/components/help/HelpBits";
+import type { Service } from "@/components/help/lib";
+import { cn, fmtDate, isAdminRole, isLeadPlus, isManagerPlus, relDate, ROLE_LABEL, STATUS_LABEL, TASK_STATUSES, type Channel, type Department, type Tables } from "@/lib/utils";
 
 type Member = Pick<Tables<"profiles">, "id" | "full_name" | "avatar_url" | "designation" | "role" | "presence" | "email" | "manager_id">;
 type Workload = { user_id: string; open_tasks: number; urgent: number; overdue: number; blocked: number; waiting: number; due_week: number; on_leave: boolean; est_hours: number };
@@ -31,6 +34,9 @@ export type DepartmentWorkspaceData = {
   files: FileWithVersions[];
   workload: Workload[];
   handoffs: IncomingHandoff[];
+  services: Service[];
+  requests: HelpRow[];
+  openChannels: Pick<Channel, "id" | "name" | "description" | "purpose" | "visibility" | "type" | "last_message_at">[];
   initialTab: string;
 };
 
@@ -49,6 +55,8 @@ export function DepartmentWorkspace({ data }: { data: DepartmentWorkspaceData })
   const [desc, setDesc] = React.useState(d.description || "");
   const [busy, setBusy] = React.useState(false);
   const admin = isAdminRole(profile.role);
+  const inDept = profile.department_id === d.id;
+  const canRunDept = admin || isManagerPlus(profile.role) || d.head_id === profile.id || d.on_duty_user_id === profile.id || (inDept && isLeadPlus(profile.role));
   const score = data.health ? departmentScore(data.health) : 100;
   const stages = stagesFor(d.slug);
 
@@ -115,6 +123,8 @@ export function DepartmentWorkspace({ data }: { data: DepartmentWorkspaceData })
       <div className="anim-fade-in" key={tab}>
         {tab === "overview" && (
           <div className="space-y-[var(--s4)]">
+            <DepartmentStatusPanel d={d} canEdit={canRunDept} />
+
             {/* Workflow strip */}
             <Card className="p-[var(--s4)]">
               <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
@@ -134,6 +144,13 @@ export function DepartmentWorkspace({ data }: { data: DepartmentWorkspaceData })
             </Card>
 
             {data.handoffs.length > 0 && <IncomingHandoffs handoffs={data.handoffs} />}
+
+            <DepartmentServices d={d} services={data.services} canManage={admin || (inDept && isLeadPlus(profile.role))} />
+
+            <div className="grid gap-[var(--s4)] lg:grid-cols-[1.618fr_1fr]">
+              <DepartmentOpenRequests d={d} requests={data.requests} canWork={inDept || isManagerPlus(profile.role)} />
+              <DepartmentChannels d={d} channels={data.openChannels} />
+            </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <Stat label="People" value={data.members.length} icon={<Users size={14} />} onClick={() => go("people")} />

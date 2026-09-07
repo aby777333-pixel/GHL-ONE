@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Shield, Users, MailPlus, Building2, Settings2, ScrollText, LayoutTemplate, Sparkles, Siren, Plug, Activity, KeyRound, Crown, Eye, ToggleRight, ShieldAlert, Hourglass, Inbox } from "lucide-react";
+import { Shield, Users, MailPlus, Building2, Settings2, ScrollText, LayoutTemplate, Sparkles, Siren, Plug, Activity, KeyRound, Crown, Eye, ToggleRight, ShieldAlert, Hourglass, Inbox, HeartHandshake, Workflow } from "lucide-react";
 import { PageHeader, Tabs, EmptyState } from "@/components/ui";
 import { useSession } from "@/components/providers/SessionProvider";
 import { Blink, useSeen } from "@/components/providers/ActivityProvider";
@@ -24,6 +24,7 @@ import { VisibilityAdmin } from "./VisibilityAdmin";
 import { FeatureFlags, type FeatureFlagRow } from "./FeatureFlags";
 import { SecurityCenter, type ExpiringGrant, type GuestRow, type SecurityAuditRow, type SecurityEventRow } from "./SecurityCenter";
 import { ADMIN_TABS, tabAllowed, type AdminTab } from "./perms";
+import { HrConsole, WorkflowsView, type HrData, type HrView } from "./hr";
 
 export type { AdminTab } from "./perms";
 
@@ -49,8 +50,13 @@ export type ControlPlaneData = {
   expiringGrants: ExpiringGrant[];
 };
 
-export function AdminShell({ tab, people, invites, departments, teams, org, projectTemplates, taskTemplates, escalationRules, integrations, channels, plane }: {
+export function AdminShell({ tab, people, invites, departments, teams, org, projectTemplates, taskTemplates, escalationRules, integrations, channels, plane, hr, hrView, run, user }: {
   tab: AdminTab;
+  /** People Operations data (only loaded when the `hr` / `workflows` tab is allowed). */
+  hr: HrData | null;
+  hrView: HrView;
+  run?: string | null;
+  user?: string | null;
   people: AdminPerson[];
   invites: InviteItem[];
   departments: Tables<"departments">[];
@@ -74,6 +80,8 @@ export function AdminShell({ tab, people, invites, departments, teams, org, proj
     now: { label: <span className="inline-flex items-center gap-1.5"><Activity size={14} /> Company Now</span> },
     people: { label: <span className="inline-flex items-center gap-1.5"><Users size={14} /> People</span>, count: pending || undefined },
     invites: { label: <span className="inline-flex items-center gap-1.5"><MailPlus size={14} /> Invites</span>, count: invites.filter((i) => !i.accepted_at).length || undefined },
+    hr: { label: <span className="inline-flex items-center gap-1.5"><HeartHandshake size={14} /> People Ops</span>, count: hr ? hr.assetRequests.filter((r) => r.status === "pending").length + hr.transfers.filter((t) => t.status === "proposed").length || undefined : undefined },
+    workflows: { label: <span className="inline-flex items-center gap-1.5"><Workflow size={14} /> Workflows</span>, count: hr ? hr.runs.filter((r) => r.status === "running").length || undefined : undefined },
     departments: { label: <span className="inline-flex items-center gap-1.5"><Building2 size={14} /> Departments</span> },
     access: { label: <span className="inline-flex items-center gap-1.5"><KeyRound size={14} /> Access<Blink zones={plane.accessRequests.filter((r) => r.status === "pending").map((r) => `access:${r.id}`)} /></span>, count: governance.accessPending || undefined },
     roles: { label: <span className="inline-flex items-center gap-1.5"><Crown size={14} /> Admin roles</span> },
@@ -102,6 +110,8 @@ export function AdminShell({ tab, people, invites, departments, teams, org, proj
           {current === "now" && <CompanyNow initial={plane.companyNow} initialCollab={plane.collab} />}
           {current === "people" && <PeopleAdmin people={people} />}
           {current === "invites" && <InvitesAdmin invites={invites} />}
+          {current === "hr" && hr && <HrConsole data={hr} perms={perms} view={hrView} run={run} user={user} />}
+          {current === "workflows" && hr && <WorkflowsView runs={hr.runs} templates={hr.templates} people={hr.people} perms={perms} initialRun={run} showTemplates={allowed("hr")} />}
           {current === "departments" && <DepartmentsAdmin departments={departments} teams={teams} />}
           {current === "access" && <AccessAdmin requests={plane.accessRequests} grants={plane.accessGrants} perms={perms} isPrimary={plane.isPrimary} />}
           {current === "roles" && <AdminRoles roles={plane.adminRoles} assignments={plane.adminAssignments} isPrimary={plane.isPrimary} primaryAdminId={plane.primaryAdminId} orgId={plane.orgId} />}

@@ -12,6 +12,7 @@ import type { FeatureFlagRow } from "@/components/admin/FeatureFlags";
 import type { ExpiringGrant, GuestRow, SecurityAuditRow, SecurityEventRow } from "@/components/admin/SecurityCenter";
 import { canOpenConsole, isAdminTab, tabAllowed, type AdminTab } from "@/components/admin/perms";
 import { resolveResourceLabels } from "@/components/admin/resourceLabels";
+import { asHrView, EMPTY_HR, type HrData } from "@/components/admin/hr";
 
 export const metadata = { title: "Administration" };
 
@@ -21,6 +22,47 @@ const DAY = 86_400_000;
 function timeWindow() {
   const nowMs = Date.now();
   return { nowMs, nowIso: new Date(nowMs).toISOString(), in7d: new Date(nowMs + 7 * DAY).toISOString(), stale: new Date(nowMs - 2 * DAY).toISOString() };
+}
+
+/** HR console data. `full` = the People Ops tab (everything); otherwise only what the Workflows tab needs. */
+async function loadHrData(supabase: Awaited<ReturnType<typeof createClient>>, full: boolean): Promise<HrData> {
+  const skip = <T,>(v: T) => Promise.resolve({ data: v });
+  const [
+    { data: people }, { data: templates }, { data: runs }, { data: shifts }, { data: teams }, { data: transfers }, { data: roleChanges }, { data: probationReviews },
+    { data: assets }, { data: assignments }, { data: assetRequests }, { data: jobs }, { data: candidates }, { data: interviews },
+  ] = await Promise.all([
+    supabase.from("profiles").select("*").order("is_active", { ascending: false }).order("full_name"),
+    supabase.from("workflow_templates").select("*").order("kind").order("name"),
+    supabase.from("workflow_runs").select("*").order("started_at", { ascending: false }).limit(300),
+    full ? supabase.from("shifts").select("id,name,start_time,end_time,color,active").order("name") : skip([] as HrData["shifts"]),
+    full ? supabase.from("teams").select("id,name,department_id").order("name") : skip([] as HrData["teams"]),
+    full ? supabase.from("employee_transfers").select("*").order("created_at", { ascending: false }).limit(200) : skip([] as HrData["transfers"]),
+    full ? supabase.from("role_changes").select("*").order("created_at", { ascending: false }).limit(200) : skip([] as HrData["roleChanges"]),
+    full ? supabase.from("probation_reviews").select("*").order("review_date", { ascending: false }).limit(200) : skip([] as HrData["probationReviews"]),
+    full ? supabase.from("assets").select("*").order("tag") : skip([] as HrData["assets"]),
+    full ? supabase.from("asset_assignments").select("*").order("assigned_at", { ascending: false }).limit(1000) : skip([] as HrData["assignments"]),
+    full ? supabase.from("asset_requests").select("*").order("created_at", { ascending: false }).limit(300) : skip([] as HrData["assetRequests"]),
+    full ? supabase.from("job_openings").select("*").order("created_at", { ascending: false }) : skip([] as HrData["jobs"]),
+    full ? supabase.from("candidates").select("*").order("updated_at", { ascending: false }).limit(500) : skip([] as HrData["candidates"]),
+    full ? supabase.from("interviews").select("*").order("scheduled_at", { ascending: false }).limit(500) : skip([] as HrData["interviews"]),
+  ]);
+  return {
+    ...EMPTY_HR,
+    people: people || [],
+    templates: templates || [],
+    runs: runs || [],
+    shifts: shifts || [],
+    teams: teams || [],
+    transfers: transfers || [],
+    roleChanges: roleChanges || [],
+    probationReviews: probationReviews || [],
+    assets: assets || [],
+    assignments: assignments || [],
+    assetRequests: assetRequests || [],
+    jobs: jobs || [],
+    candidates: candidates || [],
+    interviews: interviews || [],
+  };
 }
 
 export default async function AdminPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
@@ -121,10 +163,18 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
 
   const requested = isAdminTab(sp.tab) ? sp.tab : null;
   const tab: AdminTab = requested && can(requested) ? requested : can("now") ? "now" : "people";
+  const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) || null;
+
+  // People Operations — loaded only for the tab that is being shown, with the caller's RLS-scoped client.
+  const hr: HrData | null = (tab === "hr" && can("hr")) || (tab === "workflows" && can("workflows")) ? await loadHrData(supabase, tab === "hr") : null;
 
   return (
     <AdminShell
       tab={tab}
+      hr={hr}
+      hrView={asHrView(sp.view)}
+      run={one(sp.run)}
+      user={one(sp.user)}
       people={(people || []) as AdminPerson[]}
       invites={(invites || []) as unknown as InviteItem[]}
       departments={departments || []}

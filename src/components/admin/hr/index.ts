@@ -1,0 +1,10 @@
+export { HrConsole } from "./HrConsole";
+export { WorkflowsView, StartWorkflowModal } from "./Workflows";
+export { PeopleRecords } from "./PeopleRecords";
+export { TransfersView, TransferModal, RoleChangeModal } from "./TransfersRoles";
+export { ProbationView } from "./Probation";
+export { OffboardingView, OffboardWizard } from "./Offboarding";
+export { AssetsView, AssignAssetModal } from "./Assets";
+export { DocumentsView, DocumentList, UploadDocumentModal, openHrDocument } from "./Documents";
+export { RecruitmentView } from "./Recruitment";
+export { EMPTY_HR, HR_VIEWS, asHrView, type HrData, type HrView } from "./lib";

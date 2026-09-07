@@ -45,6 +45,30 @@ export function ActivityProvider({ children, muted = false }: { children: React.
   const { profile } = useSession();
   const pathname = usePathname();
   const [zones, setZones] = React.useState<ActivityMap>(() => new Map());
+  // Quiet hours / DND / focus: keep the dot, stop the pulse.
+  const [quiet, setQuiet] = React.useState(false);
+  React.useEffect(() => {
+    let alive = true;
+    const check = async () => {
+      const { data } = await createClient().from("notification_prefs").select("dnd_until,quiet_start,quiet_end").eq("user_id", profile.id).maybeSingle();
+      if (!alive) return;
+      const now = new Date();
+      const dnd = !!data?.dnd_until && Date.parse(data.dnd_until) > now.getTime();
+      let inQuiet = false;
+      if (data?.quiet_start && data?.quiet_end) {
+        const [sh, sm] = String(data.quiet_start).split(":").map(Number);
+        const [eh, em] = String(data.quiet_end).split(":").map(Number);
+        const cur = now.getHours() * 60 + now.getMinutes();
+        const start = sh * 60 + sm;
+        const end = eh * 60 + em;
+        inQuiet = start <= end ? cur >= start && cur < end : cur >= start || cur < end;
+      }
+      setQuiet(dnd || inQuiet || profile.presence === "dnd" || profile.presence === "focus");
+    };
+    const t = setTimeout(check, 0);
+    const id = setInterval(check, 5 * 60_000);
+    return () => { alive = false; clearTimeout(t); clearInterval(id); };
+  }, [profile.id, profile.presence]);
 
   const seen = React.useCallback((zone: string | string[]) => {
     const list = Array.isArray(zone) ? zone : [zone];
@@ -210,7 +234,7 @@ export function ActivityProvider({ children, muted = false }: { children: React.
     };
   }, [profile.id, profile.department_id, profile.team_id, profile.role]);
 
-  const value = React.useMemo<Ctx>(() => ({ zones, seen, muted }), [zones, seen, muted]);
+  const value = React.useMemo<Ctx>(() => ({ zones, seen, muted: muted || quiet }), [zones, seen, muted, quiet]);
   return <ActivityContext.Provider value={value}>{children}</ActivityContext.Provider>;
 }
 

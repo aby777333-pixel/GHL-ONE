@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Mail, Phone, Clock, Globe, CalendarDays, Pencil, Video, PhoneCall, CalendarPlus, ListPlus, Briefcase, FolderKanban, Users, Palmtree, ExternalLink, ChevronRight, BellRing, Rss, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Mail, Phone, Clock, Globe, CalendarDays, Pencil, Video, PhoneCall, CalendarPlus, ListPlus, Briefcase, FolderKanban, Users, Palmtree, ExternalLink, ChevronRight, BellRing, Rss, ShieldCheck, MessageSquareHeart, Trophy, MessagesSquare } from "lucide-react";
 import { Avatar, Button, Card, CardHeader, EmptyState, Pill, Progress } from "@/components/ui";
 import { TaskRow, type TaskRowData } from "@/components/tasks/TaskBits";
 import { useSession } from "@/components/providers/SessionProvider";
@@ -14,6 +14,12 @@ import { ProfileEditor } from "./ProfileEditor";
 import { NotificationSettings } from "./NotificationSettings";
 import { CalendarFeedCard } from "@/components/calendar/CalendarFeedCard";
 import { PrivacyCenter } from "./PrivacyCenter";
+import { ProfileSkills } from "@/components/growth/ProfileSkills";
+import { CareerCard } from "@/components/growth/Career";
+import { ProfileRecognition } from "@/components/growth/Recognition";
+import { FeedbackModal } from "@/components/growth/FeedbackModal";
+import { KudosModal } from "@/components/growth/KudosModal";
+import { EmploymentCard, MyAssetsCard, MyDocumentsCard, useIsHr } from "./EmployeeSelfService";
 
 export type ProfileData = Profile & {
   manager: { id: string; full_name: string; avatar_url: string | null; designation: string | null } | null;
@@ -31,6 +37,13 @@ export function ProfileView({ person, tasks, projects, reports, leaves, edit }: 
   const self = me.id === person.id;
   const canEdit = self || isManagerPlus(me.role) || isAdminRole(me.role);
   const [editing, setEditing] = React.useState(!!edit && canEdit);
+  const [feedbackOpen, setFeedbackOpen] = React.useState(false);
+  const [kudosOpen, setKudosOpen] = React.useState(false);
+  const iManage = !self && (person.manager_id === me.id || person.secondary_manager_id === me.id);
+  // Employee self-service (assets, documents, employment): shown to the person, HR, and their manager.
+  const isHr = useIsHr();
+  const managerOf = person.manager_id === me.id || person.secondary_manager_id === me.id;
+  const hrView = self || !!isHr || managerOf;
 
   const meetHref = `/meetings?new=1&with=${person.id}`;
 
@@ -69,6 +82,9 @@ export function ProfileView({ person, tasks, projects, reports, leaves, edit }: 
                 <Link href={meetHref} className="btn btn-secondary" title="Video"><Video size={15} /><span className="hidden sm:inline">Video</span></Link>
                 <Link href={meetHref} className="btn btn-secondary"><CalendarPlus size={15} /><span className="hidden sm:inline">Schedule</span></Link>
                 <Link href={`/tasks?new=1&assignee=${person.id}`} className="btn btn-secondary"><ListPlus size={15} /><span className="hidden sm:inline">Assign task</span></Link>
+                <Button variant="secondary" onClick={() => setKudosOpen(true)} title="Recognise"><Trophy size={15} /><span className="hidden sm:inline">Recognise</span></Button>
+                <Button variant="secondary" onClick={() => setFeedbackOpen(true)} title="Give feedback"><MessageSquareHeart size={15} /><span className="hidden sm:inline">Give feedback</span></Button>
+                {iManage && <Link href={`/one-on-ones?new=1&with=${person.id}`} className="btn btn-secondary" title="Schedule 1-on-1"><MessagesSquare size={15} /><span className="hidden sm:inline">Schedule 1-on-1</span></Link>}
               </>
             )}
             {canEdit && !editing && <Button variant={self ? "primary" : "ghost"} onClick={() => setEditing(true)}><Pencil size={15} /> {self ? "Edit my profile" : "Edit"}</Button>}
@@ -138,6 +154,14 @@ export function ProfileView({ person, tasks, projects, reports, leaves, edit }: 
             )}
           </Card>
 
+          {/* Employee self-service — me, HR, or my manager (RLS filters what each can actually see) */}
+          {hrView && <MyAssetsCard userId={person.id} self={self} />}
+          {(self || !!isHr) && <MyDocumentsCard userId={person.id} self={self} name={person.full_name} />}
+
+          {/* Growth: career, feedback & recognition */}
+          <CareerCard person={person} self={self} canRequestMentor={self || iManage} />
+          <ProfileRecognition userId={person.id} self={self} onGiveFeedback={() => setFeedbackOpen(true)} onRecognise={!self ? () => setKudosOpen(true) : undefined} />
+
           {/* My settings — only on my own profile */}
           {self && (
             <>
@@ -171,11 +195,14 @@ export function ProfileView({ person, tasks, projects, reports, leaves, edit }: 
             </div>
           </Card>
 
+          {/* Employment record — read-only here; HR edits it in People Ops */}
+          {hrView && <EmploymentCard person={person} />}
+
           {/* Skills */}
           <Card>
-            <CardHeader title="Skills" />
+            <CardHeader title="Skills" subtitle="Endorsed by colleagues · verified when a manager or HR vouches" />
             <div className="px-[var(--s4)] pb-[var(--s4)]">
-              {person.skills.length ? <div className="flex flex-wrap gap-1.5">{person.skills.map((s) => <Link key={s} href={`/people?q=${encodeURIComponent(s)}`} className="pill tone-neutral hover:bg-[var(--line)]">{s}</Link>)}</div> : <div className="text-sm text-muted">No skills listed{self ? " — add some so colleagues can find you." : "."}</div>}
+              <ProfileSkills key={person.skills.join("|")} person={person} self={self} />
             </div>
           </Card>
 
@@ -199,6 +226,9 @@ export function ProfileView({ person, tasks, projects, reports, leaves, edit }: 
           </Card>
         </div>
       </div>
+
+      {feedbackOpen && <FeedbackModal toUserId={person.id} isManagerOfRecipient={iManage} onClose={() => setFeedbackOpen(false)} onDone={() => router.refresh()} />}
+      {kudosOpen && !self && <KudosModal toUserId={person.id} onClose={() => setKudosOpen(false)} onDone={() => router.refresh()} />}
     </div>
   );
 }

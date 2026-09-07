@@ -3,13 +3,13 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { CheckCheck, Inbox, KanbanSquare, LifeBuoy, ListPlus, Send, UserPlus } from "lucide-react";
+import { CheckCheck, Flame, Inbox, KanbanSquare, LifeBuoy, ListPlus, Send, Siren, UserPlus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button, Card, EmptyState, PageHeader, Select, Tabs, useToast } from "@/components/ui";
 import { DepartmentPicker, PersonPicker } from "@/components/pickers";
 import { useSession } from "@/components/providers/SessionProvider";
 import type { Json } from "@/lib/database.types";
-import { isAdminRole, isLeadPlus, isManagerPlus, PRIORITIES, PRIORITY_LABEL } from "@/lib/utils";
+import { isAdminRole, isInternal, isLeadPlus, isManagerPlus, PRIORITIES, PRIORITY_LABEL } from "@/lib/utils";
 import type { Availability } from "@/components/common/CommonHub";
 import { HelpRequestRow, useNow, type HelpRow } from "./HelpBits";
 import { HELP_STATUSES, HELP_STATUS_LABEL, OPEN_STATUSES, type HelpStatus, type Service } from "./lib";
@@ -17,6 +17,9 @@ import { RequestActions } from "./RequestActions";
 import { ServiceForm } from "./ServiceForm";
 import { HelpBoard } from "./HelpBoard";
 import { CatalogManager } from "./CatalogManager";
+import { UrgentAssistanceModal } from "./UrgentAssistanceModal";
+import { WarRoomModal } from "./WarRoomModal";
+import { IncidentsList } from "./IncidentsList";
 
 export type QueueRow = HelpRow & { form_data: Json };
 
@@ -56,6 +59,8 @@ export function HelpDesk({ data }: { data: HelpDeskData }) {
   const [selected, setSelected] = React.useState<Set<string>>(() => new Set());
   const [bulkOwner, setBulkOwner] = React.useState("");
   const [bulkBusy, setBulkBusy] = React.useState(false);
+  const [urgent, setUrgent] = React.useState(false);
+  const [warRoom, setWarRoom] = React.useState(false);
 
   // keep local rows in sync when the server refreshes
   React.useEffect(() => {
@@ -136,8 +141,16 @@ export function HelpDesk({ data }: { data: HelpDeskData }) {
         eyebrow="Help Desk"
         title="Ask any department"
         subtitle="Pick a service, fill in the form and the right people get it — with an SLA, an owner and a room to talk in."
-        actions={<Link href="/common" className="btn btn-secondary btn-sm">GHL Common</Link>}
+        actions={
+          <>
+            <Link href="/common" className="btn btn-secondary btn-sm">GHL Common</Link>
+            {lead && <Button size="sm" variant="secondary" onClick={() => setWarRoom(true)}><Flame size={14} /> Start war room</Button>}
+            <Button size="sm" variant="danger" onClick={() => setUrgent(true)}><Siren size={14} /> Urgent assistance</Button>
+          </>
+        }
       />
+      <UrgentAssistanceModal open={urgent} onClose={() => setUrgent(false)} />
+      {lead && <WarRoomModal open={warRoom} onClose={() => setWarRoom(false)} />}
       <Tabs<Tab> tabs={tabs} value={tab} onChange={go} className="-mx-[var(--s4)] px-[var(--s4)] lg:-mx-[var(--s5)] lg:px-[var(--s5)] sticky top-[var(--topbar-h)] z-20 glass" />
 
       <div key={tab} className="anim-fade-in">
@@ -232,6 +245,8 @@ export function HelpDesk({ data }: { data: HelpDeskData }) {
 
         {tab === "catalog" && manageable.length > 0 && <CatalogManager services={data.services} manageableDepartmentIds={manageable} />}
       </div>
+
+      {isInternal(profile.role) && <IncidentsList />}
     </div>
   );
 }

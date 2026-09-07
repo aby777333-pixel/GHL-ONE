@@ -147,7 +147,8 @@ export async function POST(req: Request) {
       model: AI_MODEL,
       max_tokens: 4000,
       system: [{ type: "text", text: ASSISTANT_SYSTEM, cache_control: { type: "ephemeral" } }],
-      output_config: { effort: "medium" },
+      // Netlify synchronous functions are capped at 60s; low effort keeps multi-tool answers inside it.
+      output_config: { effort: "low" },
       tools,
       messages,
       max_iterations: 6,

@@ -20,6 +20,7 @@ import type { TaskLite } from "@/components/tasks/TaskListView";
 import { humaniseHistory } from "@/components/projects/humanise";
 import { BuddyQuickActions } from "@/components/ai/BuddyQuickActions";
 import { stagesFor, stageOf, withStage } from "@/components/departments/stages";
+import { AckBar, AssigneeLoadPill, DefinitionOfDone, fetchLoad, ReopenModal } from "@/components/tasks/TaskGovernance";
 import {
   ago, cn, fmtDate, isManagerPlus, relDate, APPROVAL_STATUS_LABEL, APPROVAL_STATUS_TONE, APPROVAL_TYPES, STATUS_LABEL, STATUS_TONE, WAITING_LABEL, humanize,
   type ApprovalType, type Task, type Tables, type TaskStatus, type WaitingOn,
@@ -132,8 +133,12 @@ export function TaskDetail({ data }: { data: TaskDetailData }) {
     }
     await update(patch, w === "none" ? "Back to work" : `Now ${WAITING_LABEL[w].toLowerCase()}`);
   }
-  async function setStatus(s: TaskStatus) {
+  // Reopening a done task asks for a reason (counts as a revision).
+  const [reopenTo, setReopenTo] = React.useState<TaskStatus | null>(null);
+  async function setStatus(s: TaskStatus, reopenReason?: string) {
+    if (task.status === "done" && s !== "done" && !reopenReason) { setReopenTo(s); return; }
     const patch: Partial<Task> = { status: s };
+    if (reopenReason) patch.reopen_reason = reopenReason;
     if (s !== "waiting" && s !== "blocked" && task.waiting_on !== "none") {
       patch.waiting_on = "none";
       patch.waiting_on_user_id = null;
@@ -301,10 +306,18 @@ export function TaskDetail({ data }: { data: TaskDetailData }) {
 
   const [personModal, setPersonModal] = React.useState<null | "reassign" | "delegate">(null);
   const [pick, setPick] = React.useState("");
+  /** Assignment rules: check `can_assign` (via assignment_warnings) before writing so the trigger never surprises the user. */
+  async function pickAssignee(v: string | null, extra: Partial<Task> = {}, msg = "Assignee updated") {
+    if (v && v !== profile.id) {
+      const info = await fetchLoad(v, task.due_date);
+      if (info && !info.canAssign) { toast.push(`You cannot assign work to ${people.find((p) => p.id === v)?.full_name || "this person"} directly — use Request Help so their manager can route it.`, "danger"); return false; }
+    }
+    return update({ assignee_id: v || null, ...extra }, msg);
+  }
   async function confirmPerson() {
     if (!pick) return;
-    if (personModal === "reassign") await update({ assignee_id: pick }, "Task reassigned");
-    else await update({ assignee_id: pick, delegated_by: profile.id }, "Task delegated");
+    const ok = personModal === "reassign" ? await pickAssignee(pick, {}, "Task reassigned") : await pickAssignee(pick, { delegated_by: profile.id }, "Task delegated");
+    if (!ok) return;
     setPersonModal(null);
     setPick("");
   }
@@ -400,6 +413,9 @@ export function TaskDetail({ data }: { data: TaskDetailData }) {
         </div>
       </div>
 
+      {/* Delegation receipt */}
+      <AckBar task={task} onChanged={() => router.refresh()} />
+
       <div className="grid gap-[var(--s4)] lg:grid-cols-[minmax(0,1fr)_336px] items-start">
         {/* Main column */}
         <div className="space-y-[var(--s4)] min-w-0">
@@ -407,6 +423,9 @@ export function TaskDetail({ data }: { data: TaskDetailData }) {
             <div className="label">Description</div>
             <Textarea value={desc} onChange={(e) => setDesc(e.target.value)} onBlur={() => { if ((desc || "") !== (task.description || "")) update({ description: desc || null }, "Description saved"); }} placeholder="Context, expectations, links… (autosaves)" style={{ minHeight: 110 }} />
           </section>
+
+          {/* Definition of done + quality gates */}
+          <DefinitionOfDone task={task} onChanged={() => router.refresh()} />
 
           {/* Subtasks */}
           <Section title="Subtasks" icon={<ListTree size={15} />} count={data.subtasks.length}>
@@ -531,7 +550,7 @@ export function TaskDetail({ data }: { data: TaskDetailData }) {
                 </>
               )}
             </div>
-            <SideField label="Responsible (assignee)"><PersonPicker value={task.assignee_id} onChange={(v) => update({ assignee_id: v || null }, "Assignee updated")} /></SideField>
+            <SideField label="Responsible (assignee)"><PersonPicker value={task.assignee_id} onChange={(v) => pickAssignee(v || null)} /><div className="mt-1"><AssigneeLoadPill assignee={task.assignee_id} due={task.due_date} /></div></SideField>
             <SideField label="Accountable (owner)"><PersonPicker value={task.owner_id} onChange={(v) => update({ owner_id: v || null }, "Owner updated")} placeholder="No owner" /></SideField>
             {task.delegated_by && (
               <div className="text-xs inline-flex items-center gap-1.5 pill tone-neutral pill-lg"><Send size={11} /> Delegated by <PersonChip id={task.delegated_by} size={16} /></div>
@@ -643,6 +662,8 @@ export function TaskDetail({ data }: { data: TaskDetailData }) {
       </Modal>
 
       <HandoffModal open={handoffOpen} onClose={() => setHandoffOpen(false)} task={task} attachmentCount={data.files.length} />
+
+      <ReopenModal open={reopenTo !== null} onClose={() => setReopenTo(null)} onConfirm={async (reason) => { const to = reopenTo || "todo"; setReopenTo(null); await setStatus(to, reason); }} />
 
       <Modal open={personModal !== null} onClose={() => setPersonModal(null)} title={personModal === "reassign" ? "Reassign task" : "Delegate task"} width={440}>
         <div className="space-y-3">

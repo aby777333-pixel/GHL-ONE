@@ -1,7 +1,8 @@
 import { getSession } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { isAdminRole, type Tables } from "@/lib/utils";
-import { AdminShell, type ControlPlaneData } from "@/components/admin/AdminShell";
+import { AdminShell, type ControlPlaneData, type OrgControlSlices } from "@/components/admin/AdminShell";
+import { STRUCTURE_SELECT, type StructurePerson } from "@/components/admin/people/lib";
 import { Forbidden } from "@/components/admin/Forbidden";
 import type { AdminPerson } from "@/components/admin/PeopleAdmin";
 import type { InviteItem } from "@/components/admin/InvitesAdmin";
@@ -168,9 +169,39 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   // People Operations — loaded only for the tab that is being shown, with the caller's RLS-scoped client.
   const hr: HrData | null = (tab === "hr" && can("hr")) || (tab === "workflows" && can("workflows")) ? await loadHrData(supabase, tab === "hr") : null;
 
+  // Phase 5 slices — each only when its tab is shown.
+  const slices: OrgControlSlices = { systemRoles: null, screens: null, structure: null, responsibilities: null, review: one(sp.review) };
+  if (tab === "roles") {
+    const [{ data: systemRoles }, { data: userRoles }, { data: roleDefaults }, { data: screens }] = await Promise.all([
+      supabase.from("system_roles").select("*").order("is_system", { ascending: false }).order("name"),
+      supabase.from("user_roles").select("*").order("created_at", { ascending: false }),
+      supabase.from("role_defaults").select("*"),
+      supabase.from("screens").select("*").order("position"),
+    ]);
+    slices.systemRoles = { systemRoles: systemRoles || [], userRoles: userRoles || [], roleDefaults: roleDefaults || [], screens: screens || [] };
+  } else if (tab === "screens") {
+    const [{ data: screens }, { data: rules }, { data: systemRoles }, { data: navLayouts }] = await Promise.all([
+      supabase.from("screens").select("*").order("position"),
+      supabase.from("screen_rules").select("*"),
+      supabase.from("system_roles").select("*").order("name"),
+      supabase.from("nav_layouts").select("*"),
+    ]);
+    slices.screens = { screens: screens || [], rules: rules || [], systemRoles: systemRoles || [], navLayouts: navLayouts || [] };
+  } else if (tab === "structure") {
+    const { data: structure } = await supabase.from("profiles").select(STRUCTURE_SELECT).order("full_name");
+    slices.structure = (structure || []) as StructurePerson[];
+  } else if (tab === "responsibilities") {
+    const [{ data: rows }, { data: knowledge }] = await Promise.all([
+      supabase.from("responsibilities").select("*").order("name"),
+      supabase.from("ai_knowledge").select("id,title").eq("status", "approved").order("title").limit(300),
+    ]);
+    slices.responsibilities = { rows: rows || [], knowledge: knowledge || [] };
+  }
+
   return (
     <AdminShell
       tab={tab}
+      slices={slices}
       hr={hr}
       hrView={asHrView(sp.view)}
       run={one(sp.run)}

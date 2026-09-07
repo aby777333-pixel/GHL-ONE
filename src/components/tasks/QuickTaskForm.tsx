@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button, Field, Input, Textarea, useToast } from "@/components/ui";
 import { PersonPicker, PriorityPicker, ProjectPicker, DepartmentPicker } from "@/components/pickers";
 import { useSession } from "@/components/providers/SessionProvider";
+import { AssigneeLoadPill, type LoadInfo } from "@/components/tasks/TaskGovernance";
 import type { TaskPriority } from "@/lib/utils";
 
 export type QuickTaskDefaults = {
@@ -36,10 +37,13 @@ export function QuickTaskForm({ defaults = {}, onCreated, onCancel, compact }: {
   const [due, setDue] = React.useState(defaults.due_date ? defaults.due_date.slice(0, 16) : "");
   const [priority, setPriority] = React.useState<TaskPriority>(defaults.priority || "normal");
   const [loading, setLoading] = React.useState(false);
+  // Assignment rules (`can_assign`) + load preview for the chosen assignee.
+  const [load, setLoad] = React.useState<{ assignee: string; info: LoadInfo | null } | null>(null);
+  const blocked = !!assignee && assignee !== profile.id && load?.assignee === assignee && !!load.info && !load.info.canAssign;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (!title.trim() || blocked) return;
     setLoading(true);
     const supabase = createClient();
     const { data, error } = await supabase
@@ -88,6 +92,8 @@ export function QuickTaskForm({ defaults = {}, onCreated, onCancel, compact }: {
       <div className="grid grid-cols-2 gap-3">
         <Field label="Assign to">
           <PersonPicker value={assignee} onChange={setAssignee} />
+          <div className="mt-1 min-h-[18px]"><AssigneeLoadPill assignee={assignee} due={due ? new Date(due).toISOString() : null} onLoad={(info) => setLoad({ assignee, info })} /></div>
+          {blocked && <span className="block text-[11px] text-danger mt-1">You cannot assign work to this person directly. Use Request Help so their manager can route it.</span>}
         </Field>
         <Field label="Priority">
           <PriorityPicker value={priority} onChange={setPriority} />
@@ -111,7 +117,7 @@ export function QuickTaskForm({ defaults = {}, onCreated, onCancel, compact }: {
       </div>
       <div className="flex justify-end gap-2 pt-1">
         {onCancel && <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>}
-        <Button type="submit" variant="primary" loading={loading}>Create task</Button>
+        <Button type="submit" variant="primary" loading={loading} disabled={blocked} title={blocked ? "Use Request Help" : undefined}>Create task</Button>
       </div>
     </form>
   );

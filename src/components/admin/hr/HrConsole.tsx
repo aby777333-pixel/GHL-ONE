@@ -48,7 +48,7 @@ export function HrConsole({ data, perms, view, run, user }: { data: HrData; perm
     <div className="space-y-[var(--s4)]">
       <Tabs<HrView> tabs={tabs} value={current} onChange={go} />
       <div key={current} className="anim-fade-in">
-        {current === "people" && <PeopleRecords data={data} />}
+        {current === "people" && <PeopleRecords data={data} perms={perms} initialUser={user || undefined} />}
         {current === "onboarding" && <WorkflowsView runs={data.runs} templates={data.templates} people={data.people} perms={perms} initialRun={run} showTemplates />}
         {current === "transfers" && <TransfersView data={data} perms={perms} />}
         {current === "probation" && <ProbationView data={data} />}

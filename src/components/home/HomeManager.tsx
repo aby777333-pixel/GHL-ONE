@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Users } from "lucide-react";
 import { Card, CardHeader, EmptyState, PageHeader, Pill, Avatar } from "@/components/ui";
 import { TaskRow, type TaskRowData } from "@/components/tasks/TaskBits";
 import { useSession } from "@/components/providers/SessionProvider";
@@ -56,7 +57,7 @@ export function HomeManager({ personal, workload, teamTasks, projects }: { perso
   const overdue = teamTasks.filter((t) => t.due_date && new Date(t.due_date) < new Date() && t.status !== "blocked" && t.status !== "waiting");
   return (
     <div className="page">
-      <PageHeader eyebrow={fmtDate(new Date())} title={greeting(profile.full_name)} subtitle={personalBrief(personal) + ` ${blocked.length} team item${blocked.length === 1 ? "" : "s"} blocked, ${overdue.length} overdue.`} />
+      <PageHeader eyebrow={fmtDate(new Date())} title={greeting(profile.full_name)} subtitle={personalBrief(personal) + ` ${blocked.length} team item${blocked.length === 1 ? "" : "s"} blocked, ${overdue.length} overdue.`} actions={<Link href="/people/team" className="btn btn-secondary btn-sm"><Users size={14} /> My team</Link>} />
       <div className="grid lg:grid-cols-3 gap-[var(--s3)] stagger">
         <div className="lg:col-span-2 space-y-[var(--s3)]">
           <BriefCard variant="manager" />

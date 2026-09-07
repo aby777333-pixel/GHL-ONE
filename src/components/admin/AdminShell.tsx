@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Shield, Users, MailPlus, Building2, Settings2, ScrollText, LayoutTemplate, Sparkles, Siren, Plug, Activity, KeyRound, Crown, Eye, ToggleRight, ShieldAlert, Hourglass, Inbox, HeartHandshake, Workflow } from "lucide-react";
+import { Shield, Users, MailPlus, Building2, Settings2, ScrollText, LayoutTemplate, Sparkles, Siren, Plug, Activity, KeyRound, Crown, Eye, ToggleRight, ShieldAlert, Hourglass, Inbox, HeartHandshake, Workflow, Network, ClipboardList, LayoutGrid } from "lucide-react";
 import { PageHeader, Tabs, EmptyState } from "@/components/ui";
 import { useSession } from "@/components/providers/SessionProvider";
 import { Blink, useSeen } from "@/components/providers/ActivityProvider";
@@ -25,8 +25,22 @@ import { FeatureFlags, type FeatureFlagRow } from "./FeatureFlags";
 import { SecurityCenter, type ExpiringGrant, type GuestRow, type SecurityAuditRow, type SecurityEventRow } from "./SecurityCenter";
 import { ADMIN_TABS, tabAllowed, type AdminTab } from "./perms";
 import { HrConsole, WorkflowsView, type HrData, type HrView } from "./hr";
+import { ScreenAccessManager, type ScreenData } from "./screens/ScreenAccessManager";
+import { ReportingTree } from "./people/ReportingTree";
+import { Responsibilities } from "./people/Responsibilities";
+import type { SystemRolesData } from "./roles/SystemRoles";
+import type { ResponsibilityRow, StructurePerson } from "./people/lib";
 
 export type { AdminTab } from "./perms";
+
+/** Phase 5 data — each slice is loaded only when its tab is shown (null otherwise). */
+export type OrgControlSlices = {
+  systemRoles: SystemRolesData | null;
+  screens: ScreenData | null;
+  structure: StructurePerson[] | null;
+  responsibilities: { rows: ResponsibilityRow[]; knowledge: { id: string; title: string }[] } | null;
+  review: string | null;
+};
 
 export type Governance = { accessPending: number; highRisk: number; staleApprovals: number; tempGrants: number; admins: number };
 
@@ -50,8 +64,9 @@ export type ControlPlaneData = {
   expiringGrants: ExpiringGrant[];
 };
 
-export function AdminShell({ tab, people, invites, departments, teams, org, projectTemplates, taskTemplates, escalationRules, integrations, channels, plane, hr, hrView, run, user }: {
+export function AdminShell({ tab, people, invites, departments, teams, org, projectTemplates, taskTemplates, escalationRules, integrations, channels, plane, hr, hrView, run, user, slices }: {
   tab: AdminTab;
+  slices: OrgControlSlices;
   /** People Operations data (only loaded when the `hr` / `workflows` tab is allowed). */
   hr: HrData | null;
   hrView: HrView;
@@ -82,9 +97,12 @@ export function AdminShell({ tab, people, invites, departments, teams, org, proj
     invites: { label: <span className="inline-flex items-center gap-1.5"><MailPlus size={14} /> Invites</span>, count: invites.filter((i) => !i.accepted_at).length || undefined },
     hr: { label: <span className="inline-flex items-center gap-1.5"><HeartHandshake size={14} /> People Ops</span>, count: hr ? hr.assetRequests.filter((r) => r.status === "pending").length + hr.transfers.filter((t) => t.status === "proposed").length || undefined : undefined },
     workflows: { label: <span className="inline-flex items-center gap-1.5"><Workflow size={14} /> Workflows</span>, count: hr ? hr.runs.filter((r) => r.status === "running").length || undefined : undefined },
+    structure: { label: <span className="inline-flex items-center gap-1.5"><Network size={14} /> Structure</span> },
+    responsibilities: { label: <span className="inline-flex items-center gap-1.5"><ClipboardList size={14} /> Responsibilities</span> },
     departments: { label: <span className="inline-flex items-center gap-1.5"><Building2 size={14} /> Departments</span> },
     access: { label: <span className="inline-flex items-center gap-1.5"><KeyRound size={14} /> Access<Blink zones={plane.accessRequests.filter((r) => r.status === "pending").map((r) => `access:${r.id}`)} /></span>, count: governance.accessPending || undefined },
-    roles: { label: <span className="inline-flex items-center gap-1.5"><Crown size={14} /> Admin roles</span> },
+    roles: { label: <span className="inline-flex items-center gap-1.5"><Crown size={14} /> Roles</span> },
+    screens: { label: <span className="inline-flex items-center gap-1.5"><LayoutGrid size={14} /> Screens</span> },
     visibility: { label: <span className="inline-flex items-center gap-1.5"><Eye size={14} /> Visibility</span> },
     features: { label: <span className="inline-flex items-center gap-1.5"><ToggleRight size={14} /> Features</span> },
     security: { label: <span className="inline-flex items-center gap-1.5"><ShieldAlert size={14} /> Security</span>, count: governance.highRisk || undefined },
@@ -112,9 +130,12 @@ export function AdminShell({ tab, people, invites, departments, teams, org, proj
           {current === "invites" && <InvitesAdmin invites={invites} />}
           {current === "hr" && hr && <HrConsole data={hr} perms={perms} view={hrView} run={run} user={user} />}
           {current === "workflows" && hr && <WorkflowsView runs={hr.runs} templates={hr.templates} people={hr.people} perms={perms} initialRun={run} showTemplates={allowed("hr")} />}
+          {current === "structure" && slices.structure && <ReportingTree people={slices.structure} teams={teams} perms={perms} />}
+          {current === "responsibilities" && slices.responsibilities && <Responsibilities rows={slices.responsibilities.rows} knowledge={slices.responsibilities.knowledge} teams={teams} perms={perms} />}
           {current === "departments" && <DepartmentsAdmin departments={departments} teams={teams} />}
-          {current === "access" && <AccessAdmin requests={plane.accessRequests} grants={plane.accessGrants} perms={perms} isPrimary={plane.isPrimary} />}
-          {current === "roles" && <AdminRoles roles={plane.adminRoles} assignments={plane.adminAssignments} isPrimary={plane.isPrimary} primaryAdminId={plane.primaryAdminId} orgId={plane.orgId} />}
+          {current === "access" && <AccessAdmin requests={plane.accessRequests} grants={plane.accessGrants} perms={perms} isPrimary={plane.isPrimary} review={slices.review} />}
+          {current === "roles" && <AdminRoles roles={plane.adminRoles} assignments={plane.adminAssignments} isPrimary={plane.isPrimary} primaryAdminId={plane.primaryAdminId} orgId={plane.orgId} systemRoles={slices.systemRoles} perms={perms} />}
+          {current === "screens" && slices.screens && <ScreenAccessManager initial={slices.screens} orgId={plane.orgId} perms={perms} />}
           {current === "visibility" && <VisibilityAdmin perms={perms} isPrimary={plane.isPrimary} />}
           {current === "features" && <FeatureFlags flags={plane.featureFlags} orgId={plane.orgId} perms={perms} />}
           {current === "security" && <SecurityCenter events={plane.securityEvents} audit={plane.securityAudit} guests={plane.guests} expiringGrants={plane.expiringGrants} />}

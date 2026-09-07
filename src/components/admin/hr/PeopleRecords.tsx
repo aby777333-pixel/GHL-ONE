@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRightLeft, Briefcase, Check, ExternalLink, FileUp, Laptop, LogOut, MailPlus, PlayCircle, Search, ShieldCheck, UserCog, UserX } from "lucide-react";
+import { ArrowRightLeft, Briefcase, Check, Crown, ExternalLink, FileSpreadsheet, FileUp, Laptop, LogOut, MailPlus, PlayCircle, Search, ShieldCheck, UserCog, UserX } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Avatar, Button, Card, CardHeader, EmptyState, Field, Input, Modal, Pill, Select, Textarea, useToast } from "@/components/ui";
 import { DepartmentPicker, PersonPicker } from "@/components/pickers";
@@ -18,18 +18,29 @@ import { OffboardWizard } from "./Offboarding";
 import { AssignAssetModal } from "./Assets";
 import { UploadDocumentModal } from "./Documents";
 import { StartWorkflowModal } from "./Workflows";
+import { EmployeeCenter } from "../people/EmployeeCenter";
+import { EmployeeWizard } from "../people/EmployeeWizard";
+import { BulkImport } from "../people/BulkImport";
+import { EMPLOYEE_STATUS_LABEL, EMPLOYEE_STATUS_TONE } from "../people/lib";
 
 type QuickAction = "onboarding" | "transfer" | "role" | "offboard" | "asset" | "document";
 
-export function PeopleRecords({ data }: { data: HrData }) {
+export function PeopleRecords({ data, perms = [], initialUser }: { data: HrData; perms?: string[]; initialUser?: string }) {
+  const router = useRouter();
   const { departments } = useSession();
   const [q, setQ] = React.useState("");
   const [dept, setDept] = React.useState("");
   const [show, setShow] = React.useState<"active" | "inactive" | "all">("active");
   const [selected, setSelected] = React.useState<HrPerson | null>(null);
+  // Employee Command Center — opened from a row or `&user=<id>`.
+  const [centerId, setCenterId] = React.useState<string | null>(initialUser || null);
+  const center = centerId ? data.people.find((p) => p.id === centerId) || null : null;
   const [action, setAction] = React.useState<{ kind: QuickAction; person: HrPerson } | null>(null);
   const [invite, setInvite] = React.useState(false);
+  const [bulk, setBulk] = React.useState(false);
   const [today] = React.useState(() => todayIso());
+  const openCenter = (p: HrPerson) => { setCenterId(p.id); router.replace(`/admin?tab=hr&view=people&user=${p.id}`, { scroll: false }); };
+  const closeCenter = () => { setCenterId(null); router.replace("/admin?tab=hr&view=people", { scroll: false }); };
 
   const needle = q.trim().toLowerCase();
   const list = data.people.filter((p) => {
@@ -52,7 +63,7 @@ export function PeopleRecords({ data }: { data: HrData }) {
         <CardHeader
           title="Employee records"
           subtitle={`${data.people.length - inactive} active${inactive ? ` · ${inactive} inactive` : ""} · open a row to edit the master record and private details`}
-          action={<Button variant="primary" size="sm" onClick={() => setInvite(true)}><MailPlus size={14} /> <span className="hidden sm:inline">Add person</span></Button>}
+          action={<span className="inline-flex gap-1.5"><Button variant="secondary" size="sm" onClick={() => setBulk((b) => !b)}><FileSpreadsheet size={14} /> <span className="hidden sm:inline">{bulk ? "Hide bulk tools" : "Bulk import"}</span></Button><Button variant="primary" size="sm" onClick={() => setInvite(true)}><MailPlus size={14} /> <span className="hidden sm:inline">Add employee</span></Button></span>}
         />
         <div className="px-[var(--s4)] pb-3 flex flex-wrap items-center gap-2">
           <div className="relative flex-1 min-w-[180px]"><Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Name, email, code, designation…" className="input pl-8 !h-9 !text-sm w-full" /></div>
@@ -87,7 +98,7 @@ export function PeopleRecords({ data }: { data: HrData }) {
               </thead>
               <tbody className="divide-y">
                 {list.map((p) => (
-                  <tr key={p.id} className="row-hover cursor-pointer" onClick={() => setSelected(p)}>
+                  <tr key={p.id} className="row-hover cursor-pointer" onClick={() => openCenter(p)}>
                     <td className="px-[var(--s4)] py-2 num text-xs text-muted whitespace-nowrap">{p.employee_code || "—"}</td>
                     <td className="px-3 py-2">
                       <div className="flex items-center gap-2.5 min-w-0">
@@ -107,7 +118,7 @@ export function PeopleRecords({ data }: { data: HrData }) {
                     <td className="px-3 py-2 whitespace-nowrap">{shiftName(p.shift_id)}</td>
                     <td className="px-3 py-2 whitespace-nowrap num">{p.joined_at ? fmtDate(p.joined_at) : "—"}</td>
                     <td className="px-3 py-2 whitespace-nowrap num">{p.probation_ends_on ? <ProbationLabel date={p.probation_ends_on} today={today} /> : "—"}</td>
-                    <td className="px-3 py-2 whitespace-nowrap"><div className="flex items-center gap-1"><RolePill role={p.role} />{!p.is_active && <Pill tone="tone-warn">Inactive</Pill>}{p.is_external && <Pill tone="tone-muted">External</Pill>}</div></td>
+                    <td className="px-3 py-2 whitespace-nowrap"><div className="flex items-center gap-1"><RolePill role={p.role} />{p.status !== "active" && <Pill tone={EMPLOYEE_STATUS_TONE[p.status] || "tone-neutral"}>{EMPLOYEE_STATUS_LABEL[p.status] || p.status}</Pill>}{p.frozen && <Pill tone="tone-danger">Frozen</Pill>}{p.is_external && <Pill tone="tone-muted">External</Pill>}<Button size="xs" variant="ghost" icon title="Employee Command Center" onClick={(e) => { e.stopPropagation(); openCenter(p); }}><Crown size={12} /></Button></div></td>
                   </tr>
                 ))}
               </tbody>
@@ -125,7 +136,19 @@ export function PeopleRecords({ data }: { data: HrData }) {
           onAction={(kind) => { setAction({ kind, person: selected }); }}
         />
       )}
-      <NewPersonModal open={invite} onClose={() => setInvite(false)} />
+      {bulk && <BulkImport people={data.people} />}
+
+      {center && (
+        <EmployeeCenter
+          key={center.id}
+          person={center}
+          data={data}
+          perms={perms}
+          onClose={closeCenter}
+          onAction={(kind) => { if (kind === "edit") setSelected(center); else setAction({ kind, person: center }); }}
+        />
+      )}
+      <EmployeeWizard open={invite} onClose={() => setInvite(false)} canCreate teams={data.teams} />
 
       {action?.kind === "onboarding" && <StartWorkflowModal open templates={data.templates} people={data.people} defaultKey="onboarding" defaultSubject={action.person.id} onClose={() => setAction(null)} />}
       {action?.kind === "transfer" && <TransferModal open person={action.person} teams={data.teams} onClose={() => setAction(null)} />}
@@ -328,56 +351,6 @@ function PersonDrawer({ person, data, onClose, onAction }: { person: HrPerson; d
           )}
         </section>
       </div>
-    </Modal>
-  );
-}
-
-/* ---------------------------------------------------- New person (invite) */
-function NewPersonModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const router = useRouter();
-  const toast = useToast();
-  const { profile } = useSession();
-  const [email, setEmail] = React.useState("");
-  const [fullName, setFullName] = React.useState("");
-  const [role, setRole] = React.useState<RoleLevel>("employee");
-  const [departmentId, setDepartmentId] = React.useState("");
-  const [designation, setDesignation] = React.useState("");
-  const [managerId, setManagerId] = React.useState("");
-  const [busy, setBusy] = React.useState(false);
-  const ROLES: RoleLevel[] = ["director", "executive", "department_head", "manager", "team_lead", "employee", "intern", "consultant", "vendor", "guest"];
-
-  async function create(e: React.FormEvent) {
-    e.preventDefault();
-    if (!profile.org_id) return;
-    setBusy(true);
-    const { error } = await createClient().from("invites").insert({ org_id: profile.org_id, email: email.trim().toLowerCase(), full_name: fullName.trim() || null, role, department_id: departmentId || null, designation: designation.trim() || null, manager_id: managerId || null, invited_by: profile.id });
-    setBusy(false);
-    if (error) { toast.push(error.message.includes("duplicate") ? "An invite for this email already exists" : error.message, "danger"); return; }
-    toast.push(`Invite created for ${email.trim()} — the record completes itself on first sign-in`, "success");
-    onClose();
-    setEmail(""); setFullName(""); setRole("employee"); setDepartmentId(""); setDesignation(""); setManagerId("");
-    router.refresh();
-  }
-
-  return (
-    <Modal open={open} onClose={onClose} title="Add a person" width={520}>
-      <form onSubmit={create} className="space-y-3">
-        <p className="text-sm text-muted">Creates an invite. When this email signs up, the account activates with these settings, an employee code is assigned and onboarding starts automatically.</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Field label="Email" className="sm:col-span-2"><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@ghlindia.com" required autoFocus /></Field>
-          <Field label="Full name"><Input value={fullName} onChange={(e) => setFullName(e.target.value)} /></Field>
-          <Field label="Role">
-            <Select value={role} onChange={(e) => setRole(e.target.value as RoleLevel)}>{ROLES.map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}</Select>
-          </Field>
-          <Field label="Department"><DepartmentPicker value={departmentId} onChange={setDepartmentId} /></Field>
-          <Field label="Designation"><Input value={designation} onChange={(e) => setDesignation(e.target.value)} /></Field>
-          <Field label="Reports to" className="sm:col-span-2"><PersonPicker value={managerId} onChange={setManagerId} placeholder="No manager" /></Field>
-        </div>
-        <div className="flex justify-end gap-2 pt-1">
-          <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button type="submit" variant="primary" loading={busy}><MailPlus size={15} /> Create invite</Button>
-        </div>
-      </form>
     </Modal>
   );
 }

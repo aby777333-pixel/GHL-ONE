@@ -13,6 +13,7 @@ import { ago, cn, fmtDate, humanize, isAdminRole, APPROVAL_STATUS_LABEL, APPROVA
 import { fromLocalInput, LevelPill, Note, PersonLine, ResourceTypePill, RiskPill, toLocalInput } from "./AdminBits";
 import { hasPerm } from "./perms";
 import { resolveResourceLabels, resourceHref } from "./resourceLabels";
+import { AccessReviews } from "./AccessReviews";
 
 export type AccessRequestRow = Tables<"access_requests">;
 export type AccessGrantRow = Tables<"access_grants"> & { label?: string | null };
@@ -23,7 +24,7 @@ const DAY = 86_400_000;
 
 type Decision = { req: AccessRequestRow; mode: "approve" | "reject" | "changes" } | null;
 
-export function AccessAdmin({ requests: initialRequests, grants: initialGrants, perms, isPrimary }: { requests: AccessRequestRow[]; grants: AccessGrantRow[]; perms: string[]; isPrimary: boolean }) {
+export function AccessAdmin({ requests: initialRequests, grants: initialGrants, perms, isPrimary, review }: { requests: AccessRequestRow[]; grants: AccessGrantRow[]; perms: string[]; isPrimary: boolean; review?: string | null }) {
   const router = useRouter();
   const toast = useToast();
   const { profile } = useSession();
@@ -218,6 +219,9 @@ export function AccessAdmin({ requests: initialRequests, grants: initialGrants, 
           </div>
         )}
       </Card>
+
+      {/* ------------------------------------------- Access reviews & findings */}
+      <AccessReviews canApply={canApproveAll || isPrimary || hasPerm(perms, "security.manage")} initialReview={review} />
 
       {/* --------------------------------------------------------- Emergency */}
       {canEmergency && <EmergencyRevoke onDone={reload} />}

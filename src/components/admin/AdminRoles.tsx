@@ -10,11 +10,12 @@ import { useSession } from "@/components/providers/SessionProvider";
 import { ago, cn, fmtDate, isAdminRole, ROLE_LABEL, type Tables } from "@/lib/utils";
 import { Note, PersonLine } from "./AdminBits";
 import { ADMIN_PERMISSIONS, permLabel } from "./perms";
+import { SystemRoles, type SystemRolesData } from "./roles/SystemRoles";
 
 export type AdminRoleRow = Tables<"admin_roles">;
 export type AdminAssignmentRow = Tables<"admin_assignments">;
 
-export function AdminRoles({ roles, assignments, isPrimary, primaryAdminId, orgId }: { roles: AdminRoleRow[]; assignments: AdminAssignmentRow[]; isPrimary: boolean; primaryAdminId: string | null; orgId: string }) {
+export function AdminRoles({ roles, assignments, isPrimary, primaryAdminId, orgId, systemRoles, perms = [] }: { roles: AdminRoleRow[]; assignments: AdminAssignmentRow[]; isPrimary: boolean; primaryAdminId: string | null; orgId: string; systemRoles?: SystemRolesData | null; perms?: string[] }) {
   const router = useRouter();
   const toast = useToast();
   const { profile, people, departments } = useSession();
@@ -154,6 +155,9 @@ export function AdminRoles({ roles, assignments, isPrimary, primaryAdminId, orgI
       </Card>
 
       <CreateRoleModal open={creating} onClose={() => setCreating(false)} orgId={orgId} />
+
+      {/* ------------------------------------------------ System roles (Phase 5) */}
+      {systemRoles && <div className="pt-[var(--s3)] border-t"><SystemRoles data={systemRoles} orgId={orgId} isPrimary={isPrimary} perms={perms} /></div>}
 
       <Modal open={!!removing} onClose={() => setRemoving(null)} title="Remove admin role" footer={<><Button variant="ghost" onClick={() => setRemoving(null)}>Cancel</Button><Button variant="danger" loading={busy} onClick={() => removing && remove(removing)}><Trash2 size={14} /> Remove</Button></>}>
         {removing && <div className="text-sm space-y-2"><div className="flex items-center gap-2 flex-wrap"><PersonLine id={removing.user_id} size={22} /> <span className="text-muted">loses</span> <Pill tone="tone-violet">{roleById(removing.admin_role_id)?.name}</Pill></div><div className="text-xs text-muted">They keep their company role and everything it already allows. This change is audited.</div></div>}

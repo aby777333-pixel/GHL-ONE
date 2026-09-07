@@ -20,6 +20,7 @@ import { ProfileRecognition } from "@/components/growth/Recognition";
 import { FeedbackModal } from "@/components/growth/FeedbackModal";
 import { KudosModal } from "@/components/growth/KudosModal";
 import { EmploymentCard, MyAssetsCard, MyDocumentsCard, useIsHr } from "./EmployeeSelfService";
+import { DelegationCard } from "./DelegationCard";
 
 export type ProfileData = Profile & {
   manager: { id: string; full_name: string; avatar_url: string | null; designation: string | null } | null;
@@ -153,6 +154,9 @@ export function ProfileView({ person, tasks, projects, reports, leaves, edit }: 
               </div>
             )}
           </Card>
+
+          {/* Delegations — me, HR, or my manager */}
+          {hrView && <DelegationCard userId={person.id} self={self} canManage={!!isHr || managerOf || isAdminRole(me.role)} />}
 
           {/* Employee self-service — me, HR, or my manager (RLS filters what each can actually see) */}
           {hrView && <MyAssetsCard userId={person.id} self={self} />}

@@ -37,10 +37,10 @@ export function hasPerm(perms: string[], ...keys: string[]) {
 }
 
 export type AdminTab =
-  | "now" | "people" | "invites" | "hr" | "workflows" | "departments" | "access" | "roles" | "visibility" | "features" | "security"
+  | "now" | "people" | "invites" | "hr" | "workflows" | "structure" | "responsibilities" | "departments" | "access" | "roles" | "screens" | "visibility" | "features" | "security"
   | "organization" | "escalation" | "integrations" | "templates" | "ai" | "audit";
 
-export const ADMIN_TABS: AdminTab[] = ["now", "people", "invites", "hr", "workflows", "departments", "access", "roles", "visibility", "features", "security", "organization", "escalation", "integrations", "templates", "ai", "audit"];
+export const ADMIN_TABS: AdminTab[] = ["now", "people", "invites", "hr", "workflows", "structure", "responsibilities", "departments", "access", "roles", "screens", "visibility", "features", "security", "organization", "escalation", "integrations", "templates", "ai", "audit"];
 
 export function isAdminTab(v: unknown): v is AdminTab {
   return typeof v === "string" && (ADMIN_TABS as string[]).includes(v);
@@ -62,9 +62,14 @@ export function tabAllowed(tab: AdminTab, role: RoleLevel, perms: string[]): boo
     case "hr": return admin || has("hr.manage", "people.manage");
     // Workflow runs are readable by managers (wr_read); starting/skipping needs manager+ or HR permissions.
     case "workflows": return manager || has("hr.manage", "people.manage");
+    // Reporting tree & responsibilities register: managers see their part; HR / people admins the whole company.
+    case "structure": return manager || has("hr.manage", "people.manage");
+    case "responsibilities": return manager || has("hr.manage", "people.manage");
     case "departments": return admin || has("department.manage");
     case "access": return admin || has("access.approve", "security.manage");
     case "roles": return admin || has("*");
+    // Screen governance: who sees which screens (screen_rules / nav_layouts RLS).
+    case "screens": return admin || has("features.manage", "security.manage");
     case "visibility": return manager || has("security.manage", "access.approve");
     case "features": return admin || has("features.manage");
     case "security": return admin || has("security.manage", "audit.read");

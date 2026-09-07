@@ -33,7 +33,8 @@ export async function proxy(request: NextRequest) {
   const isPublic = PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
 
   if (!user && pathname.startsWith("/api/")) {
-    if (pathname === "/api/ai/status") return response;
+    // Token-authenticated public endpoints (personal calendar feed, incoming webhooks) and the harmless status probe.
+    if (pathname === "/api/ai/status" || pathname.startsWith("/api/hooks/") || pathname.startsWith("/api/calendar/")) return response;
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
   if (!user && !isPublic) {

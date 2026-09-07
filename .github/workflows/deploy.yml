@@ -10,30 +10,25 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - name: Install
         run: npm ci
-      - name: Diagnose Netlify auth (no secrets printed)
-        env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+      - name: Diagnose Netlify auth (no secret values printed)
         run: |
           echo "token length ${#NETLIFY_AUTH_TOKEN}, site id length ${#NETLIFY_SITE_ID}"
-          curl -s -o /dev/null -w "user -> %{http_code}
-" -H "Authorization: Bearer ${NETLIFY_AUTH_TOKEN}" https://api.netlify.com/api/v1/user
-          curl -s -o /dev/null -w "site -> %{http_code}
-" -H "Authorization: Bearer ${NETLIFY_AUTH_TOKEN}" "https://api.netlify.com/api/v1/sites/${NETLIFY_SITE_ID}"
-          curl -s -o /dev/null -w "site env -> %{http_code}
-" -H "Authorization: Bearer ${NETLIFY_AUTH_TOKEN}" "https://api.netlify.com/api/v1/sites/${NETLIFY_SITE_ID}/env"
+          for path in user "sites/${NETLIFY_SITE_ID}" "sites/${NETLIFY_SITE_ID}/env"; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer ${NETLIFY_AUTH_TOKEN}" "https://api.netlify.com/api/v1/${path}")
+            echo "${path} -> ${code}"
+          done
       - name: Build and deploy (Netlify CLI, Linux runner)
-        env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
         run: |
           set -euo pipefail
-          npx --yes netlify-cli@24 deploy --build --prod --message "push: ${GITHUB_SHA:0:7}"
+          npx --yes netlify-cli@24 deploy --prod --message "push: ${GITHUB_SHA:0:7}"

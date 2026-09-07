@@ -20,5 +20,9 @@ Positioning: *One Company. One Workspace. One Source of Truth.*
 - Model: `claude-opus-5` (override with `AI_MODEL`). Cheap routes use `effort: "low"`. The AI never executes actions — it proposes; humans confirm in the UI.
 - Cached outputs live in `ai_summaries`; usage in `ai_usage` (admin-visible).
 
+## Automation (Phase 3)
+- Engine lives in Postgres (`0006_automation.sql`): `automations` (WHEN trigger_type + trigger_config → IF conditions → THEN actions; see `run_automation_action` for action JSON) fired by AFTER triggers via `fire_automations()` with a depth guard (max 2); `automation_runs` log; `schedule` triggers and the escalation ladder (`escalation_rules`) run on pg_cron (`run_scheduled_automations` every 5 min, `run_escalations` every 15 min, digests daily/weekly 08:30 IST). Recurring tasks: `tasks.recurrence` → next occurrence spawned on completion. Handoffs: `handoffs` table + trigger moves/assigns the task. Outgoing webhooks/Slack via `pg_net`; incoming via `/api/hooks/{token}` → `ingest_webhook()`; personal ICS feed via `/api/calendar/{token}.ics` → `calendar_feed()`.
+- Template variables for automation text: `{{title}} {{assignee_name}} {{owner_name}} {{project_name}} {{department_name}} {{due}} {{link}} {{status}} {{priority}} {{actor_name}}`.
+
 ## Migrations
 `supabase/migrations/*.sql` are the source of truth and are applied to the remote project via the Supabase MCP (`apply_migration`). Keep them additive.

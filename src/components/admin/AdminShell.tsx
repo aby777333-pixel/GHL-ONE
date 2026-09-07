@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Shield, Users, MailPlus, Building2, Settings2, ScrollText, LayoutTemplate, Sparkles } from "lucide-react";
+import { Shield, Users, MailPlus, Building2, Settings2, ScrollText, LayoutTemplate, Sparkles, Siren, Plug } from "lucide-react";
 import { PageHeader, Tabs, EmptyState } from "@/components/ui";
 import { useSession } from "@/components/providers/SessionProvider";
 import { isAdminRole, isManagerPlus, type Tables } from "@/lib/utils";
@@ -13,10 +13,12 @@ import { OrganizationAdmin } from "./OrganizationAdmin";
 import { AuditLog } from "./AuditLog";
 import { TemplatesAdmin } from "./TemplatesAdmin";
 import { IntelligenceAdmin } from "./IntelligenceAdmin";
+import { EscalationAdmin } from "./EscalationAdmin";
+import { IntegrationsAdmin } from "./IntegrationsAdmin";
 
-export type AdminTab = "people" | "invites" | "departments" | "organization" | "audit" | "templates" | "ai";
+export type AdminTab = "people" | "invites" | "departments" | "organization" | "escalation" | "integrations" | "audit" | "templates" | "ai";
 
-export function AdminShell({ tab, people, invites, departments, teams, org, projectTemplates, taskTemplates }: {
+export function AdminShell({ tab, people, invites, departments, teams, org, projectTemplates, taskTemplates, escalationRules, integrations, channels }: {
   tab: AdminTab;
   people: AdminPerson[];
   invites: InviteItem[];
@@ -25,6 +27,9 @@ export function AdminShell({ tab, people, invites, departments, teams, org, proj
   org: Tables<"organizations"> | null;
   projectTemplates: Tables<"project_templates">[];
   taskTemplates: Tables<"task_templates">[];
+  escalationRules: Tables<"escalation_rules">[];
+  integrations: Tables<"integrations">[];
+  channels: { id: string; name: string; slug: string | null; type: string }[];
 }) {
   const router = useRouter();
   const { profile } = useSession();
@@ -37,6 +42,8 @@ export function AdminShell({ tab, people, invites, departments, teams, org, proj
     { key: "invites", label: <span className="inline-flex items-center gap-1.5"><MailPlus size={14} /> Invites</span>, count: invites.filter((i) => !i.accepted_at).length || undefined, allowed: manager },
     { key: "departments", label: <span className="inline-flex items-center gap-1.5"><Building2 size={14} /> Departments</span>, allowed: admin },
     { key: "organization", label: <span className="inline-flex items-center gap-1.5"><Settings2 size={14} /> Organization</span>, allowed: admin },
+    { key: "escalation", label: <span className="inline-flex items-center gap-1.5"><Siren size={14} /> Escalation</span>, allowed: admin },
+    { key: "integrations", label: <span className="inline-flex items-center gap-1.5"><Plug size={14} /> Integrations</span>, allowed: admin },
     { key: "audit", label: <span className="inline-flex items-center gap-1.5"><ScrollText size={14} /> Audit log</span>, allowed: manager },
     { key: "templates", label: <span className="inline-flex items-center gap-1.5"><LayoutTemplate size={14} /> Templates</span>, allowed: manager },
     { key: "ai", label: <span className="inline-flex items-center gap-1.5"><Sparkles size={14} /> Intelligence</span>, allowed: admin },
@@ -56,6 +63,8 @@ export function AdminShell({ tab, people, invites, departments, teams, org, proj
           {current === "invites" && <InvitesAdmin invites={invites} />}
           {current === "departments" && <DepartmentsAdmin departments={departments} teams={teams} />}
           {current === "organization" && <OrganizationAdmin org={org} />}
+          {current === "escalation" && <EscalationAdmin rules={escalationRules} />}
+          {current === "integrations" && <IntegrationsAdmin integrations={integrations} channels={channels} />}
           {current === "audit" && <AuditLog />}
           {current === "templates" && <TemplatesAdmin projectTemplates={projectTemplates} taskTemplates={taskTemplates} />}
           {current === "ai" && <IntelligenceAdmin />}

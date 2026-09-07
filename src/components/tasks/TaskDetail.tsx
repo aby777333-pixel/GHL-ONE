@@ -4,8 +4,8 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  ArrowRight, Check, CheckCircle2, ChevronRight, Copy, CornerDownRight, GitBranch, History, Link2, ListTree, MessageSquare, MoreHorizontal,
-  Paperclip, Plus, Send, ShieldCheck, Trash2, UserCog, Users, Video, X,
+  ArrowRight, ArrowRightLeft, Check, CheckCircle2, ChevronRight, Copy, CornerDownRight, GitBranch, History, Link2, ListTree, MessageSquare, MoreHorizontal,
+  Paperclip, Plus, Repeat, Send, ShieldCheck, Trash2, UserCog, Users, Video, X,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Avatar, Button, Field, Input, Menu, MenuItem, Modal, Pill, Select, Textarea, useToast } from "@/components/ui";
@@ -13,6 +13,9 @@ import { PersonPicker, PriorityPicker, ProjectPicker, DepartmentPicker, StatusPi
 import { useDepartment, useSession } from "@/components/providers/SessionProvider";
 import { PersonChip, StatusPill, TaskRow } from "@/components/tasks/TaskBits";
 import { AttachmentList, AttachmentUploader, type FileWithVersions } from "@/components/tasks/AttachmentUploader";
+import { HandoffPanel, type HandoffRow } from "@/components/tasks/HandoffPanel";
+import { HandoffModal } from "@/components/tasks/HandoffModal";
+import { RecurrenceControl, describeRecurrence, parseRecurrence } from "@/components/tasks/RecurrenceControl";
 import type { TaskLite } from "@/components/tasks/TaskListView";
 import { humaniseHistory } from "@/components/projects/humanise";
 import { stagesFor, stageOf, withStage } from "@/components/departments/stages";
@@ -36,6 +39,7 @@ export type TaskDetailData = {
   files: FileWithVersions[];
   sourceMessage: { id: string; channel_id: string; body: string } | null;
   sourceMeeting: { id: string; title: string } | null;
+  handoffs: HandoffRow[];
 };
 
 const WAITING_OPTIONS: WaitingOn[] = ["none", "employee", "manager", "client", "vendor", "approval", "blocked"];
@@ -290,6 +294,10 @@ export function TaskDetail({ data }: { data: TaskDetailData }) {
     await update({ waiting_on: "approval", status: "waiting", requires_approval: true, approver_id: apApprover, waiting_on_user_id: apApprover, waiting_note: "Awaiting approval" }, "Approval requested");
   }
 
+  const [handoffOpen, setHandoffOpen] = React.useState(false);
+  const recurrence = parseRecurrence(task.recurrence);
+  const pendingHandoff = data.handoffs.some((h) => h.status === "pending");
+
   const [personModal, setPersonModal] = React.useState<null | "reassign" | "delegate">(null);
   const [pick, setPick] = React.useState("");
   async function confirmPerson() {
@@ -352,16 +360,20 @@ export function TaskDetail({ data }: { data: TaskDetailData }) {
             {task.waiting_on !== "none" && <Pill tone={task.waiting_on === "blocked" ? "tone-danger" : "tone-warn"} size="lg">{WAITING_LABEL[task.waiting_on]}</Pill>}
             {task.requires_approval && <Pill tone="tone-violet" size="lg"><ShieldCheck size={11} /> Needs approval</Pill>}
             {stage && <Pill tone="tone-info" size="lg">Stage · {stage}</Pill>}
+            {recurrence && <Pill tone="tone-info" size="lg" className="cursor-help"><Repeat size={11} /> Recurring · {describeRecurrence(recurrence)}</Pill>}
+            {pendingHandoff && <a href="#handoff" className="pill pill-lg tone-warn"><ArrowRightLeft size={11} /> Handoff pending</a>}
             <span className="text-xs text-muted">Created {ago(task.created_at)}</span>
           </div>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           {!done && <Button variant="success" size="sm" onClick={() => setStatus("done")} className="hidden sm:inline-flex"><CheckCircle2 size={14} /> Mark done</Button>}
+          {!done && !pendingHandoff && <Button variant="secondary" size="sm" onClick={() => setHandoffOpen(true)} className="hidden md:inline-flex" title="Hand off to another department"><ArrowRightLeft size={14} /> Hand off</Button>}
           <Menu
-            width={220}
+            width={240}
             trigger={<Button variant="secondary" size="sm" icon aria-label="More actions"><MoreHorizontal size={16} /></Button>}
           >
             {!done && <MenuItem icon={<CheckCircle2 size={14} />} onClick={() => setStatus("done")}>Mark done</MenuItem>}
+            {!done && <MenuItem icon={<ArrowRightLeft size={14} />} onClick={() => setHandoffOpen(true)}>Hand off to department</MenuItem>}
             <MenuItem icon={<ShieldCheck size={14} />} onClick={() => { setApTitle(task.title); setApApprover(task.approver_id || ""); setApprovalOpen(true); }}>Request approval</MenuItem>
             <MenuItem icon={<UserCog size={14} />} onClick={() => { setPick(task.assignee_id || ""); setPersonModal("reassign"); }}>Reassign</MenuItem>
             <MenuItem icon={<Send size={14} />} onClick={() => { setPick(""); setPersonModal("delegate"); }}>Delegate</MenuItem>
@@ -456,6 +468,9 @@ export function TaskDetail({ data }: { data: TaskDetailData }) {
             <AttachmentUploader taskId={task.id} compact className="mt-3" />
           </Section>
 
+          {/* Handoffs */}
+          <HandoffPanel handoffs={data.handoffs} attachmentCount={data.files.length} />
+
           {/* Conversation */}
           <Section title="Task conversation" icon={<MessageSquare size={15} />} count={data.comments.length}>
             {data.comments.length === 0 ? (
@@ -530,6 +545,7 @@ export function TaskDetail({ data }: { data: TaskDetailData }) {
               <SideField label="Estimated h"><Input type="number" step="0.5" min={0} value={task.estimated_hours ?? ""} onChange={(e) => update({ estimated_hours: e.target.value === "" ? null : Number(e.target.value) })} /></SideField>
               <SideField label="Actual h"><Input type="number" step="0.5" min={0} value={task.actual_hours ?? ""} onChange={(e) => update({ actual_hours: e.target.value === "" ? null : Number(e.target.value) })} /></SideField>
             </div>
+            <RecurrenceControl value={recurrence} done={done} onChange={(r) => update({ recurrence: r }, r ? `Repeats: ${describeRecurrence(r).toLowerCase()}` : "Repeat turned off")} />
             <SideField label="Project"><ProjectPicker value={task.project_id} onChange={(v) => update({ project_id: v || null }, "Project updated")} /></SideField>
             <SideField label="Department"><DepartmentPicker value={task.department_id} onChange={(v) => update({ department_id: v || null }, "Department updated")} /></SideField>
             {stages && (
@@ -623,6 +639,8 @@ export function TaskDetail({ data }: { data: TaskDetailData }) {
           <div className="flex justify-end gap-2"><Button type="button" variant="ghost" onClick={() => setApprovalOpen(false)}>Cancel</Button><Button type="submit" variant="primary" loading={apBusy}>Send request</Button></div>
         </form>
       </Modal>
+
+      <HandoffModal open={handoffOpen} onClose={() => setHandoffOpen(false)} task={task} attachmentCount={data.files.length} />
 
       <Modal open={personModal !== null} onClose={() => setPersonModal(null)} title={personModal === "reassign" ? "Reassign task" : "Delegate task"} width={440}>
         <div className="space-y-3">

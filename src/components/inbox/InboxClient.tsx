@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Inbox, CheckCheck, AlertOctagon, Zap, CheckSquare, AtSign, Clock, Info, Sparkles, AlertTriangle } from "lucide-react";
+import { Inbox, CheckCheck, AlertOctagon, Zap, CheckSquare, AtSign, Clock, Info, Sparkles, AlertTriangle, ArrowRightLeft } from "lucide-react";
 import { Button, Card, EmptyState, PageHeader } from "@/components/ui";
 import { KIND_ICON } from "@/components/shell/NotificationsPanel";
 import { PersonChip, PriorityPill, StatusPill } from "@/components/tasks/TaskBits";
@@ -185,11 +185,12 @@ export function InboxClient({ initial, dueTasks }: { initial: Notification[]; du
                 })}
                 {list.map((r) => (
                   <button key={r.key} onClick={() => open(r)} className={cn("w-full text-left flex items-start gap-3 px-2.5 py-2 rounded-[var(--radius-sm)] row-hover", r.unread && "bg-[color-mix(in_oklab,var(--brand)_6%,transparent)]")}>
-                    <span className="mt-0.5 shrink-0">{KIND_ICON[r.latest.kind]}</span>
+                    <span className="mt-0.5 shrink-0">{r.latest.entity_type === "handoff" ? <ArrowRightLeft size={15} className="text-violet" /> : KIND_ICON[r.latest.kind]}</span>
                     <span className="min-w-0 flex-1">
                       <span className={cn("block text-sm leading-snug", r.unread && "font-medium")}>{r.collapsedTitle || r.latest.title}</span>
                       {!r.collapsedTitle && r.latest.body && <span className="block text-xs text-muted truncate-2 mt-0.5">{r.latest.body}</span>}
                       <span className="flex items-center gap-2 mt-1 text-[11px] text-muted">
+                        {r.latest.entity_type === "handoff" && <span className="pill tone-violet"><ArrowRightLeft size={10} /> Handoff</span>}
                         {r.latest.actor_id && <PersonChip id={r.latest.actor_id} size={14} />}
                         <span className="num" title={fmtDate(r.latest.created_at, true)}>{ago(r.latest.created_at)}</span>
                         {r.items.length > 1 && <span className="pill tone-neutral">{r.items.length}</span>}

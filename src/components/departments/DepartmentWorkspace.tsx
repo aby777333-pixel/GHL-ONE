@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { AlertTriangle, ChevronRight, ExternalLink, FolderKanban, Lock, MessageSquare, Pencil, Users } from "lucide-react";
+import { AlertTriangle, ArrowRightLeft, ChevronRight, ExternalLink, FolderKanban, Lock, MessageSquare, Pencil, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Avatar, Button, Card, EmptyState, Field, Modal, Stat, Tabs, Textarea, useToast } from "@/components/ui";
 import { PersonPicker } from "@/components/pickers";
@@ -11,13 +11,15 @@ import { useSession } from "@/components/providers/SessionProvider";
 import { PersonChip } from "@/components/tasks/TaskBits";
 import { TaskListView, type TaskLite } from "@/components/tasks/TaskListView";
 import { AttachmentList, AttachmentUploader, type FileWithVersions } from "@/components/tasks/AttachmentUploader";
+import { HandoffActions, readPackage, type HandoffRow } from "@/components/tasks/HandoffPanel";
 import { ProjectCard, type ProjectSummary } from "@/components/projects/ProjectCard";
 import { DepartmentHealth, departmentScore, HealthRing, scoreTone } from "@/components/departments/DepartmentCard";
 import { stagesFor, stageTag } from "@/components/departments/stages";
-import { cn, isAdminRole, isLeadPlus, ROLE_LABEL, STATUS_LABEL, TASK_STATUSES, type Department, type Tables } from "@/lib/utils";
+import { cn, fmtDate, isAdminRole, isLeadPlus, relDate, ROLE_LABEL, STATUS_LABEL, TASK_STATUSES, type Department, type Tables } from "@/lib/utils";
 
 type Member = Pick<Tables<"profiles">, "id" | "full_name" | "avatar_url" | "designation" | "role" | "presence" | "email" | "manager_id">;
 type Workload = { user_id: string; open_tasks: number; urgent: number; overdue: number; blocked: number; waiting: number; due_week: number; on_leave: boolean; est_hours: number };
+export type IncomingHandoff = HandoffRow & { task: { id: string; title: string } | null };
 
 export type DepartmentWorkspaceData = {
   department: Department;
@@ -28,6 +30,7 @@ export type DepartmentWorkspaceData = {
   channelId: string | null;
   files: FileWithVersions[];
   workload: Workload[];
+  handoffs: IncomingHandoff[];
   initialTab: string;
 };
 
@@ -130,6 +133,8 @@ export function DepartmentWorkspace({ data }: { data: DepartmentWorkspaceData })
               </div>
             </Card>
 
+            {data.handoffs.length > 0 && <IncomingHandoffs handoffs={data.handoffs} />}
+
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <Stat label="People" value={data.members.length} icon={<Users size={14} />} onClick={() => go("people")} />
               <Stat label="Open tasks" value={open.length} onClick={() => go("tasks")} />
@@ -199,6 +204,44 @@ export function DepartmentWorkspace({ data }: { data: DepartmentWorkspaceData })
         </form>
       </Modal>
     </div>
+  );
+}
+
+/** Pending handoffs addressed to this department. Leads+ (or the named receiver) accept or decline inline. */
+function IncomingHandoffs({ handoffs }: { handoffs: IncomingHandoff[] }) {
+  const { departments } = useSession();
+  const deptName = (id: string | null) => (id ? departments.find((d) => d.id === id)?.name : undefined) || "Another department";
+  return (
+    <Card className="p-[var(--s4)]" style={{ borderColor: "var(--warn)" }}>
+      <div className="flex items-center gap-2 mb-2">
+        <ArrowRightLeft size={15} className="text-warn" />
+        <span className="h3">Incoming handoffs</span>
+        <span className="pill tone-warn">{handoffs.length} awaiting acceptance</span>
+      </div>
+      <div className="text-xs text-muted mb-3">Work other departments are passing to this team. Accepting assigns the task and starts the clock; declining sends it back with your note.</div>
+      <ul className="divide-y">
+        {handoffs.map((h) => {
+          const pkg = readPackage(h.package);
+          return (
+            <li key={h.id} className="py-2.5 first:pt-0 last:pb-0">
+              <div className="flex items-start gap-3">
+                <div className="min-w-0 flex-1">
+                  <Link href={`/tasks/${h.task_id}#handoff`} className="text-sm font-medium hover:underline block truncate">{h.task?.title || "Task"}</Link>
+                  <div className="flex items-center gap-x-2 gap-y-0.5 flex-wrap mt-0.5 text-[11px] text-muted">
+                    <span>From <span className="font-medium text-2">{deptName(h.from_department_id)}</span></span>
+                    {h.from_user_id && <span className="inline-flex items-center gap-1">· <PersonChip id={h.from_user_id} size={14} /></span>}
+                    {h.to_user_id && <span className="inline-flex items-center gap-1">· for <PersonChip id={h.to_user_id} size={14} /></span>}
+                    {pkg.deadline && <span className="num">· due {relDate(pkg.deadline)} {fmtDate(pkg.deadline, true).split(", ")[1]}</span>}
+                  </div>
+                  {pkg.brief && <div className="text-xs text-2 truncate-2 mt-1">{pkg.brief}</div>}
+                </div>
+                <div className="shrink-0"><HandoffActions handoff={h} compact /></div>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </Card>
   );
 }
 

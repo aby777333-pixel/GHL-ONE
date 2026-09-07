@@ -16,6 +16,7 @@ import { MonthView } from "./MonthView";
 import { WeekView } from "./WeekView";
 import { KINDS, KIND_COLOR, KIND_LABEL, inWindow, windowFor, type CalItem, type EventKind, type LeaveRow } from "./calendarUtils";
 import { loadCalendarItems } from "./loadCalendar";
+import { CalendarFeedButton } from "./CalendarFeedCard";
 
 type View = "month" | "week" | "agenda" | "leave";
 
@@ -85,7 +86,7 @@ export function CalendarClient({ initialItems, initialWindow, leaves, projects, 
         eyebrow="Company calendar"
         title="Calendar"
         subtitle="Meetings, deadlines, milestones, campaigns, leave — one view of the company's time."
-        actions={<Button variant="primary" onClick={() => setAdding(true)}><Plus size={15} /> Add event</Button>}
+        actions={<><CalendarFeedButton /><Button variant="primary" onClick={() => setAdding(true)}><Plus size={15} /> Add event</Button></>}
       />
 
       <Tabs tabs={[{ key: "month", label: "Month" }, { key: "week", label: "Week" }, { key: "agenda", label: "Agenda" }, { key: "leave", label: "Leave", count: pendingLeaves || undefined }]} value={view} onChange={changeView} className="mb-[var(--s3)]" />

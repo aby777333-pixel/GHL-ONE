@@ -25,6 +25,7 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
     { data: sourceMessage },
     { data: sourceMeeting },
     { data: parent },
+    { data: handoffs },
   ] = await Promise.all([
     task.project_id ? supabase.from("projects").select("id,name,department_id").eq("id", task.project_id).maybeSingle() : Promise.resolve({ data: null }),
     supabase
@@ -44,6 +45,7 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
     task.source_message_id ? supabase.from("messages").select("id,channel_id,body").eq("id", task.source_message_id).maybeSingle() : Promise.resolve({ data: null }),
     task.source_meeting_id ? supabase.from("meetings").select("id,title").eq("id", task.source_meeting_id).maybeSingle() : Promise.resolve({ data: null }),
     task.parent_id ? supabase.from("tasks").select("id,title").eq("id", task.parent_id).maybeSingle() : Promise.resolve({ data: null }),
+    supabase.from("handoffs").select("*").eq("task_id", id).order("created_at", { ascending: false }),
   ]);
 
   const depIds = [...(depsOut || []).map((d) => d.depends_on_id), ...(depsIn || []).map((d) => d.task_id)];
@@ -67,6 +69,7 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
     files: (files || []).map((f) => ({ ...f, file_versions: f.file_versions || [] })),
     sourceMessage: sourceMessage || null,
     sourceMeeting: sourceMeeting || null,
+    handoffs: (handoffs || []) as TaskDetailData["handoffs"],
   };
 
   return <TaskDetail data={data} />;

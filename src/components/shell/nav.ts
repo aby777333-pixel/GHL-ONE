@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, ListChecks, FolderKanban, MessageSquare, CheckSquare, Calendar, Files, BookOpen, Users,
-  Building2, Gavel, Video, Inbox, Megaphone, Lightbulb, Shield, Wand2, Gauge, Search, type LucideIcon,
+  Building2, Gavel, Video, Inbox, Megaphone, Lightbulb, Shield, Wand2, Gauge, Search, Workflow, type LucideIcon,
 } from "lucide-react";
 import type { RoleLevel } from "@/lib/utils";
 import { isManagerPlus, isLeadPlus } from "@/lib/utils";
@@ -30,6 +30,7 @@ export function navFor(role: RoleLevel): NavSection[] {
         { href: "/meetings", label: "Meetings", icon: Video },
         { href: "/calendar", label: "Calendar", icon: Calendar },
         { href: "/decisions", label: "Decisions", icon: Gavel },
+        ...(lead ? [{ href: "/automations", label: "Automations", icon: Workflow }] : []),
       ],
     },
     {

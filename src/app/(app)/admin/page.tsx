@@ -8,7 +8,7 @@ import type { InviteItem } from "@/components/admin/InvitesAdmin";
 
 export const metadata = { title: "Administration" };
 
-const TABS: AdminTab[] = ["people", "invites", "departments", "organization", "audit", "templates", "ai"];
+const TABS: AdminTab[] = ["people", "invites", "departments", "organization", "escalation", "integrations", "audit", "templates", "ai"];
 
 export default async function AdminPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const session = await getSession();
@@ -20,7 +20,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const manager = isManagerPlus(role);
   const admin = isAdminRole(role);
 
-  const [{ data: people }, { data: invites }, { data: departments }, { data: teams }, { data: org }, { data: projectTemplates }, { data: taskTemplates }] = await Promise.all([
+  const [{ data: people }, { data: invites }, { data: departments }, { data: teams }, { data: org }, { data: projectTemplates }, { data: taskTemplates }, { data: escalationRules }, { data: integrations }, { data: channels }] = await Promise.all([
     manager ? supabase.from("profiles").select("id,full_name,email,avatar_url,designation,department_id,manager_id,role,is_active,is_external,joined_at,created_at").order("is_active").order("full_name") : Promise.resolve({ data: [] as AdminPerson[] }),
     manager ? supabase.from("invites").select("*, inviter:profiles!invites_invited_by_fkey(id,full_name,avatar_url)").order("created_at", { ascending: false }) : Promise.resolve({ data: [] as InviteItem[] }),
     supabase.from("departments").select("*").order("position").order("name"),
@@ -28,6 +28,9 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     admin && session.profile.org_id ? supabase.from("organizations").select("*").eq("id", session.profile.org_id).maybeSingle() : Promise.resolve({ data: null as Tables<"organizations"> | null }),
     manager ? supabase.from("project_templates").select("*").order("name") : Promise.resolve({ data: [] as Tables<"project_templates">[] }),
     manager ? supabase.from("task_templates").select("*").order("name") : Promise.resolve({ data: [] as Tables<"task_templates">[] }),
+    admin ? supabase.from("escalation_rules").select("*").order("position").order("created_at") : Promise.resolve({ data: [] as Tables<"escalation_rules">[] }),
+    admin ? supabase.from("integrations").select("*").order("provider").order("name") : Promise.resolve({ data: [] as Tables<"integrations">[] }),
+    admin ? supabase.from("channels").select("id,name,slug,type").in("type", ["company", "department", "group", "announcement"]).order("type").order("name") : Promise.resolve({ data: [] as { id: string; name: string; slug: string | null; type: string }[] }),
   ]);
 
   const tab = (typeof sp.tab === "string" && TABS.includes(sp.tab as AdminTab) ? sp.tab : "people") as AdminTab;
@@ -42,6 +45,9 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       org={org || null}
       projectTemplates={projectTemplates || []}
       taskTemplates={taskTemplates || []}
+      escalationRules={escalationRules || []}
+      integrations={integrations || []}
+      channels={channels || []}
     />
   );
 }

@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Save, Building, Clock, MoonStar, Siren, Info } from "lucide-react";
+import { Save, Building, Clock, MoonStar, Siren, ArrowRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button, Card, CardHeader, EmptyState, Field, Input, useToast } from "@/components/ui";
 import type { Tables } from "@/lib/utils";
@@ -34,11 +35,6 @@ export function OrganizationAdmin({ org }: { org: Tables<"organizations"> | null
   const [qhEnabled, setQhEnabled] = React.useState(base.quiet_hours?.enabled ?? true);
   const [qhStart, setQhStart] = React.useState(base.quiet_hours?.start || "21:00");
   const [qhEnd, setQhEnd] = React.useState(base.quiet_hours?.end || "08:00");
-  const [escOverdue, setEscOverdue] = React.useState(base.escalation?.overdue_hours ?? 24);
-  const [escCritical, setEscCritical] = React.useState(base.escalation?.critical_overdue_hours ?? 4);
-  const [escManager, setEscManager] = React.useState(base.escalation?.notify_manager ?? true);
-  const [escHead, setEscHead] = React.useState(base.escalation?.notify_department_head ?? true);
-  const [escExec, setEscExec] = React.useState(base.escalation?.notify_executives ?? false);
   const [busy, setBusy] = React.useState(false);
 
   if (!org) return <Card><EmptyState icon={<Building size={20} />} title="Organization not found" hint="Your profile is not linked to an organization." /></Card>;
@@ -51,7 +47,7 @@ export function OrganizationAdmin({ org }: { org: Tables<"organizations"> | null
       ...base,
       working_hours: { start: whStart, end: whEnd, days: whDays, timezone: whTz },
       quiet_hours: { enabled: qhEnabled, start: qhStart, end: qhEnd },
-      escalation: { overdue_hours: escOverdue, critical_overdue_hours: escCritical, notify_manager: escManager, notify_department_head: escHead, notify_executives: escExec },
+      // legacy `escalation` settings are preserved untouched via ...base; the ladder lives in escalation_rules now
     };
     const { error } = await createClient().from("organizations").update({ name: name.trim() || org.name, tagline: tagline.trim() || null, settings: settings as Json }).eq("id", org.id);
     setBusy(false);
@@ -106,17 +102,9 @@ export function OrganizationAdmin({ org }: { org: Tables<"organizations"> | null
 
       <Card>
         <CardHeader title="Escalation rules" subtitle="Who gets told when work slips" action={<Siren size={15} className="text-muted" />} />
-        <div className="px-[var(--s4)] pb-[var(--s4)] space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Field label="Task overdue → notify manager after (hours)"><Input type="number" min={1} value={escOverdue} onChange={(e) => setEscOverdue(parseInt(e.target.value, 10) || 0)} /></Field>
-            <Field label="Critical task overdue → department head after (hours)"><Input type="number" min={0} value={escCritical} onChange={(e) => setEscCritical(parseInt(e.target.value, 10) || 0)} /></Field>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <Toggle on={escManager} onChange={setEscManager} label="Notify the manager" hint="Of the assignee, when a task is overdue." />
-            <Toggle on={escHead} onChange={setEscHead} label="Notify department head" hint="For critical or urgent overdue work." />
-            <Toggle on={escExec} onChange={setEscExec} label="Notify executives" hint="Only for critical, still-overdue tasks." />
-          </div>
-          <div className="flex items-start gap-2 text-[11px] text-muted"><Info size={13} className="shrink-0 mt-0.5" /> These rules are stored now and enforced by the automation layer in Phase 3. Nothing is sent yet.</div>
+        <div className="px-[var(--s4)] pb-[var(--s4)] flex flex-col sm:flex-row sm:items-center gap-3">
+          <p className="text-sm text-muted flex-1">The escalation ladder — reminders before the deadline, then overdue alerts that climb from assignee to manager, department head and executives — is live and runs every 15 minutes. Edit the steps in the Escalation tab.</p>
+          <Link href="/admin?tab=escalation" className="btn btn-secondary btn-sm shrink-0">Open Escalation <ArrowRight size={14} /></Link>
         </div>
       </Card>
 

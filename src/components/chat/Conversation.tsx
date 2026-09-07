@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { RealtimeChannel, RealtimePostgresInsertPayload, RealtimePostgresUpdatePayload } from "@supabase/supabase-js";
-import { ChevronLeft, Search, Pin, Bell, BellOff, MoreVertical, Users, FolderKanban, Hash, Lock, Megaphone, Building2, CheckSquare, Sparkles, ArrowDown, X, Link2, LogOut, Info } from "lucide-react";
+import { ChevronLeft, Search, Pin, Bell, BellOff, MoreVertical, Users, FolderKanban, Hash, Lock, Megaphone, Building2, CheckSquare, Sparkles, ArrowDown, X, Link2, LogOut, Info, MoonStar } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useSession } from "@/components/providers/SessionProvider";
 import { Avatar, AvatarStack, Button, Menu, MenuItem, Modal, Pill, Spinner, useToast } from "@/components/ui";
@@ -27,6 +27,30 @@ const SELECT = "*, message_reactions(message_id,user_id,emoji)";
 
 type ReactionEvent = { message_id: string; user_id: string; emoji: string; op: "add" | "remove" };
 type PresenceMeta = { userId: string; name: string; typing: boolean };
+type QuietHours = { enabled?: boolean; start?: string; end?: string };
+
+/** Minutes since midnight on the IST wall clock (quiet hours are stored in IST). */
+function istMinutes() {
+  try {
+    const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date());
+    const h = Number(parts.find((p) => p.type === "hour")?.value ?? 0);
+    const m = Number(parts.find((p) => p.type === "minute")?.value ?? 0);
+    return (h % 24) * 60 + m;
+  } catch {
+    const d = new Date();
+    return d.getHours() * 60 + d.getMinutes();
+  }
+}
+function toMinutes(t: string | undefined, fallback: number) {
+  const m = /^(\d{1,2}):(\d{2})/.exec(t || "");
+  return m ? Number(m[1]) * 60 + Number(m[2]) : fallback;
+}
+function inQuietHours(q: QuietHours | null, nowMin: number) {
+  if (!q || q.enabled === false) return false;
+  const s = toMinutes(q.start, 21 * 60);
+  const e = toMinutes(q.end, 8 * 60);
+  return s < e ? nowMin >= s && nowMin < e : nowMin >= s || nowMin < e;
+}
 type ModalState = { kind: "task" | "extract" | "decision" | "forward" | "catchup" | "members"; m?: ChatMessage } | null;
 
 function DateSeparator({ label }: { label: string }) {
@@ -160,6 +184,34 @@ export function Conversation({
   const other = React.useMemo(() => (isDm ? members.find((m) => m.user_id !== me)?.profile || null : null), [isDm, members, me]);
   const otherLive = other ? people.find((p) => p.id === other.id) : undefined;
   const onlineSet = React.useMemo(() => new Set(online), [online]);
+
+  /* ------------------------------------------ outside working hours (DMs) */
+  // `notification_prefs` is only readable by its owner, so we use the company quiet hours + the other person's presence.
+  const [quietHours, setQuietHours] = React.useState<QuietHours | null>(null);
+  const [nowMin, setNowMin] = React.useState(() => istMinutes());
+  const orgId = profile.org_id;
+  React.useEffect(() => {
+    if (!isDm || !orgId) return;
+    let alive = true;
+    createClient()
+      .from("organizations")
+      .select("settings")
+      .eq("id", orgId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!alive) return;
+        const s = (data?.settings && typeof data.settings === "object" && !Array.isArray(data.settings) ? (data.settings as { quiet_hours?: QuietHours }) : {}) || {};
+        setQuietHours(s.quiet_hours || {});
+      });
+    const id = setInterval(() => setNowMin(istMinutes()), 60_000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, [isDm, orgId]);
+  const otherDnd = isDm && !!other && (otherLive?.presence === "dnd" || other.presence === "dnd");
+  const otherOnline = isDm && !!other && onlineSet.has(other.id);
+  const awayNote = !isDm || !other || otherOnline ? null : otherDnd ? "Do not disturb · they'll see this when they're back" : inQuietHours(quietHours, nowMin) ? "Outside working hours · they'll see this in the morning" : null;
 
   /* ---------------------------------------------------------- mark read */
   const markRead = React.useCallback(() => {
@@ -816,6 +868,11 @@ export function Conversation({
           )}
 
           <div className="h-5 shrink-0 px-4 text-[11px] text-muted truncate flex items-center bg-[var(--bg)]">{typingLine}</div>
+          {awayNote && (
+            <div className="shrink-0 px-3 pb-1.5 bg-[var(--bg)] anim-fade-in">
+              <span className={cn("pill max-w-full", otherDnd ? "tone-violet" : "tone-neutral")} title="Sending is fine — this just sets expectations on reply time"><MoonStar size={10} className="shrink-0" /><span className="truncate">{awayNote}</span></span>
+            </div>
+          )}
 
           {!isMember && !isDm ? (
             <div className="border-t bg-[var(--bg-elev)] px-4 py-3 flex items-center justify-between gap-3 safe-b">
@@ -827,7 +884,7 @@ export function Conversation({
               <Lock size={12} className="inline mr-1 -mt-0.5" /> This channel is read-only. Only managers and above can post.
             </div>
           ) : (
-            <Composer channelId={channel.id} people={people} placeholder={isDm ? `Message ${firstName(other)}` : `Message ${title}`} onSend={(p) => send(p, null)} onTyping={setTyping} />
+            <Composer channelId={channel.id} people={people} placeholder={isDm ? `Message ${firstName(other)}${awayNote ? (otherDnd ? " · on do not disturb" : " · outside working hours") : ""}` : `Message ${title}`} onSend={(p) => send(p, null)} onTyping={setTyping} />
           )}
         </div>
 

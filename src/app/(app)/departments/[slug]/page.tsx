@@ -14,7 +14,7 @@ export default async function DepartmentPage({ params, searchParams }: { params:
   const { data: dept } = await supabase.from("departments").select("*").eq("slug", slug).maybeSingle();
   if (!dept) notFound();
 
-  const [{ data: health }, { data: members }, { data: tasks }, { data: projects }, { data: channel }, { data: files }, { data: workload }] = await Promise.all([
+  const [{ data: health }, { data: members }, { data: tasks }, { data: projects }, { data: channel }, { data: files }, { data: workload }, { data: handoffs }] = await Promise.all([
     supabase.rpc("department_health"),
     supabase.from("profiles").select("id,full_name,avatar_url,designation,role,presence,email,manager_id").eq("department_id", dept.id).eq("is_active", true).order("full_name"),
     supabase
@@ -33,6 +33,7 @@ export default async function DepartmentPage({ params, searchParams }: { params:
     supabase.from("channels").select("id").eq("department_id", dept.id).eq("type", "department").limit(1).maybeSingle(),
     supabase.from("files").select("*, file_versions(id,version,storage_path,size_bytes,mime_type,created_at)").eq("department_id", dept.id).order("updated_at", { ascending: false }).limit(100),
     supabase.rpc("workload"),
+    supabase.from("handoffs").select("*, task:tasks!handoffs_task_id_fkey(id,title)").eq("to_department_id", dept.id).eq("status", "pending").order("created_at", { ascending: false }).limit(50),
   ]);
 
   const projectIds = (projects || []).map((p) => p.id);
@@ -54,6 +55,7 @@ export default async function DepartmentPage({ params, searchParams }: { params:
     channelId: channel?.id || null,
     files: (files || []).map((f) => ({ ...f, file_versions: f.file_versions || [] })),
     workload: (workload || []).filter((w) => w.department_id === dept.id),
+    handoffs: ((handoffs || []) as unknown as DepartmentWorkspaceData["handoffs"]).map((h) => ({ ...h, task: h.task || null })),
     initialTab: tab || "overview",
   };
   return <DepartmentWorkspace data={data} />;

@@ -3,11 +3,11 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, Menu as MenuIcon, Moon, Plus, Search, Sun, LogOut, User, Settings, X, ChevronDown, Sparkles } from "lucide-react";
+import { Bell, Menu as MenuIcon, Moon, MoonStar, Plus, Search, Sun, LogOut, User, Settings, X, ChevronDown, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useSession } from "@/components/providers/SessionProvider";
 import { Avatar, Button, Kbd, Menu, MenuItem, ToastProvider } from "@/components/ui";
-import { cn, ROLE_LABEL } from "@/lib/utils";
+import { cn, fmtTime, ROLE_LABEL } from "@/lib/utils";
 import { navFor } from "./nav";
 import { CommandPalette } from "./CommandPalette";
 import { NotificationsPanel } from "./NotificationsPanel";
@@ -48,6 +48,38 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
   const [counts, setCounts] = React.useState<Counts>(initialCounts);
   const sections = React.useMemo(() => navFor(profile.role), [profile.role]);
   const dept = departments.find((d) => d.id === profile.department_id);
+
+  // Do not disturb (notification_prefs.dnd_until) — read once, refreshed every minute so the moon disappears on expiry.
+  const [dndUntil, setDndUntil] = React.useState<string | null>(null);
+  const [nowMs, setNowMs] = React.useState(() => Date.now());
+  React.useEffect(() => {
+    let alive = true;
+    createClient().from("notification_prefs").select("dnd_until").eq("user_id", profile.id).maybeSingle().then(({ data }) => {
+      if (alive) setDndUntil(data?.dnd_until || null);
+    });
+    const id = setInterval(() => setNowMs(Date.now()), 60_000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, [profile.id]);
+  const dndActive = !!dndUntil && Date.parse(dndUntil) > nowMs;
+  async function setDnd(minutes: number | "tomorrow" | null) {
+    let until: string | null = null;
+    if (minutes === "tomorrow") {
+      const t = new Date();
+      t.setDate(t.getDate() + 1);
+      t.setHours(8, 0, 0, 0);
+      until = t.toISOString();
+    } else if (typeof minutes === "number") until = new Date(Date.now() + minutes * 60_000).toISOString();
+    const supabase = createClient();
+    const { error } = await supabase.from("notification_prefs").upsert({ user_id: profile.id, dnd_until: until, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+    if (error) return;
+    setDndUntil(until);
+    setNowMs(Date.now());
+    await supabase.from("profiles").update({ presence: until ? "dnd" : "available" }).eq("id", profile.id);
+    router.refresh();
+  }
 
   // Keyboard: Ctrl/Cmd+K palette, Ctrl/Cmd+J Ask GHL, "c" quick capture when not typing
   React.useEffect(() => {
@@ -191,12 +223,15 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
               </button>
               <Menu
                 trigger={
-                  <button className="flex items-center gap-1 pl-1 pr-1.5 h-8 rounded-full hover:bg-[var(--neutral-bg)]">
-                    <Avatar name={profile.full_name} src={profile.avatar_url} size={26} presence={profile.presence} />
+                  <button className="flex items-center gap-1 pl-1 pr-1.5 h-8 rounded-full hover:bg-[var(--neutral-bg)]" title={dndActive ? `Do not disturb until ${fmtTime(dndUntil)}` : undefined}>
+                    <span className="relative inline-flex">
+                      <Avatar name={profile.full_name} src={profile.avatar_url} size={26} presence={dndActive ? "dnd" : profile.presence} />
+                      {dndActive && <span className="absolute -top-1 -left-1 w-4 h-4 rounded-full bg-[var(--violet)] text-white flex items-center justify-center ring-2 ring-[var(--bg-elev)]" aria-label="Do not disturb on"><MoonStar size={9} /></span>}
+                    </span>
                     <ChevronDown size={13} className="text-muted hidden sm:block" />
                   </button>
                 }
-                width={210}
+                width={230}
               >
                 <div className="px-2.5 py-2 border-b mb-1">
                   <div className="text-sm font-medium truncate">{profile.full_name}</div>
@@ -204,6 +239,17 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
                 </div>
                 <MenuItem icon={<User size={14} />} onClick={() => router.push(`/people/${profile.id}`)}>My profile</MenuItem>
                 <MenuItem icon={<Settings size={14} />} onClick={() => router.push(`/people/${profile.id}?edit=1`)}>Settings & status</MenuItem>
+                <div className="px-2.5 pt-2 pb-1.5 border-t mt-1">
+                  <div className={cn("flex items-center gap-1.5 text-[11px] mb-1.5", dndActive ? "text-violet font-medium" : "text-muted")}>
+                    <MoonStar size={12} /> Do not disturb{dndActive && dndUntil ? ` · until ${fmtTime(dndUntil)}` : ""}
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    <button type="button" onClick={() => setDnd(30)} className="pill tone-neutral hover:bg-[var(--line)]">30 min</button>
+                    <button type="button" onClick={() => setDnd(60)} className="pill tone-neutral hover:bg-[var(--line)]">1 h</button>
+                    <button type="button" onClick={() => setDnd("tomorrow")} className="pill tone-neutral hover:bg-[var(--line)]">Until tomorrow</button>
+                    {dndActive && <button type="button" onClick={() => setDnd(null)} className="pill tone-violet hover:opacity-80">Off</button>}
+                  </div>
+                </div>
                 <MenuItem icon={<LogOut size={14} />} onClick={() => (window.location.href = "/auth/signout")} danger>Sign out</MenuItem>
               </Menu>
             </div>

@@ -516,6 +516,142 @@ export type Database = {
           },
         ]
       }
+      automation_runs: {
+        Row: {
+          automation_id: string
+          created_at: string
+          details: Json | null
+          entity_id: string | null
+          entity_type: string | null
+          event: string
+          id: number
+          org_id: string
+          status: string
+        }
+        Insert: {
+          automation_id: string
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type?: string | null
+          event: string
+          id?: never
+          org_id: string
+          status?: string
+        }
+        Update: {
+          automation_id?: string
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type?: string | null
+          event?: string
+          id?: never
+          org_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_runs_automation_id_fkey"
+            columns: ["automation_id"]
+            isOneToOne: false
+            referencedRelation: "automations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      automations: {
+        Row: {
+          actions: Json
+          conditions: Json
+          created_at: string
+          created_by: string | null
+          description: string | null
+          enabled: boolean
+          id: string
+          last_error: string | null
+          last_run_at: string | null
+          name: string
+          next_run_at: string | null
+          org_id: string
+          run_count: number
+          scope_department_id: string | null
+          scope_project_id: string | null
+          trigger_config: Json
+          trigger_type: string
+          updated_at: string
+        }
+        Insert: {
+          actions?: Json
+          conditions?: Json
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          enabled?: boolean
+          id?: string
+          last_error?: string | null
+          last_run_at?: string | null
+          name: string
+          next_run_at?: string | null
+          org_id: string
+          run_count?: number
+          scope_department_id?: string | null
+          scope_project_id?: string | null
+          trigger_config?: Json
+          trigger_type: string
+          updated_at?: string
+        }
+        Update: {
+          actions?: Json
+          conditions?: Json
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          enabled?: boolean
+          id?: string
+          last_error?: string | null
+          last_run_at?: string | null
+          name?: string
+          next_run_at?: string | null
+          org_id?: string
+          run_count?: number
+          scope_department_id?: string | null
+          scope_project_id?: string | null
+          trigger_config?: Json
+          trigger_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automations_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automations_scope_department_id_fkey"
+            columns: ["scope_department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automations_scope_project_id_fkey"
+            columns: ["scope_project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calendar_events: {
         Row: {
           all_day: boolean
@@ -615,6 +751,32 @@ export type Database = {
             foreignKeyName: "calendar_events_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      calendar_feed_tokens: {
+        Row: {
+          created_at: string
+          token: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          token?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          token?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_feed_tokens_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -916,6 +1078,89 @@ export type Database = {
           },
         ]
       }
+      escalation_log: {
+        Row: {
+          rule_id: string
+          sent_at: string
+          task_id: string
+        }
+        Insert: {
+          rule_id: string
+          sent_at?: string
+          task_id: string
+        }
+        Update: {
+          rule_id?: string
+          sent_at?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "escalation_log_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "escalation_rules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "escalation_log_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      escalation_rules: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          hours_after_due: number
+          id: string
+          kind: Database["public"]["Enums"]["notification_kind"]
+          name: string
+          notify: string[]
+          org_id: string
+          position: number
+          priority: Database["public"]["Enums"]["task_priority"] | null
+          respect_quiet_hours: boolean
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          hours_after_due: number
+          id?: string
+          kind?: Database["public"]["Enums"]["notification_kind"]
+          name: string
+          notify: string[]
+          org_id: string
+          position?: number
+          priority?: Database["public"]["Enums"]["task_priority"] | null
+          respect_quiet_hours?: boolean
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          hours_after_due?: number
+          id?: string
+          kind?: Database["public"]["Enums"]["notification_kind"]
+          name?: string
+          notify?: string[]
+          org_id?: string
+          position?: number
+          priority?: Database["public"]["Enums"]["task_priority"] | null
+          respect_quiet_hours?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "escalation_rules_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       file_versions: {
         Row: {
           approval_status: Database["public"]["Enums"]["approval_status"]
@@ -1054,6 +1299,104 @@ export type Database = {
           },
         ]
       }
+      handoffs: {
+        Row: {
+          created_at: string
+          from_department_id: string | null
+          from_user_id: string | null
+          id: string
+          note: string | null
+          org_id: string
+          package: Json
+          responded_at: string | null
+          responded_by: string | null
+          status: Database["public"]["Enums"]["handoff_status"]
+          task_id: string
+          to_department_id: string
+          to_user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          from_department_id?: string | null
+          from_user_id?: string | null
+          id?: string
+          note?: string | null
+          org_id: string
+          package?: Json
+          responded_at?: string | null
+          responded_by?: string | null
+          status?: Database["public"]["Enums"]["handoff_status"]
+          task_id: string
+          to_department_id: string
+          to_user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          from_department_id?: string | null
+          from_user_id?: string | null
+          id?: string
+          note?: string | null
+          org_id?: string
+          package?: Json
+          responded_at?: string | null
+          responded_by?: string | null
+          status?: Database["public"]["Enums"]["handoff_status"]
+          task_id?: string
+          to_department_id?: string
+          to_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "handoffs_from_department_id_fkey"
+            columns: ["from_department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "handoffs_from_user_id_fkey"
+            columns: ["from_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "handoffs_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "handoffs_responded_by_fkey"
+            columns: ["responded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "handoffs_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "handoffs_to_department_id_fkey"
+            columns: ["to_department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "handoffs_to_user_id_fkey"
+            columns: ["to_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       idea_votes: {
         Row: {
           idea_id: string
@@ -1138,6 +1481,98 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      integration_deliveries: {
+        Row: {
+          created_at: string
+          error: string | null
+          event: string
+          id: number
+          integration_id: string
+          payload: Json | null
+          request_id: number | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          event: string
+          id?: never
+          integration_id: string
+          payload?: Json | null
+          request_id?: number | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          event?: string
+          id?: never
+          integration_id?: string
+          payload?: Json | null
+          request_id?: number | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integration_deliveries_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: false
+            referencedRelation: "integrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      integrations: {
+        Row: {
+          config: Json
+          created_at: string
+          created_by: string | null
+          enabled: boolean
+          id: string
+          last_used_at: string | null
+          name: string
+          org_id: string
+          provider: string
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          created_by?: string | null
+          enabled?: boolean
+          id?: string
+          last_used_at?: string | null
+          name: string
+          org_id: string
+          provider: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          created_by?: string | null
+          enabled?: boolean
+          id?: string
+          last_used_at?: string | null
+          name?: string
+          org_id?: string
+          provider?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integrations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "integrations_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -1575,6 +2010,50 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notification_prefs: {
+        Row: {
+          digest_kinds: string[]
+          dnd_until: string | null
+          mode: string
+          muted_channels: string[]
+          priority_people: string[]
+          quiet_end: string | null
+          quiet_start: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          digest_kinds?: string[]
+          dnd_until?: string | null
+          mode?: string
+          muted_channels?: string[]
+          priority_people?: string[]
+          quiet_end?: string | null
+          quiet_start?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          digest_kinds?: string[]
+          dnd_until?: string | null
+          mode?: string
+          muted_channels?: string[]
+          priority_people?: string[]
+          quiet_end?: string | null
+          quiet_start?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_prefs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -2548,6 +3027,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      automation_ctx: { Args: { p_entity: string; p_row: Json }; Returns: Json }
+      calendar_feed: {
+        Args: { p_token: string }
+        Returns: {
+          all_day: boolean
+          description: string
+          ends_at: string
+          starts_at: string
+          summary: string
+          uid: string
+          url: string
+        }[]
+      }
       can_edit_task: { Args: { t: string }; Returns: boolean }
       can_view_channel: { Args: { c: string }; Returns: boolean }
       can_view_classification: {
@@ -2599,6 +3091,16 @@ export type Database = {
           slug: string
         }[]
       }
+      eval_condition: { Args: { cond: Json; ctx: Json }; Returns: boolean }
+      fire_automations: {
+        Args: { p_entity: string; p_event: string; p_old?: Json; p_row: Json }
+        Returns: number
+      }
+      in_quiet_hours: { Args: { uid: string }; Returns: boolean }
+      ingest_webhook: {
+        Args: { p_payload: Json; p_token: string }
+        Returns: Json
+      }
       is_active_member: { Args: never; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
       is_channel_member: { Args: { c: string }; Returns: boolean }
@@ -2607,6 +3109,7 @@ export type Database = {
       is_manager_plus: { Args: never; Returns: boolean }
       is_project_member: { Args: { p: string }; Returns: boolean }
       mark_channel_read: { Args: { c: string }; Returns: undefined }
+      my_calendar_token: { Args: never; Returns: string }
       my_unread_counts: {
         Args: never
         Returns: {
@@ -2615,10 +3118,33 @@ export type Database = {
         }[]
       }
       open_dm: { Args: { other: string }; Returns: string }
+      person_name: { Args: { uid: string }; Returns: string }
       related_to: { Args: { eid: string; entity: string }; Returns: Json }
+      render_tpl: { Args: { ctx: Json; tpl: string }; Returns: string }
+      resolve_targets: {
+        Args: { ctx: Json; target: string }
+        Returns: string[]
+      }
       role_rank: {
         Args: { r: Database["public"]["Enums"]["role_level"] }
         Returns: number
+      }
+      rotate_calendar_token: { Args: never; Returns: string }
+      run_automation_action: {
+        Args: {
+          act: Json
+          aut: Database["public"]["Tables"]["automations"]["Row"]
+          ctx: Json
+          p_entity: string
+        }
+        Returns: Json
+      }
+      run_digests: { Args: { p_mode: string }; Returns: number }
+      run_escalations: { Args: never; Returns: number }
+      run_scheduled_automations: { Args: never; Returns: number }
+      schedule_next_run: {
+        Args: { cfg: Json; from_ts: string }
+        Returns: string
       }
       search_all: {
         Args: { lim?: number; q: string }
@@ -2641,6 +3167,11 @@ export type Database = {
         }
         Returns: string
       }
+      task_recurrence_next: {
+        Args: { base: string; rec: Json }
+        Returns: string
+      }
+      test_automation: { Args: { p_id: string; p_task: string }; Returns: Json }
       workload: {
         Args: never
         Returns: {
@@ -2705,6 +3236,7 @@ export type Database = {
         | "client_meeting"
         | "compliance"
         | "milestone"
+      handoff_status: "pending" | "accepted" | "rejected"
       message_kind: "text" | "voice" | "file" | "system" | "video"
       notification_kind:
         | "critical"
@@ -2933,6 +3465,7 @@ export const Constants = {
         "compliance",
         "milestone",
       ],
+      handoff_status: ["pending", "accepted", "rejected"],
       message_kind: ["text", "voice", "file", "system", "video"],
       notification_kind: [
         "critical",

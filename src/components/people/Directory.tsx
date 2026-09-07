@@ -1,5 +1,7 @@
 "use client";
 
+import { Blink } from "@/components/providers/ActivityProvider";
+
 import * as React from "react";
 import Link from "next/link";
 import { Users, LayoutGrid, Network, X } from "lucide-react";
@@ -110,7 +112,7 @@ function PersonCard({ p, me }: { p: DirectoryPerson; me: boolean }) {
       <Link href={`/people/${p.id}`} className="flex items-start gap-3 min-w-0">
         <Avatar name={p.full_name} src={p.avatar_url} size={44} presence={p.presence} />
         <div className="min-w-0 flex-1">
-          <div className="text-sm font-medium truncate">{p.full_name}{me && <span className="text-muted font-normal"> (you)</span>}</div>
+          <div className="text-sm font-medium truncate flex items-center gap-2"><span className="truncate">{p.full_name}{me && <span className="text-muted font-normal"> (you)</span>}</span><Blink zone={`user:${p.id}`} /></div>
           <div className="text-xs text-muted truncate">{p.designation || "—"}</div>
           <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
             {dept && <span className="pill tone-neutral"><span className="w-1.5 h-1.5 rounded-full" style={{ background: dept.color }} />{dept.name}</span>}

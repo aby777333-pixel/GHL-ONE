@@ -2,6 +2,7 @@ import { getSession } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { SessionProvider } from "@/components/providers/SessionProvider";
 import { AppShell } from "@/components/shell/AppShell";
+import { ActivityProvider } from "@/components/providers/ActivityProvider";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession();
@@ -17,7 +18,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <SessionProvider value={{ profile: session.profile, departments: departments || [], people: people || [] }}>
-      <AppShell initialCounts={{ inbox: inbox || 0, approvals: approvals || 0, chat }}>{children}</AppShell>
+      <ActivityProvider>
+        <AppShell initialCounts={{ inbox: inbox || 0, approvals: approvals || 0, chat }}>{children}</AppShell>
+      </ActivityProvider>
     </SessionProvider>
   );
 }

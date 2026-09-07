@@ -4,6 +4,7 @@ import Link from "next/link";
 import { AlertTriangle, CalendarDays } from "lucide-react";
 import { Avatar, AvatarStack, Pill, Progress } from "@/components/ui";
 import { useSession } from "@/components/providers/SessionProvider";
+import { Blink } from "@/components/providers/ActivityProvider";
 import { cn, CLASSIFICATION_LABEL, PROJECT_STATUS_LABEL, PROJECT_STATUS_TONE, relDate, type Project } from "@/lib/utils";
 
 export type ProjectSummary = Pick<Project, "id" | "name" | "description" | "status" | "priority" | "classification" | "department_id" | "owner_id" | "due_date" | "start_date" | "client_name" | "tags" | "archived" | "updated_at"> & {
@@ -35,7 +36,7 @@ export function ProjectCard({ p, className }: { p: ProjectSummary; className?: s
       <div className="flex items-start gap-2">
         <span className="w-2.5 h-2.5 rounded-full mt-1.5 shrink-0" style={{ background: dept?.color || "var(--line-strong)" }} title={dept?.name} />
         <div className="min-w-0 flex-1">
-          <div className="font-medium leading-snug truncate-2">{p.name}</div>
+          <div className="font-medium leading-snug truncate-2">{p.name} <Blink zone={`project:${p.id}`} className="ml-1" /></div>
           <div className="text-[11px] text-muted truncate mt-0.5">{dept?.name || "No department"}{p.client_name ? ` · ${p.client_name}` : ""}</div>
         </div>
         {risk && <span className="text-[var(--warn)] shrink-0" title="At risk"><AlertTriangle size={16} /></span>}

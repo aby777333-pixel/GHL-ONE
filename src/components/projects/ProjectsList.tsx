@@ -7,6 +7,7 @@ import { AlertTriangle, Archive, FolderKanban, LayoutGrid, Plus, Table2 } from "
 import { Button, EmptyState, Pill, Progress, SearchInput, Select } from "@/components/ui";
 import { PersonPicker, DepartmentPicker } from "@/components/pickers";
 import { useSession } from "@/components/providers/SessionProvider";
+import { Blink } from "@/components/providers/ActivityProvider";
 import { PersonChip } from "@/components/tasks/TaskBits";
 import { ProjectCard, projectAtRisk, projectProgress, type ProjectSummary } from "@/components/projects/ProjectCard";
 import { cn, PROJECT_STATUSES, PROJECT_STATUS_LABEL, PROJECT_STATUS_TONE, relDate } from "@/lib/utils";
@@ -104,6 +105,7 @@ export function ProjectsList({ projects, initial }: { projects: ProjectSummary[]
                         <span className="w-2 h-2 rounded-full shrink-0" style={{ background: dept?.color || "var(--line-strong)" }} />
                         <Link href={`/projects/${p.id}`} className="font-medium truncate hover:underline" onClick={(e) => e.stopPropagation()}>{p.name}</Link>
                         {risk && <AlertTriangle size={14} className="text-[var(--warn)] shrink-0" />}
+                        <Blink zone={`project:${p.id}`} />
                       </div>
                     </td>
                     <td className="px-3 py-2.5"><Pill tone={PROJECT_STATUS_TONE[p.status]}>{PROJECT_STATUS_LABEL[p.status]}</Pill></td>

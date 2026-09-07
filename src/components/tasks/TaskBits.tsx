@@ -4,6 +4,7 @@ import Link from "next/link";
 import { AlertTriangle, Clock, Flag, Hourglass, Lock } from "lucide-react";
 import { Avatar, Pill } from "@/components/ui";
 import { usePerson } from "@/components/providers/SessionProvider";
+import { Blink } from "@/components/providers/ActivityProvider";
 import { cn, dueTone, relDate, STATUS_LABEL, STATUS_TONE, PRIORITY_LABEL, PRIORITY_TONE, WAITING_LABEL, type Task, type TaskPriority, type TaskStatus, type WaitingOn } from "@/lib/utils";
 
 export function StatusPill({ status, size }: { status: TaskStatus; size?: "lg" }) {
@@ -73,7 +74,7 @@ export function TaskRow({ task, showProject = true, onClick, right, className }:
     <div className={cn("flex items-center gap-3 px-3 py-2.5 row-hover rounded-[var(--radius-sm)]", className)}>
       <span className={cn("w-2 h-2 rounded-full shrink-0", task.status === "done" ? "bg-[var(--success)]" : task.status === "blocked" ? "bg-[var(--danger)]" : task.status === "waiting" ? "bg-[var(--warn)]" : task.status === "in_progress" ? "bg-[var(--info)]" : "bg-[var(--line-strong)]")} />
       <div className="min-w-0 flex-1">
-        <div className={cn("text-sm truncate", done && "line-through text-muted")}>{task.title}</div>
+        <div className={cn("text-sm truncate flex items-center gap-2", done && "line-through text-muted")}><span className="truncate">{task.title}</span><Blink zone={`task:${task.id}`} /></div>
         <div className="flex items-center gap-2 mt-0.5 flex-wrap">
           {showProject && task.project && <span className="text-[11px] text-muted truncate max-w-[160px]">{task.project.name}</span>}
           <StatusPill status={task.status} />

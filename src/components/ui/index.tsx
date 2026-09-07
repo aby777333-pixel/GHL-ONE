@@ -43,7 +43,7 @@ export function avatarColor(seed?: string | null) {
 export function Avatar({ name, src, size = 32, className, presence }: { name?: string | null; src?: string | null; size?: number; className?: string; presence?: string | null }) {
   const color = avatarColor(name);
   const dot = presence && presence !== "offline";
-  const dotColor = presence === "available" ? "var(--success)" : presence === "dnd" || presence === "busy" ? "var(--danger)" : presence === "in_meeting" ? "var(--violet)" : "var(--warn)";
+  const dotColor = presence === "available" || presence === "remote" ? "var(--success)" : presence === "dnd" || presence === "busy" ? "var(--danger)" : presence === "in_meeting" || presence === "focus" ? "var(--violet)" : presence === "field" || presence === "on_call" ? "var(--info)" : "var(--warn)";
   return (
     <span className={cn("relative inline-flex shrink-0 rounded-full", className)} style={{ width: size, height: size }} title={name || undefined}>
       {src ? (

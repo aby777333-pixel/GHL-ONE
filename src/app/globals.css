@@ -255,3 +255,9 @@ body {
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { scrollbar-width: none; }
 .truncate-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* Activity lights — a dot that blinks wherever something just happened (see components/providers/ActivityProvider) */
+@keyframes blink-pulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--blink) 55%, transparent); opacity: 1; } 50% { box-shadow: 0 0 0 5px color-mix(in oklab, var(--blink) 0%, transparent); opacity: .55; } }
+.blink-dot { --blink: var(--brand-2); display: inline-block; flex-shrink: 0; border-radius: 9999px; background: var(--blink); animation: blink-pulse 1.4s ease-in-out infinite; vertical-align: middle; }
+.blink-muted { animation: none; opacity: .8; }
+@media (prefers-reduced-motion: reduce) { .blink-dot { animation: none; } }

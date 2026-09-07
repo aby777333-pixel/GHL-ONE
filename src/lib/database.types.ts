@@ -14,6 +14,312 @@ export type Database = {
   }
   public: {
     Tables: {
+      access_grants: {
+        Row: {
+          created_at: string
+          expires_at: string | null
+          granted_by: string | null
+          id: string
+          level: string
+          org_id: string
+          reason: string | null
+          resource_id: string
+          resource_type: string
+          revoked_at: string | null
+          revoked_by: string | null
+          source_request_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string | null
+          granted_by?: string | null
+          id?: string
+          level?: string
+          org_id: string
+          reason?: string | null
+          resource_id: string
+          resource_type: string
+          revoked_at?: string | null
+          revoked_by?: string | null
+          source_request_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string | null
+          granted_by?: string | null
+          id?: string
+          level?: string
+          org_id?: string
+          reason?: string | null
+          resource_id?: string
+          resource_type?: string
+          revoked_at?: string | null
+          revoked_by?: string | null
+          source_request_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "access_grants_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "access_grants_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "access_grants_revoked_by_fkey"
+            columns: ["revoked_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "access_grants_source_request_id_fkey"
+            columns: ["source_request_id"]
+            isOneToOne: false
+            referencedRelation: "access_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "access_grants_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      access_requests: {
+        Row: {
+          approver_id: string | null
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          duration: string
+          granted_level: string | null
+          granted_until: string | null
+          id: string
+          level: string
+          org_id: string
+          project_id: string | null
+          reason: string
+          requester_id: string
+          resource_id: string | null
+          resource_label: string
+          resource_type: string
+          risk: string
+          status: Database["public"]["Enums"]["approval_status"]
+          until_at: string | null
+        }
+        Insert: {
+          approver_id?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          duration?: string
+          granted_level?: string | null
+          granted_until?: string | null
+          id?: string
+          level?: string
+          org_id: string
+          project_id?: string | null
+          reason: string
+          requester_id: string
+          resource_id?: string | null
+          resource_label: string
+          resource_type: string
+          risk?: string
+          status?: Database["public"]["Enums"]["approval_status"]
+          until_at?: string | null
+        }
+        Update: {
+          approver_id?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          duration?: string
+          granted_level?: string | null
+          granted_until?: string | null
+          id?: string
+          level?: string
+          org_id?: string
+          project_id?: string | null
+          reason?: string
+          requester_id?: string
+          resource_id?: string | null
+          resource_label?: string
+          resource_type?: string
+          risk?: string
+          status?: Database["public"]["Enums"]["approval_status"]
+          until_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "access_requests_approver_id_fkey"
+            columns: ["approver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "access_requests_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "access_requests_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "access_requests_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "access_requests_requester_id_fkey"
+            columns: ["requester_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      admin_assignments: {
+        Row: {
+          admin_role_id: string
+          created_at: string
+          expires_at: string | null
+          granted_by: string | null
+          id: string
+          org_id: string
+          scope_department_id: string | null
+          user_id: string
+        }
+        Insert: {
+          admin_role_id: string
+          created_at?: string
+          expires_at?: string | null
+          granted_by?: string | null
+          id?: string
+          org_id: string
+          scope_department_id?: string | null
+          user_id: string
+        }
+        Update: {
+          admin_role_id?: string
+          created_at?: string
+          expires_at?: string | null
+          granted_by?: string | null
+          id?: string
+          org_id?: string
+          scope_department_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_assignments_admin_role_id_fkey"
+            columns: ["admin_role_id"]
+            isOneToOne: false
+            referencedRelation: "admin_roles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_assignments_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_assignments_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_assignments_scope_department_id_fkey"
+            columns: ["scope_department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_assignments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      admin_roles: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_system: boolean
+          name: string
+          org_id: string
+          permissions: string[]
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_system?: boolean
+          name: string
+          org_id: string
+          permissions?: string[]
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_system?: boolean
+          name?: string
+          org_id?: string
+          permissions?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_roles_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_roles_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_conversations: {
         Row: {
           created_at: string
@@ -456,6 +762,130 @@ export type Database = {
           },
         ]
       }
+      attendance_days: {
+        Row: {
+          corrected_by: string | null
+          correction_note: string | null
+          day: string
+          first_in: string | null
+          last_out: string | null
+          late: boolean
+          minutes_break: number
+          minutes_worked: number
+          missing_checkout: boolean
+          mode: string | null
+          org_id: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          corrected_by?: string | null
+          correction_note?: string | null
+          day: string
+          first_in?: string | null
+          last_out?: string | null
+          late?: boolean
+          minutes_break?: number
+          minutes_worked?: number
+          missing_checkout?: boolean
+          mode?: string | null
+          org_id: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          corrected_by?: string | null
+          correction_note?: string | null
+          day?: string
+          first_in?: string | null
+          last_out?: string | null
+          late?: boolean
+          minutes_break?: number
+          minutes_worked?: number
+          missing_checkout?: boolean
+          mode?: string | null
+          org_id?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_days_corrected_by_fkey"
+            columns: ["corrected_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_days_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_days_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attendance_events: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          location: Json | null
+          mode: string
+          note: string | null
+          occurred_at: string
+          org_id: string
+          source: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind: string
+          location?: Json | null
+          mode?: string
+          note?: string | null
+          occurred_at?: string
+          org_id: string
+          source?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          location?: Json | null
+          mode?: string
+          note?: string | null
+          occurred_at?: string
+          org_id?: string
+          source?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_events_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           action: string
@@ -785,6 +1215,9 @@ export type Database = {
       channel_members: {
         Row: {
           channel_id: string
+          expires_at: string | null
+          invite_reason: string | null
+          invited_by: string | null
           joined_at: string
           last_read_at: string
           muted: boolean
@@ -793,6 +1226,9 @@ export type Database = {
         }
         Insert: {
           channel_id: string
+          expires_at?: string | null
+          invite_reason?: string | null
+          invited_by?: string | null
           joined_at?: string
           last_read_at?: string
           muted?: boolean
@@ -801,6 +1237,9 @@ export type Database = {
         }
         Update: {
           channel_id?: string
+          expires_at?: string | null
+          invite_reason?: string | null
+          invited_by?: string | null
           joined_at?: string
           last_read_at?: string
           muted?: boolean
@@ -816,6 +1255,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "channel_members_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "channel_members_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
@@ -826,60 +1272,94 @@ export type Database = {
       }
       channels: {
         Row: {
+          archive_at: string | null
+          archived: boolean
           classification: Database["public"]["Enums"]["classification"]
+          co_owner_id: string | null
           created_at: string
           created_by: string | null
           department_id: string | null
+          department_ids: string[]
           description: string | null
           dm_key: string | null
+          help_request_id: string | null
           id: string
           is_private: boolean
           is_readonly: boolean
           last_message_at: string | null
           name: string
           org_id: string
+          owner_id: string | null
           project_id: string | null
+          purpose: string | null
+          settings: Json
           slug: string | null
           task_id: string | null
           type: Database["public"]["Enums"]["channel_type"]
+          visibility: string
         }
         Insert: {
+          archive_at?: string | null
+          archived?: boolean
           classification?: Database["public"]["Enums"]["classification"]
+          co_owner_id?: string | null
           created_at?: string
           created_by?: string | null
           department_id?: string | null
+          department_ids?: string[]
           description?: string | null
           dm_key?: string | null
+          help_request_id?: string | null
           id?: string
           is_private?: boolean
           is_readonly?: boolean
           last_message_at?: string | null
           name: string
           org_id: string
+          owner_id?: string | null
           project_id?: string | null
+          purpose?: string | null
+          settings?: Json
           slug?: string | null
           task_id?: string | null
           type?: Database["public"]["Enums"]["channel_type"]
+          visibility?: string
         }
         Update: {
+          archive_at?: string | null
+          archived?: boolean
           classification?: Database["public"]["Enums"]["classification"]
+          co_owner_id?: string | null
           created_at?: string
           created_by?: string | null
           department_id?: string | null
+          department_ids?: string[]
           description?: string | null
           dm_key?: string | null
+          help_request_id?: string | null
           id?: string
           is_private?: boolean
           is_readonly?: boolean
           last_message_at?: string | null
           name?: string
           org_id?: string
+          owner_id?: string | null
           project_id?: string | null
+          purpose?: string | null
+          settings?: Json
           slug?: string | null
           task_id?: string | null
           type?: Database["public"]["Enums"]["channel_type"]
+          visibility?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "channels_co_owner_id_fkey"
+            columns: ["co_owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "channels_created_by_fkey"
             columns: ["created_by"]
@@ -899,6 +1379,13 @@ export type Database = {
             columns: ["org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channels_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
@@ -1029,42 +1516,64 @@ export type Database = {
           color: string
           created_at: string
           description: string | null
+          escalation_matrix: string[]
           head_id: string | null
           icon: string | null
           id: string
           name: string
+          on_duty_user_id: string | null
           org_id: string
           position: number
+          services_intro: string | null
+          settings: Json
           slug: string
+          status: string
         }
         Insert: {
           color?: string
           created_at?: string
           description?: string | null
+          escalation_matrix?: string[]
           head_id?: string | null
           icon?: string | null
           id?: string
           name: string
+          on_duty_user_id?: string | null
           org_id: string
           position?: number
+          services_intro?: string | null
+          settings?: Json
           slug: string
+          status?: string
         }
         Update: {
           color?: string
           created_at?: string
           description?: string | null
+          escalation_matrix?: string[]
           head_id?: string | null
           icon?: string | null
           id?: string
           name?: string
+          on_duty_user_id?: string | null
           org_id?: string
           position?: number
+          services_intro?: string | null
+          settings?: Json
           slug?: string
+          status?: string
         }
         Relationships: [
           {
             foreignKeyName: "departments_head_fk"
             columns: ["head_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "departments_on_duty_user_id_fkey"
+            columns: ["on_duty_user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -1154,6 +1663,38 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "escalation_rules_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feature_flags: {
+        Row: {
+          beta: boolean
+          department_ids: string[] | null
+          enabled: boolean
+          feature: string
+          org_id: string
+        }
+        Insert: {
+          beta?: boolean
+          department_ids?: string[] | null
+          enabled?: boolean
+          feature: string
+          org_id: string
+        }
+        Update: {
+          beta?: boolean
+          department_ids?: string[] | null
+          enabled?: boolean
+          feature?: string
+          org_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feature_flags_org_id_fkey"
             columns: ["org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -1393,6 +1934,151 @@ export type Database = {
             columns: ["to_user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      help_requests: {
+        Row: {
+          ack_due_at: string | null
+          acknowledged_at: string | null
+          attachments: Json
+          channel_id: string | null
+          completed_at: string | null
+          created_at: string
+          deadline: string | null
+          department_id: string
+          details: string | null
+          escalation_level: number
+          form_data: Json
+          id: string
+          org_id: string
+          owner_id: string | null
+          priority: Database["public"]["Enums"]["task_priority"]
+          project_id: string | null
+          requester_department_id: string | null
+          requester_id: string
+          service_id: string | null
+          status: Database["public"]["Enums"]["help_status"]
+          task_id: string | null
+          title: string
+          updated_at: string
+          visible_on_board: boolean
+        }
+        Insert: {
+          ack_due_at?: string | null
+          acknowledged_at?: string | null
+          attachments?: Json
+          channel_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          deadline?: string | null
+          department_id: string
+          details?: string | null
+          escalation_level?: number
+          form_data?: Json
+          id?: string
+          org_id: string
+          owner_id?: string | null
+          priority?: Database["public"]["Enums"]["task_priority"]
+          project_id?: string | null
+          requester_department_id?: string | null
+          requester_id: string
+          service_id?: string | null
+          status?: Database["public"]["Enums"]["help_status"]
+          task_id?: string | null
+          title: string
+          updated_at?: string
+          visible_on_board?: boolean
+        }
+        Update: {
+          ack_due_at?: string | null
+          acknowledged_at?: string | null
+          attachments?: Json
+          channel_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          deadline?: string | null
+          department_id?: string
+          details?: string | null
+          escalation_level?: number
+          form_data?: Json
+          id?: string
+          org_id?: string
+          owner_id?: string | null
+          priority?: Database["public"]["Enums"]["task_priority"]
+          project_id?: string | null
+          requester_department_id?: string | null
+          requester_id?: string
+          service_id?: string | null
+          status?: Database["public"]["Enums"]["help_status"]
+          task_id?: string | null
+          title?: string
+          updated_at?: string
+          visible_on_board?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "help_requests_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "help_requests_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "help_requests_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "help_requests_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "help_requests_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "help_requests_requester_department_id_fkey"
+            columns: ["requester_department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "help_requests_requester_id_fkey"
+            columns: ["requester_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "help_requests_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "service_catalog"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "help_requests_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
             referencedColumns: ["id"]
           },
         ]
@@ -1648,12 +2334,110 @@ export type Database = {
           },
         ]
       }
+      leave_balances: {
+        Row: {
+          allocated: number
+          leave_type_id: string
+          used: number
+          user_id: string
+          year: number
+        }
+        Insert: {
+          allocated?: number
+          leave_type_id: string
+          used?: number
+          user_id: string
+          year: number
+        }
+        Update: {
+          allocated?: number
+          leave_type_id?: string
+          used?: number
+          user_id?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_balances_leave_type_id_fkey"
+            columns: ["leave_type_id"]
+            isOneToOne: false
+            referencedRelation: "leave_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_balances_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leave_types: {
+        Row: {
+          active: boolean
+          annual_quota: number
+          code: string
+          color: string
+          id: string
+          name: string
+          org_id: string
+          paid: boolean
+          position: number
+          requires_hr: boolean
+        }
+        Insert: {
+          active?: boolean
+          annual_quota?: number
+          code: string
+          color?: string
+          id?: string
+          name: string
+          org_id: string
+          paid?: boolean
+          position?: number
+          requires_hr?: boolean
+        }
+        Update: {
+          active?: boolean
+          annual_quota?: number
+          code?: string
+          color?: string
+          id?: string
+          name?: string
+          org_id?: string
+          paid?: boolean
+          position?: number
+          requires_hr?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_types_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leaves: {
         Row: {
           created_at: string
+          days: number | null
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
           ends_on: string
+          half_day: boolean
+          handover: Json | null
+          hr_decision: Database["public"]["Enums"]["approval_status"] | null
           id: string
           kind: string
+          leave_type_id: string | null
+          manager_decision:
+            | Database["public"]["Enums"]["approval_status"]
+            | null
+          manager_id: string | null
           note: string | null
           org_id: string
           starts_on: string
@@ -1662,9 +2446,21 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          days?: number | null
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
           ends_on: string
+          half_day?: boolean
+          handover?: Json | null
+          hr_decision?: Database["public"]["Enums"]["approval_status"] | null
           id?: string
           kind?: string
+          leave_type_id?: string | null
+          manager_decision?:
+            | Database["public"]["Enums"]["approval_status"]
+            | null
+          manager_id?: string | null
           note?: string | null
           org_id: string
           starts_on: string
@@ -1673,9 +2469,21 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          days?: number | null
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
           ends_on?: string
+          half_day?: boolean
+          handover?: Json | null
+          hr_decision?: Database["public"]["Enums"]["approval_status"] | null
           id?: string
           kind?: string
+          leave_type_id?: string | null
+          manager_decision?:
+            | Database["public"]["Enums"]["approval_status"]
+            | null
+          manager_id?: string | null
           note?: string | null
           org_id?: string
           starts_on?: string
@@ -1683,6 +2491,27 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "leaves_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leaves_leave_type_id_fkey"
+            columns: ["leave_type_id"]
+            isOneToOne: false
+            referencedRelation: "leave_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leaves_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "leaves_org_id_fkey"
             columns: ["org_id"]
@@ -2149,22 +2978,33 @@ export type Database = {
           department_id: string | null
           designation: string | null
           email: string
+          employee_code: string | null
+          employment_type: string
           full_name: string
           id: string
           is_active: boolean
           is_external: boolean
           joined_at: string | null
+          languages: string[]
           last_seen_at: string | null
+          location: string | null
           manager_id: string | null
           org_id: string | null
           phone: string | null
           presence: Database["public"]["Enums"]["presence_status"]
+          probation_ends_on: string | null
+          qualifications: string | null
+          responsibilities: string | null
           role: Database["public"]["Enums"]["role_level"]
+          secondary_manager_id: string | null
+          shift_id: string | null
           skills: string[]
           status_text: string | null
+          status_until: string | null
           team_id: string | null
           timezone: string | null
           updated_at: string
+          work_mode: string
           working_hours: string | null
         }
         Insert: {
@@ -2173,22 +3013,33 @@ export type Database = {
           department_id?: string | null
           designation?: string | null
           email: string
+          employee_code?: string | null
+          employment_type?: string
           full_name?: string
           id: string
           is_active?: boolean
           is_external?: boolean
           joined_at?: string | null
+          languages?: string[]
           last_seen_at?: string | null
+          location?: string | null
           manager_id?: string | null
           org_id?: string | null
           phone?: string | null
           presence?: Database["public"]["Enums"]["presence_status"]
+          probation_ends_on?: string | null
+          qualifications?: string | null
+          responsibilities?: string | null
           role?: Database["public"]["Enums"]["role_level"]
+          secondary_manager_id?: string | null
+          shift_id?: string | null
           skills?: string[]
           status_text?: string | null
+          status_until?: string | null
           team_id?: string | null
           timezone?: string | null
           updated_at?: string
+          work_mode?: string
           working_hours?: string | null
         }
         Update: {
@@ -2197,22 +3048,33 @@ export type Database = {
           department_id?: string | null
           designation?: string | null
           email?: string
+          employee_code?: string | null
+          employment_type?: string
           full_name?: string
           id?: string
           is_active?: boolean
           is_external?: boolean
           joined_at?: string | null
+          languages?: string[]
           last_seen_at?: string | null
+          location?: string | null
           manager_id?: string | null
           org_id?: string | null
           phone?: string | null
           presence?: Database["public"]["Enums"]["presence_status"]
+          probation_ends_on?: string | null
+          qualifications?: string | null
+          responsibilities?: string | null
           role?: Database["public"]["Enums"]["role_level"]
+          secondary_manager_id?: string | null
+          shift_id?: string | null
           skills?: string[]
           status_text?: string | null
+          status_until?: string | null
           team_id?: string | null
           timezone?: string | null
           updated_at?: string
+          work_mode?: string
           working_hours?: string | null
         }
         Relationships: [
@@ -2238,10 +3100,65 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "profiles_secondary_manager_id_fkey"
+            columns: ["secondary_manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_shift_fk"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "shifts"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "profiles_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles_private: {
+        Row: {
+          address: string | null
+          date_of_birth: string | null
+          emergency_contact: Json | null
+          notes: string | null
+          personal_email: string | null
+          show_birthday: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          address?: string | null
+          date_of_birth?: string | null
+          emergency_contact?: Json | null
+          notes?: string | null
+          personal_email?: string | null
+          show_birthday?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          address?: string | null
+          date_of_birth?: string | null
+          emergency_contact?: Json | null
+          notes?: string | null
+          personal_email?: string | null
+          show_birthday?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_private_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -2478,6 +3395,331 @@ export type Database = {
             columns: ["owner_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      security_events: {
+        Row: {
+          created_at: string
+          details: Json | null
+          id: number
+          ip: string | null
+          kind: string
+          org_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          details?: Json | null
+          id?: never
+          ip?: string | null
+          kind: string
+          org_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          details?: Json | null
+          id?: never
+          ip?: string | null
+          kind?: string
+          org_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "security_events_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "security_events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      service_catalog: {
+        Row: {
+          active: boolean
+          created_at: string
+          default_owner_id: string | null
+          default_priority: Database["public"]["Enums"]["task_priority"]
+          department_id: string
+          description: string | null
+          form_schema: Json
+          id: string
+          name: string
+          org_id: string
+          position: number
+          sla_ack_minutes: number
+          sla_resolve_minutes: number | null
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          default_owner_id?: string | null
+          default_priority?: Database["public"]["Enums"]["task_priority"]
+          department_id: string
+          description?: string | null
+          form_schema?: Json
+          id?: string
+          name: string
+          org_id: string
+          position?: number
+          sla_ack_minutes?: number
+          sla_resolve_minutes?: number | null
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          default_owner_id?: string | null
+          default_priority?: Database["public"]["Enums"]["task_priority"]
+          department_id?: string
+          description?: string | null
+          form_schema?: Json
+          id?: string
+          name?: string
+          org_id?: string
+          position?: number
+          sla_ack_minutes?: number
+          sla_resolve_minutes?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_catalog_default_owner_id_fkey"
+            columns: ["default_owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_catalog_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_catalog_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shift_assignments: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          ends_on: string | null
+          id: string
+          note: string | null
+          org_id: string
+          shift_id: string
+          starts_on: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          ends_on?: string | null
+          id?: string
+          note?: string | null
+          org_id: string
+          shift_id: string
+          starts_on: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          ends_on?: string | null
+          id?: string
+          note?: string | null
+          org_id?: string
+          shift_id?: string
+          starts_on?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_assignments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_assignments_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_assignments_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "shifts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_assignments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shift_swaps: {
+        Row: {
+          created_at: string
+          day: string
+          decided_at: string | null
+          decided_by: string | null
+          from_shift_id: string | null
+          id: string
+          org_id: string
+          reason: string | null
+          requester_id: string
+          status: Database["public"]["Enums"]["approval_status"]
+          to_shift_id: string | null
+          with_user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          day: string
+          decided_at?: string | null
+          decided_by?: string | null
+          from_shift_id?: string | null
+          id?: string
+          org_id: string
+          reason?: string | null
+          requester_id: string
+          status?: Database["public"]["Enums"]["approval_status"]
+          to_shift_id?: string | null
+          with_user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          day?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          from_shift_id?: string | null
+          id?: string
+          org_id?: string
+          reason?: string | null
+          requester_id?: string
+          status?: Database["public"]["Enums"]["approval_status"]
+          to_shift_id?: string | null
+          with_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_swaps_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_swaps_from_shift_id_fkey"
+            columns: ["from_shift_id"]
+            isOneToOne: false
+            referencedRelation: "shifts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_swaps_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_swaps_requester_id_fkey"
+            columns: ["requester_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_swaps_to_shift_id_fkey"
+            columns: ["to_shift_id"]
+            isOneToOne: false
+            referencedRelation: "shifts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_swaps_with_user_id_fkey"
+            columns: ["with_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shifts: {
+        Row: {
+          active: boolean
+          color: string
+          created_at: string
+          days: number[]
+          department_id: string | null
+          end_time: string
+          id: string
+          kind: string
+          name: string
+          org_id: string
+          start_time: string
+        }
+        Insert: {
+          active?: boolean
+          color?: string
+          created_at?: string
+          days?: number[]
+          department_id?: string | null
+          end_time?: string
+          id?: string
+          kind?: string
+          name: string
+          org_id: string
+          start_time?: string
+        }
+        Update: {
+          active?: boolean
+          color?: string
+          created_at?: string
+          days?: number[]
+          department_id?: string | null
+          end_time?: string
+          id?: string
+          kind?: string
+          name?: string
+          org_id?: string
+          start_time?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shifts_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shifts_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -2958,6 +4200,80 @@ export type Database = {
           },
         ]
       }
+      time_entries: {
+        Row: {
+          confirmed: boolean
+          created_at: string
+          ended_at: string | null
+          id: string
+          meeting_id: string | null
+          minutes: number | null
+          note: string | null
+          org_id: string
+          source: string
+          started_at: string
+          task_id: string | null
+          user_id: string
+        }
+        Insert: {
+          confirmed?: boolean
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          meeting_id?: string | null
+          minutes?: number | null
+          note?: string | null
+          org_id: string
+          source?: string
+          started_at?: string
+          task_id?: string | null
+          user_id: string
+        }
+        Update: {
+          confirmed?: boolean
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          meeting_id?: string | null
+          minutes?: number | null
+          note?: string | null
+          org_id?: string
+          source?: string
+          started_at?: string
+          task_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_entries_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entries_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entries_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entries_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wiki_pages: {
         Row: {
           author_id: string | null
@@ -3027,7 +4343,50 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      activity_timeline: {
+        Args: { p_from: string; p_to: string; p_user: string }
+        Returns: {
+          kind: string
+          link: string
+          occurred_at: string
+          title: string
+        }[]
+      }
+      attendance_board: {
+        Args: { p_day?: string }
+        Returns: {
+          att_status: string
+          avatar_url: string
+          department_id: string
+          designation: string
+          first_in: string
+          full_name: string
+          in_meeting: boolean
+          last_out: string
+          late: boolean
+          leave_kind: string
+          minutes_worked: number
+          on_leave: boolean
+          presence: Database["public"]["Enums"]["presence_status"]
+          shift_name: string
+          status_text: string
+          user_id: string
+        }[]
+      }
+      attendance_recompute: {
+        Args: { p_day: string; p_user: string }
+        Returns: undefined
+      }
       automation_ctx: { Args: { p_entity: string; p_row: Json }; Returns: Json }
+      bring_in: {
+        Args: {
+          p_channel: string
+          p_expires_at?: string
+          p_reason?: string
+          p_user: string
+        }
+        Returns: undefined
+      }
       calendar_feed: {
         Args: { p_token: string }
         Returns: {
@@ -3048,7 +4407,45 @@ export type Database = {
       }
       can_view_project: { Args: { p: string }; Returns: boolean }
       can_view_task: { Args: { t: string }; Returns: boolean }
+      clear_expired_dnd: { Args: never; Returns: number }
+      clock: {
+        Args: {
+          p_kind: string
+          p_location?: Json
+          p_mode?: string
+          p_note?: string
+          p_source?: string
+        }
+        Returns: Json
+      }
+      collaboration_map: {
+        Args: never
+        Returns: {
+          avg_ack_minutes: number
+          from_department_id: string
+          from_name: string
+          handoffs: number
+          help_requests: number
+          shared_rooms: number
+          to_department_id: string
+          to_name: string
+        }[]
+      }
+      company_now: { Args: never; Returns: Json }
       company_pulse: { Args: never; Returns: Json }
+      convert_channel_to_project: {
+        Args: { p_channel: string; p_due?: string; p_name: string }
+        Returns: string
+      }
+      correct_attendance: {
+        Args: {
+          p_day: string
+          p_note: string
+          p_status: string
+          p_user: string
+        }
+        Returns: undefined
+      }
       create_delegation: {
         Args: {
           p_approver: string
@@ -3074,6 +4471,23 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["role_level"]
       }
+      department_availability: {
+        Args: never
+        Returns: {
+          available: number
+          avg_ack_minutes: number
+          busy: number
+          color: string
+          department_id: string
+          name: string
+          on_duty_user_id: string
+          on_leave: number
+          open_requests: number
+          services: number
+          slug: string
+          status: string
+        }[]
+      }
       department_health: {
         Args: never
         Returns: {
@@ -3091,15 +4505,31 @@ export type Database = {
           slug: string
         }[]
       }
+      escalate_help_requests: { Args: never; Returns: number }
       eval_condition: { Args: { cond: Json; ctx: Json }; Returns: boolean }
+      expire_access_grants: { Args: never; Returns: number }
+      expire_collaboration: { Args: never; Returns: number }
+      explain_access: {
+        Args: { p_id: string; p_type: string; p_user: string }
+        Returns: Json
+      }
       fire_automations: {
         Args: { p_entity: string; p_event: string; p_old?: Json; p_row: Json }
         Returns: number
+      }
+      has_admin_perm: { Args: { perm: string }; Returns: boolean }
+      has_grant: {
+        Args: { p_id: string; p_level?: string; p_type: string }
+        Returns: boolean
       }
       in_quiet_hours: { Args: { uid: string }; Returns: boolean }
       ingest_webhook: {
         Args: { p_payload: Json; p_token: string }
         Returns: Json
+      }
+      invite_department: {
+        Args: { p_channel: string; p_department: string; p_reason?: string }
+        Returns: number
       }
       is_active_member: { Args: never; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
@@ -3107,9 +4537,55 @@ export type Database = {
       is_internal: { Args: never; Returns: boolean }
       is_lead_plus: { Args: never; Returns: boolean }
       is_manager_plus: { Args: never; Returns: boolean }
+      is_primary_admin: { Args: never; Returns: boolean }
       is_project_member: { Args: { p: string }; Returns: boolean }
+      leave_days: {
+        Args: { p_from: string; p_half: boolean; p_to: string }
+        Returns: number
+      }
+      leave_impact: {
+        Args: { p_from: string; p_to: string; p_user: string }
+        Returns: Json
+      }
       mark_channel_read: { Args: { c: string }; Returns: undefined }
+      my_attendance: {
+        Args: { p_from: string; p_to: string }
+        Returns: {
+          corrected_by: string | null
+          correction_note: string | null
+          day: string
+          first_in: string | null
+          last_out: string | null
+          late: boolean
+          minutes_break: number
+          minutes_worked: number
+          missing_checkout: boolean
+          mode: string | null
+          org_id: string
+          status: string
+          user_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "attendance_days"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       my_calendar_token: { Args: never; Returns: string }
+      my_leave_balances: {
+        Args: { p_user?: string }
+        Returns: {
+          allocated: number
+          code: string
+          color: string
+          leave_type_id: string
+          name: string
+          pending: number
+          remaining: number
+          used: number
+        }[]
+      }
       my_unread_counts: {
         Args: never
         Returns: {
@@ -3119,15 +4595,48 @@ export type Database = {
       }
       open_dm: { Args: { other: string }; Returns: string }
       person_name: { Args: { uid: string }; Returns: string }
+      prepare_handover: {
+        Args: {
+          p_backup: string
+          p_leave: string
+          p_notes?: string
+          p_task_ids?: string[]
+        }
+        Returns: Json
+      }
       related_to: { Args: { eid: string; entity: string }; Returns: Json }
       render_tpl: { Args: { ctx: Json; tpl: string }; Returns: string }
       resolve_targets: {
         Args: { ctx: Json; target: string }
         Returns: string[]
       }
+      restore_handovers: { Args: never; Returns: number }
+      revoke_everywhere: {
+        Args: { p_reason: string; p_user: string }
+        Returns: Json
+      }
+      revoke_grant: {
+        Args: { p_grant: string; p_reason?: string }
+        Returns: undefined
+      }
       role_rank: {
         Args: { r: Database["public"]["Enums"]["role_level"] }
         Returns: number
+      }
+      roster: {
+        Args: { p_department?: string; p_from: string; p_to: string }
+        Returns: {
+          color: string
+          day: string
+          department_id: string
+          end_time: string
+          full_name: string
+          on_leave: boolean
+          shift_id: string
+          shift_name: string
+          start_time: string
+          user_id: string
+        }[]
       }
       rotate_calendar_token: { Args: never; Returns: string }
       run_automation_action: {
@@ -3157,6 +4666,12 @@ export type Database = {
           title: string
         }[]
       }
+      since_last_visit: { Args: { p_since: string }; Returns: Json }
+      start_focus: {
+        Args: { p_note?: string; p_task: string }
+        Returns: string
+      }
+      stop_focus: { Args: never; Returns: Json }
       task_from_message: {
         Args: {
           msg: string
@@ -3172,6 +4687,9 @@ export type Database = {
         Returns: string
       }
       test_automation: { Args: { p_id: string; p_task: string }; Returns: Json }
+      timesheet_suggestions: { Args: { p_day: string }; Returns: Json }
+      view_as: { Args: { p_user: string }; Returns: Json }
+      who_can_see: { Args: { p_id: string; p_type: string }; Returns: Json }
       workload: {
         Args: never
         Returns: {
@@ -3217,6 +4735,14 @@ export type Database = {
         | "company"
         | "announcement"
         | "task"
+        | "temporary"
+        | "client"
+        | "vendor"
+        | "social"
+        | "emergency"
+        | "management"
+        | "team"
+        | "help"
       classification:
         | "public"
         | "internal"
@@ -3237,6 +4763,13 @@ export type Database = {
         | "compliance"
         | "milestone"
       handoff_status: "pending" | "accepted" | "rejected"
+      help_status:
+        | "new"
+        | "accepted"
+        | "working"
+        | "waiting"
+        | "completed"
+        | "declined"
       message_kind: "text" | "voice" | "file" | "system" | "video"
       notification_kind:
         | "critical"
@@ -3245,6 +4778,8 @@ export type Database = {
         | "approval"
         | "deadline"
         | "information"
+        | "help_request"
+        | "security"
       presence_status:
         | "available"
         | "busy"
@@ -3253,6 +4788,12 @@ export type Database = {
         | "away"
         | "offline"
         | "leave"
+        | "focus"
+        | "break"
+        | "lunch"
+        | "field"
+        | "remote"
+        | "on_call"
       project_status:
         | "planning"
         | "active"
@@ -3443,6 +4984,14 @@ export const Constants = {
         "company",
         "announcement",
         "task",
+        "temporary",
+        "client",
+        "vendor",
+        "social",
+        "emergency",
+        "management",
+        "team",
+        "help",
       ],
       classification: [
         "public",
@@ -3466,6 +5015,14 @@ export const Constants = {
         "milestone",
       ],
       handoff_status: ["pending", "accepted", "rejected"],
+      help_status: [
+        "new",
+        "accepted",
+        "working",
+        "waiting",
+        "completed",
+        "declined",
+      ],
       message_kind: ["text", "voice", "file", "system", "video"],
       notification_kind: [
         "critical",
@@ -3474,6 +5031,8 @@ export const Constants = {
         "approval",
         "deadline",
         "information",
+        "help_request",
+        "security",
       ],
       presence_status: [
         "available",
@@ -3483,6 +5042,12 @@ export const Constants = {
         "away",
         "offline",
         "leave",
+        "focus",
+        "break",
+        "lunch",
+        "field",
+        "remote",
+        "on_call",
       ],
       project_status: [
         "planning",

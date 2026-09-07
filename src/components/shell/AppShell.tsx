@@ -13,6 +13,7 @@ import { CommandPalette } from "./CommandPalette";
 import { NotificationsPanel } from "./NotificationsPanel";
 import { QuickCapture } from "./QuickCapture";
 import { AskPanel } from "@/components/ai/AskPanel";
+import { Blink } from "@/components/providers/ActivityProvider";
 
 export type Counts = { inbox: number; approvals: number; chat: number };
 
@@ -155,7 +156,7 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
                   <Link key={it.href} href={it.href} className="navlink" data-active={isActive(it.href)} onClick={() => setMobileOpen(false)}>
                     <it.icon size={16} className="shrink-0" />
                     <span className="truncate">{it.label}</span>
-                    {n > 0 && <span className={cn("ml-auto pill", it.badge === "approvals" ? "tone-warn" : "tone-brand")}>{n > 99 ? "99+" : n}</span>}
+                    {n > 0 ? <span className={cn("ml-auto pill", it.badge === "approvals" ? "tone-warn" : "tone-brand")}>{n > 99 ? "99+" : n}</span> : <Blink zone={`nav:${it.href}`} className="ml-auto" />}
                   </Link>
                 );
               })}
@@ -279,7 +280,7 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
                   <Link key={it.href} href={it.href} className={cn("relative flex flex-col items-center justify-center gap-0.5 h-14 text-[10px]", isActive(it.href) ? "text-[var(--brand-2)] font-medium" : "text-muted")}>
                     <it.icon size={19} />
                     {it.label}
-                    {n > 0 && <span className="absolute top-1.5 right-[22%] min-w-[16px] h-4 px-1 rounded-full bg-[var(--danger)] text-white text-[10px] font-semibold flex items-center justify-center">{n > 99 ? "99+" : n}</span>}
+                    {n > 0 ? <span className="absolute top-1.5 right-[22%] min-w-[16px] h-4 px-1 rounded-full bg-[var(--danger)] text-white text-[10px] font-semibold flex items-center justify-center">{n > 99 ? "99+" : n}</span> : <Blink zone={`nav:${it.href}`} className="absolute top-2 right-[26%]" size={6} />}
                   </Link>
                 );
               })}

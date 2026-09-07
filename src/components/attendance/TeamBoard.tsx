@@ -11,7 +11,7 @@ import { Blink } from "@/components/providers/ActivityProvider";
 import { cn } from "@/lib/utils";
 import { ATT_STATUS_LABEL, ATT_STATUS_TONE, MODE_LABEL, addDays, dayLabel, downloadText, fmtMinutes, istDay, istTime, toCsv, type BoardRow } from "./attendanceUtils";
 
-type Derived = BoardRow & { status: string; missing: boolean; mode: string | null };
+type Derived = Omit<BoardRow, "mode"> & { status: string; missing: boolean; mode: string | null };
 
 function derive(r: BoardRow, day: string, today: string): Derived {
   const status = r.att_status === "absent" && day === today && !r.first_in ? "not_yet" : r.att_status;

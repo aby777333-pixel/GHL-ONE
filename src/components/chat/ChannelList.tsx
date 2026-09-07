@@ -6,6 +6,7 @@ import { Hash, Lock, Megaphone, FolderKanban, CheckSquare, BellOff, Plus, Buildi
 import { Avatar, Button, SearchInput, EmptyState } from "@/components/ui";
 import { cn, ago } from "@/lib/utils";
 import type { ChannelListItem } from "./types";
+import { Blink } from "@/components/providers/ActivityProvider";
 
 const SECTION_ORDER = ["dm", "channel", "project", "task"] as const;
 type Section = (typeof SECTION_ORDER)[number];
@@ -81,6 +82,7 @@ export function ChannelList({ items, activeId, onNew }: { items: ChannelListItem
                             <span className={cn("text-sm truncate", hasUnread && !c.muted ? "font-semibold" : "font-medium text-2", active && "text-[var(--fg)]")}>{title}</span>
                             {c.is_private && c.type !== "dm" && <Lock size={11} className="text-muted shrink-0" />}
                             {c.muted && <BellOff size={11} className="text-muted shrink-0" />}
+                            {!hasUnread && <Blink zone={`channel:${c.id}`} size={6} />}
                           </span>
                           <span className="block text-[11px] text-muted truncate">
                             {c.type === "dm" ? c.other?.designation || (c.other?.presence && c.other.presence !== "offline" ? c.other.presence.replace("_", " ") : "") || " " : c.description || c.type}

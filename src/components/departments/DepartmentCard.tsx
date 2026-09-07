@@ -5,6 +5,7 @@ import { AlertTriangle, CheckSquare, FolderKanban, Lock, Users } from "lucide-re
 import { Avatar } from "@/components/ui";
 import { usePerson } from "@/components/providers/SessionProvider";
 import { cn, healthScore } from "@/lib/utils";
+import { Blink } from "@/components/providers/ActivityProvider";
 
 export type DepartmentHealth = {
   department_id: string; name: string; color: string; slug: string; people: number; open_tasks: number; overdue: number; blocked: number; critical: number;
@@ -45,7 +46,7 @@ export function DepartmentCard({ d }: { d: DepartmentHealth }) {
       <div className="flex items-start gap-3">
         <span className="w-10 h-10 rounded-[var(--radius-sm)] flex items-center justify-center text-white font-semibold shrink-0" style={{ background: d.color }}>{d.name.slice(0, 1)}</span>
         <div className="min-w-0 flex-1">
-          <div className="font-medium truncate">{d.name}</div>
+          <div className="font-medium truncate flex items-center gap-2"><span className="truncate">{d.name}</span><Blink zone={`dept:${d.id}`} /></div>
           <div className="text-[11px] text-muted truncate">{head ? `Head: ${head.full_name}` : "No head assigned"}</div>
         </div>
         <HealthRing score={score} />

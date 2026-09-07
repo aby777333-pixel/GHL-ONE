@@ -1,13 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button, Field, Input } from "@/components/ui";
 import { Suspense } from "react";
 
 function LoginInner() {
-  const router = useRouter();
   const params = useSearchParams();
   const next = params.get("next") || "/";
   const [mode, setMode] = React.useState<"signin" | "signup">("signin");
@@ -28,15 +27,14 @@ function LoginInner() {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       setLoading(false);
       if (error) return setErr(error.message);
-      router.replace(next);
-      router.refresh();
+      // Full navigation: the session cookie must reach the edge proxy and server render on a fresh request.
+      window.location.assign(next.startsWith("/") ? next : "/");
     } else {
       const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: name } } });
       setLoading(false);
       if (error) return setErr(error.message);
       if (data.session) {
-        router.replace("/");
-        router.refresh();
+        window.location.assign("/");
       } else {
         setInfo("Check your email to confirm your account, then sign in.");
       }

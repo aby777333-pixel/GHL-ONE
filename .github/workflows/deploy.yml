@@ -18,6 +18,18 @@ jobs:
           cache: npm
       - name: Install
         run: npm ci
+      - name: Diagnose Netlify auth (no secrets printed)
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+        run: |
+          echo "token length ${#NETLIFY_AUTH_TOKEN}, site id length ${#NETLIFY_SITE_ID}"
+          curl -s -o /dev/null -w "user -> %{http_code}
+" -H "Authorization: Bearer ${NETLIFY_AUTH_TOKEN}" https://api.netlify.com/api/v1/user
+          curl -s -o /dev/null -w "site -> %{http_code}
+" -H "Authorization: Bearer ${NETLIFY_AUTH_TOKEN}" "https://api.netlify.com/api/v1/sites/${NETLIFY_SITE_ID}"
+          curl -s -o /dev/null -w "site env -> %{http_code}
+" -H "Authorization: Bearer ${NETLIFY_AUTH_TOKEN}" "https://api.netlify.com/api/v1/sites/${NETLIFY_SITE_ID}/env"
       - name: Build and deploy (Netlify CLI, Linux runner)
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}

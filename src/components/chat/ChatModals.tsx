@@ -5,9 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Hash, LogOut, UserPlus, FolderKanban, ExternalLink, Sparkles, Link2, Paperclip, ArrowDownToLine } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { Avatar, Button, EmptyState, Field, Input, Modal, Pill, SearchInput, Spinner, Textarea, useToast } from "@/components/ui";
+import { Avatar, Button, EmptyState, Field, Input, Modal, Pill, SearchInput, Skeleton, Spinner, Textarea, useToast } from "@/components/ui";
 import { PersonPicker } from "@/components/pickers";
 import { useSession } from "@/components/providers/SessionProvider";
+import { Markdown } from "@/components/wiki/markdown";
+import { useAIStatus } from "@/components/ai/useAIStatus";
+import { callAI } from "@/lib/ai/types";
 import { cn, fmtDate, humanize, type Channel } from "@/lib/utils";
 import { summarizeMessages } from "./summarize";
 import { parseAttachments, personName, timeLabel, dayLabel } from "./lib";
@@ -171,12 +174,23 @@ export function ForwardModal({ m, from, authorOf, onClose }: { m: ChatMessage | 
 }
 
 /* ----------------------------------------------------------- Catch me up */
-export function CatchUpModal({ open, onClose, channelId, since, me, unreadCount, loaded, authorOf, onJump }: { open: boolean; onClose: () => void; channelId: string; since: string | null; me: string; unreadCount: number; loaded: ChatMessage[]; authorOf: (id: string | null) => PersonLite | undefined; onJump: (id: string) => void }) {
+type CatchUpAI = { key: string; markdown?: string; error?: string; disabled?: boolean };
+
+/**
+ * "Catch me up" (unread since last read) or "Summarise recent" (last ~100 loaded messages).
+ * When AI is configured, an AI summary renders above the extractive highlights; otherwise (or on error) the extractive summary stands alone.
+ */
+export function CatchUpModal({ open, onClose, channelId, since, me, unreadCount, loaded, authorOf, onJump, mode = "unread" }: { open: boolean; onClose: () => void; channelId: string; since: string | null; me: string; unreadCount: number; loaded: ChatMessage[]; authorOf: (id: string | null) => PersonLite | undefined; onJump: (id: string) => void; mode?: "unread" | "recent" }) {
+  const ai = useAIStatus();
   const [fetched, setFetched] = React.useState<ChatMessage[] | null>(null);
   const [loading, setLoading] = React.useState(false);
+  const [aiState, setAiState] = React.useState<CatchUpAI | null>(null);
 
-  const local = React.useMemo(() => (since ? loaded.filter((m) => m.created_at > since && m.author_id !== me && !m.deleted_at && !m.parent_id) : []), [loaded, since, me]);
-  const needFetch = open && since && unreadCount > local.length && !fetched;
+  const local = React.useMemo(
+    () => (mode === "recent" ? loaded.filter((m) => !m.deleted_at && !m.parent_id && m.kind !== "system").slice(-100) : since ? loaded.filter((m) => m.created_at > since && m.author_id !== me && !m.deleted_at && !m.parent_id) : []),
+    [loaded, since, me, mode]
+  );
+  const needFetch = open && mode === "unread" && since && unreadCount > local.length && !fetched;
 
   React.useEffect(() => {
     if (!needFetch || !since) return;
@@ -203,9 +217,25 @@ export function CatchUpModal({ open, onClose, channelId, since, me, unreadCount,
     };
   }, [needFetch, since, channelId, me]);
 
-  const list = fetched || local;
+  const list = (mode === "unread" && fetched) || local;
   const nameOf = React.useCallback((id: string | null) => personName(authorOf(id)), [authorOf]);
   const summary = React.useMemo(() => summarizeMessages(list, nameOf), [list, nameOf]);
+
+  /* AI summary — keyed by mode/channel/since so re-opening reuses the answer and nothing re-fires while open */
+  const sinceIso = mode === "unread" ? since : list[0]?.created_at || null;
+  const aiKey = open && ai.enabled && !loading && list.length > 0 ? `${mode}:${channelId}:${sinceIso || ""}` : null;
+  const aiLoading = !!aiKey && aiState?.key !== aiKey;
+  const aiCurrent = aiKey && aiState?.key === aiKey ? aiState : null;
+  React.useEffect(() => {
+    if (!aiKey) return;
+    let alive = true;
+    callAI<{ markdown: string; count?: number }>("catch-up", { channelId, sinceIso: sinceIso || undefined })
+      .then((r) => alive && setAiState({ key: aiKey, markdown: r.markdown }))
+      .catch((e: Error & { disabled?: boolean }) => alive && setAiState({ key: aiKey, error: e.message, disabled: e.disabled }));
+    return () => {
+      alive = false;
+    };
+  }, [aiKey, channelId, sinceIso]);
 
   const byAuthor = React.useMemo(() => {
     const groups: { id: string | null; items: ChatMessage[] }[] = [];
@@ -218,14 +248,26 @@ export function CatchUpModal({ open, onClose, channelId, since, me, unreadCount,
   }, [list]);
 
   return (
-    <Modal open={open} onClose={onClose} title={<span className="inline-flex items-center gap-2"><Sparkles size={16} className="text-[var(--accent)]" /> Catch me up</span>} width={640}
-      footer={list.length ? <Button variant="primary" onClick={() => { onClose(); onJump(list[0]!.id); }}><ArrowDownToLine size={14} /> Jump to first unread</Button> : undefined}>
+    <Modal open={open} onClose={onClose} title={<span className="inline-flex items-center gap-2"><Sparkles size={16} className="text-[var(--accent)]" /> {mode === "recent" ? "Summarise recent" : "Catch me up"}</span>} width={640}
+      footer={list.length && mode === "unread" ? <Button variant="primary" onClick={() => { onClose(); onJump(list[0]!.id); }}><ArrowDownToLine size={14} /> Jump to first unread</Button> : undefined}>
       {loading ? (
         <div className="py-10 flex justify-center"><Spinner /></div>
       ) : !list.length ? (
-        <EmptyState title="You are all caught up" hint="Nothing new since you were last here." />
+        <EmptyState title={mode === "recent" ? "Nothing to summarise yet" : "You are all caught up"} hint={mode === "recent" ? "Once the conversation has messages, a summary appears here." : "Nothing new since you were last here."} />
       ) : (
         <div className="space-y-4">
+          {ai.enabled && !aiCurrent?.disabled && (
+            <section className="rounded-[var(--radius-sm)] border border-[color-mix(in_oklab,var(--accent)_45%,var(--line))] px-3 py-2.5">
+              <div className="eyebrow flex items-center gap-1 mb-1.5"><Sparkles size={11} className="text-[var(--accent)]" /> AI summary{mode === "recent" ? ` · last ${list.length} messages` : ""}</div>
+              {aiLoading ? (
+                <div className="space-y-1.5 py-1"><Skeleton className="h-3 w-full" /><Skeleton className="h-3 w-11/12" /><Skeleton className="h-3 w-3/5" /></div>
+              ) : aiCurrent?.markdown ? (
+                <Markdown source={aiCurrent.markdown} className="text-sm" />
+              ) : aiCurrent?.error ? (
+                <div className="text-xs text-muted" title={aiCurrent.error}>AI summary unavailable right now — showing highlights instead. <span className="opacity-70">({aiCurrent.error})</span></div>
+              ) : null}
+            </section>
+          )}
           <div className="grid grid-cols-3 gap-2">
             <div className="card px-3 py-2"><div className="eyebrow">Messages</div><div className="text-xl font-semibold num">{summary.count}</div></div>
             <div className="card px-3 py-2"><div className="eyebrow">People</div><div className="text-xl font-semibold num">{summary.people.length}</div></div>

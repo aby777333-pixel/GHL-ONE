@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { MessageSquare, SmilePlus, ListPlus, MoreHorizontal, Pin, Link2, Pencil, Trash2, Forward, Gavel, Check, X } from "lucide-react";
+import { MessageSquare, SmilePlus, ListPlus, MoreHorizontal, Pin, Link2, Pencil, Trash2, Forward, Gavel, Check, X, Sparkles } from "lucide-react";
 import { Avatar, Button, Menu, MenuItem, Modal } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { AttachmentView } from "./Attachment";
@@ -291,6 +291,9 @@ export const MessageItem = React.memo(function MessageItem({ m, author, me, grou
           <button type="button" className="btn btn-ghost btn-xs btn-icon" onClick={() => onAction("task", m)} aria-label="Create task">
             <ListPlus size={14} />
           </button>
+          <button type="button" className="btn btn-ghost btn-xs btn-icon" onClick={() => onAction("extract", m)} aria-label="Extract tasks (AI)" title="Extract tasks (AI)">
+            <Sparkles size={14} className="text-[var(--accent)]" />
+          </button>
           <Menu
             trigger={
               <button type="button" className="btn btn-ghost btn-xs btn-icon" aria-label="More">
@@ -299,6 +302,7 @@ export const MessageItem = React.memo(function MessageItem({ m, author, me, grou
             }
             width={190}
           >
+            <MenuItem icon={<Sparkles size={14} />} onClick={() => onAction("extract", m)}>Extract tasks (AI)</MenuItem>
             <MenuItem icon={<Gavel size={14} />} onClick={() => onAction("decision", m)}>Record decision</MenuItem>
             {canPin && (
               <MenuItem icon={<Pin size={14} />} onClick={() => onAction("pin", m)}>{m.is_pinned ? "Unpin" : "Pin"}</MenuItem>
@@ -353,6 +357,7 @@ export function MessageActionSheet({ m, me, canPin, inThread, onClose, onAction,
       </div>
       {!inThread && <Item icon={<MessageSquare size={17} />} label="Reply in thread" onClick={() => run("reply")} />}
       <Item icon={<ListPlus size={17} />} label="Create task" onClick={() => run("task")} />
+      <Item icon={<Sparkles size={17} />} label="Extract tasks (AI)" onClick={() => run("extract")} />
       <Item icon={<Gavel size={17} />} label="Record decision" onClick={() => run("decision")} />
       {canPin && <Item icon={<Pin size={17} />} label={m.is_pinned ? "Unpin" : "Pin"} onClick={() => run("pin")} />}
       <Item icon={<Link2 size={17} />} label="Copy link" onClick={() => run("copy")} />

@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Archive, CalendarDays, ChevronRight, Pencil } from "lucide-react";
+import { Archive, CalendarDays, ChevronRight, Pencil, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button, Field, Input, Modal, Pill, Progress, Select, Tabs, Textarea, useToast } from "@/components/ui";
 import { PersonPicker, DepartmentPicker, PriorityPicker, ClassificationPicker } from "@/components/pickers";
@@ -15,6 +15,7 @@ import { ProjectOverview } from "@/components/projects/ProjectOverview";
 import { ProjectTaskBoard } from "@/components/projects/ProjectTaskBoard";
 import { Gantt } from "@/components/projects/Gantt";
 import { TeamPanel, MilestonesPanel, ChatPanel, FilesPanel, MeetingsPanel, DecisionsPanel, ApprovalsPanel, RisksPanel, ActivityPanel } from "@/components/projects/ProjectPanels";
+import { ProjectSummary } from "@/components/ai/ProjectSummary";
 import { cn, isManagerPlus, relDate, CLASSIFICATION_LABEL, PROJECT_STATUSES, PROJECT_STATUS_LABEL, PROJECT_STATUS_TONE, type Project, type ProjectStatus, type Tables, type Classification, type TaskPriority } from "@/lib/utils";
 
 export type ProjectTask = TaskLite & { waiting_note: string | null };
@@ -33,7 +34,7 @@ export type ProjectRoomData = {
   initialTab: string;
 };
 
-const TABS = ["overview", "tasks", "timeline", "team", "milestones", "chat", "files", "meetings", "decisions", "approvals", "risks", "activity"] as const;
+const TABS = ["overview", "ai", "tasks", "timeline", "team", "milestones", "chat", "files", "meetings", "decisions", "approvals", "risks", "activity"] as const;
 type Tab = (typeof TABS)[number];
 
 export function projectStats(tasks: TaskLite[]) {
@@ -138,6 +139,7 @@ export function ProjectRoom({ data }: { data: ProjectRoomData }) {
         onChange={go}
         tabs={[
           { key: "overview", label: "Overview" },
+          { key: "ai", label: <span className="inline-flex items-center gap-1"><Sparkles size={12} className="text-[var(--accent)]" /> AI Summary</span> },
           { key: "tasks", label: "Tasks", count: stats.open },
           { key: "timeline", label: "Timeline" },
           { key: "team", label: "Team", count: data.members.length },
@@ -155,6 +157,7 @@ export function ProjectRoom({ data }: { data: ProjectRoomData }) {
 
       <div className="anim-fade-in" key={tab}>
         {tab === "overview" && <ProjectOverview data={data} stats={stats} onGo={(t) => go(t as Tab)} />}
+        {tab === "ai" && <ProjectSummary projectId={project.id} />}
         {tab === "tasks" && <ProjectTaskBoard project={project} tasks={data.tasks} milestones={data.milestones} />}
         {tab === "timeline" && <Gantt tasks={data.tasks.filter((t) => !t.parent_id)} milestones={data.milestones} projectStart={project.start_date} projectDue={project.due_date} />}
         {tab === "team" && <TeamPanel project={project} members={data.members} tasks={data.tasks} />}

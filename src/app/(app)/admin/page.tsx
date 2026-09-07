@@ -8,7 +8,7 @@ import type { InviteItem } from "@/components/admin/InvitesAdmin";
 
 export const metadata = { title: "Administration" };
 
-const TABS: AdminTab[] = ["people", "invites", "departments", "organization", "audit", "templates"];
+const TABS: AdminTab[] = ["people", "invites", "departments", "organization", "audit", "templates", "ai"];
 
 export default async function AdminPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const session = await getSession();

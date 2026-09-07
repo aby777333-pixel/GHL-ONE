@@ -14,6 +14,7 @@ import { Composer } from "./Composer";
 import { MessageItem, MessageActionSheet, MessageBody } from "./MessageItem";
 import { ThreadPanel } from "./ThreadPanel";
 import { RecordDecisionModal, ForwardModal, CatchUpModal, MembersDrawer } from "./ChatModals";
+import { ExtractTasksModal } from "@/components/ai/ExtractTasksModal";
 import { PAGE_SIZE, INITIAL_PAGE, dayLabel, isContinuation, isNewDay, mergeMessages, personName, firstName, timeLabel, parseAttachments } from "./lib";
 import type { ChannelMember, ChatMessage, MessageAction, PersonLite, Reaction, SendPayload } from "./types";
 
@@ -26,7 +27,7 @@ const SELECT = "*, message_reactions(message_id,user_id,emoji)";
 
 type ReactionEvent = { message_id: string; user_id: string; emoji: string; op: "add" | "remove" };
 type PresenceMeta = { userId: string; name: string; typing: boolean };
-type ModalState = { kind: "task" | "decision" | "forward" | "catchup" | "members"; m?: ChatMessage } | null;
+type ModalState = { kind: "task" | "extract" | "decision" | "forward" | "catchup" | "members"; m?: ChatMessage } | null;
 
 function DateSeparator({ label }: { label: string }) {
   return (
@@ -554,7 +555,7 @@ export function Conversation({
     (a: MessageAction, m: ChatMessage) => {
       if (a === "sheet") setSheetFor(m);
       else if (a === "reply") openThread(m);
-      else if (a === "task" || a === "decision" || a === "forward") setModal({ kind: a, m });
+      else if (a === "task" || a === "extract" || a === "decision" || a === "forward") setModal({ kind: a, m });
       else if (a === "edit") setEditingId(m.id);
       else if (a === "copy") copyLink(m);
       else if (a === "pin") pinMessage(m);
@@ -693,7 +694,7 @@ export function Conversation({
             }
             width={220}
           >
-            {unreadCount > 20 && <MenuItem icon={<Sparkles size={14} />} onClick={() => setModal({ kind: "catchup" })}>Catch me up</MenuItem>}
+            <MenuItem icon={<Sparkles size={14} className="text-[var(--accent)]" />} onClick={() => setModal({ kind: "catchup" })}>{unreadCount > 20 ? "Catch me up" : "Summarise recent"}</MenuItem>
             <MenuItem icon={<Info size={14} />} onClick={() => setModal({ kind: "members" })}>Details & members</MenuItem>
             {isMember && <MenuItem icon={muted ? <Bell size={14} /> : <BellOff size={14} />} onClick={toggleMute}>{muted ? "Unmute" : "Mute"} notifications</MenuItem>}
             {channel.project_id && <MenuItem icon={<FolderKanban size={14} />} onClick={() => router.push(`/projects/${channel.project_id}`)}>Open project</MenuItem>}
@@ -886,6 +887,19 @@ export function Conversation({
         )}
       </Modal>
 
+      <ExtractTasksModal
+        m={modal?.kind === "extract" ? modal.m || null : null}
+        channel={channel}
+        replyCount={modal?.kind === "extract" && modal.m ? replyCounts[modal.m.id] || 0 : 0}
+        threadReplies={modal?.kind === "extract" && modal.m && thread && thread.id === modal.m.id ? threadReplies : undefined}
+        authorOf={authorOf}
+        onClose={() => setModal(null)}
+        onCreated={(created, src) => {
+          const listing = created.map((t) => `${t.title} [/tasks/${t.id}]`).join(" · ");
+          sendSystem(`${profile.full_name} extracted ${created.length} task${created.length === 1 ? "" : "s"} from this message: ${listing}`, src.parent_id || src.id);
+        }}
+      />
+
       <RecordDecisionModal
         m={modal?.kind === "decision" ? modal.m || null : null}
         channel={channel}
@@ -909,6 +923,7 @@ export function Conversation({
         loaded={initialMessages}
         authorOf={authorOf}
         onJump={jumpTo}
+        mode={unreadCount > 20 ? "unread" : "recent"}
       />
 
       <MembersDrawer open={modal?.kind === "members"} onClose={() => setModal(null)} channel={channel} members={members} online={online} onAdd={addMember} onLeave={leave} />

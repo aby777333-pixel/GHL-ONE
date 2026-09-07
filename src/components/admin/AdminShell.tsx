@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Shield, Users, MailPlus, Building2, Settings2, ScrollText, LayoutTemplate } from "lucide-react";
+import { Shield, Users, MailPlus, Building2, Settings2, ScrollText, LayoutTemplate, Sparkles } from "lucide-react";
 import { PageHeader, Tabs, EmptyState } from "@/components/ui";
 import { useSession } from "@/components/providers/SessionProvider";
 import { isAdminRole, isManagerPlus, type Tables } from "@/lib/utils";
@@ -12,8 +12,9 @@ import { DepartmentsAdmin } from "./DepartmentsAdmin";
 import { OrganizationAdmin } from "./OrganizationAdmin";
 import { AuditLog } from "./AuditLog";
 import { TemplatesAdmin } from "./TemplatesAdmin";
+import { IntelligenceAdmin } from "./IntelligenceAdmin";
 
-export type AdminTab = "people" | "invites" | "departments" | "organization" | "audit" | "templates";
+export type AdminTab = "people" | "invites" | "departments" | "organization" | "audit" | "templates" | "ai";
 
 export function AdminShell({ tab, people, invites, departments, teams, org, projectTemplates, taskTemplates }: {
   tab: AdminTab;
@@ -38,6 +39,7 @@ export function AdminShell({ tab, people, invites, departments, teams, org, proj
     { key: "organization", label: <span className="inline-flex items-center gap-1.5"><Settings2 size={14} /> Organization</span>, allowed: admin },
     { key: "audit", label: <span className="inline-flex items-center gap-1.5"><ScrollText size={14} /> Audit log</span>, allowed: manager },
     { key: "templates", label: <span className="inline-flex items-center gap-1.5"><LayoutTemplate size={14} /> Templates</span>, allowed: manager },
+    { key: "ai", label: <span className="inline-flex items-center gap-1.5"><Sparkles size={14} /> Intelligence</span>, allowed: admin },
   ];
   const allowedTabs = tabs.filter((t) => t.allowed);
   const current = allowedTabs.some((t) => t.key === tab) ? tab : allowedTabs[0]?.key;
@@ -56,6 +58,7 @@ export function AdminShell({ tab, people, invites, departments, teams, org, proj
           {current === "organization" && <OrganizationAdmin org={org} />}
           {current === "audit" && <AuditLog />}
           {current === "templates" && <TemplatesAdmin projectTemplates={projectTemplates} taskTemplates={taskTemplates} />}
+          {current === "ai" && <IntelligenceAdmin />}
         </>
       )}
     </div>

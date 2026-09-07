@@ -1,8 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { X } from "lucide-react";
+import { Sparkles, X } from "lucide-react";
 import { Button, Spinner } from "@/components/ui";
+import { ThreadSummary } from "@/components/ai/ThreadSummary";
+import { useAIStatus } from "@/components/ai/useAIStatus";
 import { Composer } from "./Composer";
 import { MessageItem } from "./MessageItem";
 import { isContinuation } from "./lib";
@@ -49,6 +51,8 @@ export function ThreadPanel({
 }) {
   const listRef = React.useRef<HTMLDivElement>(null);
   const count = replies.length;
+  const ai = useAIStatus();
+  const [summaryOpen, setSummaryOpen] = React.useState(false);
 
   React.useLayoutEffect(() => {
     const el = listRef.current;
@@ -64,10 +68,16 @@ export function ThreadPanel({
             {count} {count === 1 ? "reply" : "replies"}
           </div>
         </div>
-        <Button variant="ghost" size="sm" icon onClick={onClose} className="ml-auto" aria-label="Close thread">
+        {ai.enabled && !loading && (
+          <Button variant={summaryOpen ? "secondary" : "ghost"} size="sm" onClick={() => setSummaryOpen((o) => !o)} className="ml-auto" aria-label="Summarise thread" title="Summarise thread with AI">
+            <Sparkles size={14} className="text-[var(--accent)]" /> <span className="hidden sm:inline">Summarise</span>
+          </Button>
+        )}
+        <Button variant="ghost" size="sm" icon onClick={onClose} className={ai.enabled && !loading ? undefined : "ml-auto"} aria-label="Close thread">
           <X size={16} />
         </Button>
       </div>
+      {summaryOpen && ai.enabled && <ThreadSummary key={parent.id} channelId={channelId} parent={parent} replies={replies} authorOf={authorOf} onClose={() => setSummaryOpen(false)} />}
       <div ref={listRef} className="flex-1 min-h-0 overflow-y-auto py-2">
         <MessageItem m={parent} author={authorOf(parent.author_id)} me={me} grouped={false} inThread canPin={canPin} onAction={onAction} onReact={onReact} editing={editingId === parent.id} onSaveEdit={onSaveEdit} onCancelEdit={onCancelEdit} />
         <div className="mx-4 my-2 flex items-center gap-2 text-[11px] text-muted">

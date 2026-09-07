@@ -10,6 +10,8 @@ import { useSession } from "@/components/providers/SessionProvider";
 import { createClient } from "@/lib/supabase/client";
 import { cn, fmtDate, isManagerPlus, type Decision, type Meeting } from "@/lib/utils";
 import { RecordDecisionForm } from "@/components/decisions/RecordDecisionForm";
+import { MeetingAssistant, type MeetingAssistantHandle } from "@/components/ai/MeetingAssistant";
+import { useAIStatus } from "@/components/ai/useAIStatus";
 import { AutosaveField } from "./AutosaveField";
 import { ActionItems, type LinkedTask, type MeetingAction } from "./ActionItems";
 import { PeopleMultiSelect } from "./PeopleMultiSelect";
@@ -37,6 +39,8 @@ export function MeetingRoom({ meeting: m, participantIds, actions, tasks, decisi
   const [recordDecision, setRecordDecision] = React.useState(false);
   const [summary, setSummary] = React.useState(m.summary || "");
   const [busy, setBusy] = React.useState(false);
+  const ai = useAIStatus();
+  const assistantRef = React.useRef<MeetingAssistantHandle>(null);
 
   const participants = participantIds.map((id) => people.find((p) => p.id === id)).filter((p): p is NonNullable<typeof p> => !!p);
   const links = extractLinks(m.agenda, m.notes);
@@ -60,6 +64,11 @@ export function MeetingRoom({ meeting: m, participantIds, actions, tasks, decisi
   }
 
   function draftSummary() {
+    // AI configured → run the assistant (summary + decisions + actions to review); otherwise the extractive draft below.
+    if (ai.enabled && assistantRef.current) {
+      assistantRef.current.extract();
+      return;
+    }
     const lines: string[] = [`Summary — ${m.title} (${fmtDate(m.starts_at)})`, ""];
     if (m.notes) {
       const excerpt = m.notes.trim().split(/\n+/).slice(0, 6).join("\n");
@@ -160,7 +169,7 @@ export function MeetingRoom({ meeting: m, participantIds, actions, tasks, decisi
           </Card>
 
           <Card>
-            <CardHeader title={<span className="inline-flex items-center gap-2"><Mic size={15} /> Recording & transcript</span>} subtitle="Paste a recording link and the transcript. AI summaries arrive in Phase 2." />
+            <CardHeader title={<span className="inline-flex items-center gap-2"><Mic size={15} /> Recording & transcript</span>} subtitle={ai.enabled ? "Paste a recording link and the transcript — the AI assistant below reads notes and transcript." : "Paste a recording link and the transcript."} />
             <div className="px-[var(--s4)] pb-[var(--s4)] pt-1 space-y-4">
               <div>
                 <div className="label">Recording URL</div>
@@ -172,6 +181,8 @@ export function MeetingRoom({ meeting: m, participantIds, actions, tasks, decisi
               </div>
             </div>
           </Card>
+
+          {canEdit && <MeetingAssistant ref={assistantRef} meeting={m} participantIds={participantIds} onSummary={setSummary} />}
 
           <Card>
             <CardHeader title={<span className="inline-flex items-center gap-2"><Gavel size={15} /> Decisions</span>} subtitle={decisions.length ? `${decisions.length} recorded in this meeting` : "Record decisions as they are made"} action={<Button size="sm" variant="secondary" onClick={() => setRecordDecision((s) => !s)}><Plus size={13} /> Record decision</Button>} />
@@ -195,7 +206,7 @@ export function MeetingRoom({ meeting: m, participantIds, actions, tasks, decisi
           <ActionItems meeting={m} actions={actions} tasks={tasks} canEdit={canEdit || participantIds.includes(profile.id)} />
 
           <Card>
-            <CardHeader title={<span className="inline-flex items-center gap-2"><FileCheck2 size={15} /> Summary</span>} subtitle="What participants and absentees should take away" action={canEdit ? <Button size="sm" variant="secondary" onClick={draftSummary}><Wand2 size={13} /> Draft summary</Button> : undefined} />
+            <CardHeader title={<span className="inline-flex items-center gap-2"><FileCheck2 size={15} /> Summary</span>} subtitle="What participants and absentees should take away" action={canEdit ? <Button size="sm" variant="secondary" onClick={draftSummary}><Wand2 size={13} /> {ai.enabled ? "Draft with AI" : "Draft summary"}</Button> : undefined} />
             <div className="px-[var(--s4)] pb-[var(--s4)] pt-1">
               <AutosaveField meetingId={m.id} field="summary" initial={m.summary} value={summary} onChange={setSummary} canEdit={canEdit} placeholder="Outcome, decisions and next steps in a few lines…" minHeight={140} />
             </div>

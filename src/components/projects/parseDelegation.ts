@@ -17,6 +17,8 @@ export type DelegationStep = {
   depends_on_previous: boolean;
   final: boolean;
   source: string;
+  /** Optional — set by the AI parser; rule-based parsing leaves it undefined (→ "normal"). */
+  priority?: "critical" | "urgent" | "high" | "normal" | "low";
 };
 export type DelegationProposal = {
   project_id: string | null;

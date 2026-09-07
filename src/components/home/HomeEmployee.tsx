@@ -6,6 +6,7 @@ import { fmtDate, greeting } from "@/lib/utils";
 import { AnnouncementsCard, ApprovalsCard, MeetingsCard, MessagesCard, ProjectsCard, TodayCard, personalBrief, type Personal } from "./shared";
 import { Card, CardHeader, EmptyState } from "@/components/ui";
 import { TaskRow } from "@/components/tasks/TaskBits";
+import { BriefCard } from "@/components/ai/BriefCard";
 
 export function HomeEmployee({ personal }: { personal: Personal }) {
   const { profile } = useSession();
@@ -14,6 +15,7 @@ export function HomeEmployee({ personal }: { personal: Personal }) {
       <PageHeader eyebrow={fmtDate(new Date())} title={greeting(profile.full_name)} subtitle={personalBrief(personal)} />
       <div className="grid lg:grid-cols-3 gap-[var(--s3)] stagger">
         <div className="lg:col-span-2 space-y-[var(--s3)]">
+          <BriefCard variant="employee" />
           <TodayCard p={personal} />
           {personal.waitingOnMe.length > 0 && (
             <Card>

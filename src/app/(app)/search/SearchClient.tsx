@@ -5,9 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Search, User, ListChecks, FolderKanban, MessageSquare, FileText, Gavel, Video, BookOpen, Building2, CheckSquare, X, History, Sparkles, ArrowRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { Card, EmptyState, Kbd, Spinner } from "@/components/ui";
+import { Card, EmptyState, Kbd, Skeleton, Spinner } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { useLocalStorage } from "@/components/files/useLocalStorage";
+import { callAI, type SearchAIResponse } from "@/lib/ai/types";
+import { AIDisabledNote } from "@/components/ai/AIDisabledNote";
+import { AIMarkdown } from "@/components/ai/AIMarkdown";
 
 type Result = { kind: string; id: string; title: string; subtitle: string | null; link: string; rank: number };
 
@@ -41,9 +44,38 @@ export function SearchClient({ initialQuery, initialKind }: { initialQuery: stri
 
   const needle = q.trim();
   const active = needle.length >= 2;
-  const results = React.useMemo(() => (active && loaded ? loaded.results : []), [active, loaded]);
   const searched = active && loaded ? loaded.q : "";
   const loading = active && (!loaded || loaded.q !== needle);
+
+  // AI answer: automatic for natural-language queries (≥ 3 words), on demand otherwise
+  const [askedFor, setAskedFor] = React.useState("");
+  const [ai, setAi] = React.useState<{ q: string; data?: SearchAIResponse; error?: string; disabled?: boolean } | null>(null);
+  const wordCount = needle.split(/\s+/).filter(Boolean).length;
+  const wantAI = active && (wordCount >= 3 || askedFor === needle);
+  const aiReady = wantAI && ai?.q === needle ? ai : null;
+  const aiLoading = wantAI && !aiReady;
+
+  React.useEffect(() => {
+    if (!wantAI) return;
+    let alive = true;
+    const t = setTimeout(async () => {
+      try {
+        const data = await callAI<SearchAIResponse>("search", { q: needle });
+        if (alive) setAi({ q: needle, data });
+      } catch (e) {
+        const err = e as Error & { disabled?: boolean };
+        if (alive) setAi({ q: needle, error: err.message || "AI search failed", disabled: err.disabled });
+      }
+    }, 600);
+    return () => { alive = false; clearTimeout(t); };
+  }, [wantAI, needle]);
+
+  // Instant results; when the instant search finds nothing, fall back to what the AI search found
+  const results = React.useMemo<Result[]>(() => {
+    const base = active && loaded ? loaded.results : [];
+    if (base.length === 0 && loaded?.q === needle && aiReady?.data?.results.length) return aiReady.data.results.map((r) => ({ ...r, rank: 0 }));
+    return base;
+  }, [active, loaded, needle, aiReady]);
 
   // Debounced live search
   React.useEffect(() => {
@@ -111,6 +143,41 @@ export function SearchClient({ initialQuery, initialKind }: { initialQuery: stri
           {KINDS.filter((k) => counts.has(k.key)).map((k) => (
             <button key={k.key} onClick={() => setKind(kind === k.key ? "" : k.key)} className={cn("pill pill-lg shrink-0", kind === k.key ? "tone-brand" : "tone-neutral")}>{k.icon} {k.plural} <span className="num opacity-80">{counts.get(k.key)}</span></button>
           ))}
+        </div>
+      )}
+
+      {/* AI answer */}
+      {active && wantAI && (
+        <Card className="mb-[var(--s3)] px-[var(--s4)] py-[var(--s3)] border-[color-mix(in_oklab,var(--accent)_45%,var(--line))]">
+          <div className="flex items-center gap-2 mb-2">
+            <Sparkles size={15} className="text-[var(--accent)] shrink-0" />
+            <span className="eyebrow">AI answer</span>
+            {aiLoading && <span className="text-[11px] text-muted ml-auto inline-flex items-center gap-1.5"><Spinner className="!w-3 !h-3" /> Thinking…</span>}
+          </div>
+          {aiLoading ? (
+            <div className="space-y-2"><Skeleton className="h-3 w-full" /><Skeleton className="h-3 w-5/6" /><Skeleton className="h-3 w-2/3" /></div>
+          ) : aiReady?.disabled ? (
+            <AIDisabledNote compact />
+          ) : aiReady?.error ? (
+            <div className="text-sm text-danger break-words">{aiReady.error}</div>
+          ) : aiReady?.data ? (
+            <>
+              <AIMarkdown source={aiReady.data.answer} className="text-sm" />
+              {aiReady.data.terms.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5 mt-2 text-[11px] text-muted">
+                  <span>Searched for:</span>
+                  {aiReady.data.terms.map((t) => (
+                    <button key={t} type="button" onClick={() => setQ(t)} className="pill tone-neutral hover:border-[var(--line-strong)]" title={`Search “${t}”`}>{t}</button>
+                  ))}
+                </div>
+              )}
+            </>
+          ) : null}
+        </Card>
+      )}
+      {active && !wantAI && (
+        <div className="flex justify-end mb-[var(--s3)]">
+          <button type="button" onClick={() => setAskedFor(needle)} className="btn btn-secondary btn-sm"><Sparkles size={14} className="text-[var(--accent)]" /> Ask AI about this</button>
         </div>
       )}
 

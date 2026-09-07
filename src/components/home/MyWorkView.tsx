@@ -9,7 +9,8 @@ import { Button, Card, CardHeader, EmptyState, Modal, PageHeader, Pill, Progress
 import { TaskRow, PersonChip, type TaskRowData } from "@/components/tasks/TaskBits";
 import { QuickTaskForm } from "@/components/tasks/QuickTaskForm";
 import { useSession, usePerson } from "@/components/providers/SessionProvider";
-import { ago, fmtDate, fmtTime, greeting, humanize, PROJECT_STATUS_LABEL, PROJECT_STATUS_TONE, relDate, cn } from "@/lib/utils";
+import { ago, fmtDate, fmtTime, greeting, humanize, isManagerPlus, isAdminRole, PROJECT_STATUS_LABEL, PROJECT_STATUS_TONE, relDate, cn } from "@/lib/utils";
+import { BriefCard } from "@/components/ai/BriefCard";
 
 type T = TaskRowData & { owner_id: string | null; delegated_by: string | null; created_at: string; updated_at: string };
 type Approval = { id: string; title: string; type: string; priority: string; due_date: string | null; created_at: string; requested_by: string | null; project_id: string | null };
@@ -69,6 +70,8 @@ export function MyWorkView({ userId, tasks, waitingOnMe, approvals, mentions, pr
         <Focus icon={<AtSign size={15} />} label="Mentions" value={unreadMentions.length} onClick={() => setTab("mentions")} />
         <Focus icon={<Video size={15} />} label="Meetings today" value={meetingsToday.length} onClick={() => router.push("/calendar")} />
       </div>
+
+      <BriefCard variant={isAdminRole(profile.role) ? "executive" : isManagerPlus(profile.role) ? "manager" : "employee"} collapsible className="mb-[var(--s4)]" />
 
       <Tabs tabs={tabs} value={tab} onChange={setTab} className="mb-3" />
 

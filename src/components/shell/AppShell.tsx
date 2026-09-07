@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, Menu as MenuIcon, Moon, Plus, Search, Sun, LogOut, User, Settings, X, ChevronDown } from "lucide-react";
+import { Bell, Menu as MenuIcon, Moon, Plus, Search, Sun, LogOut, User, Settings, X, ChevronDown, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useSession } from "@/components/providers/SessionProvider";
 import { Avatar, Button, Kbd, Menu, MenuItem, ToastProvider } from "@/components/ui";
@@ -12,6 +12,7 @@ import { navFor } from "./nav";
 import { CommandPalette } from "./CommandPalette";
 import { NotificationsPanel } from "./NotificationsPanel";
 import { QuickCapture } from "./QuickCapture";
+import { AskPanel } from "@/components/ai/AskPanel";
 
 export type Counts = { inbox: number; approvals: number; chat: number };
 
@@ -42,27 +43,33 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
   const [paletteOpen, setPaletteOpen] = React.useState(false);
   const [notifOpen, setNotifOpen] = React.useState(false);
   const [captureOpen, setCaptureOpen] = React.useState(false);
+  const [askOpen, setAskOpen] = React.useState(false);
+  const closeAsk = React.useCallback(() => setAskOpen(false), []);
   const [counts, setCounts] = React.useState<Counts>(initialCounts);
   const sections = React.useMemo(() => navFor(profile.role), [profile.role]);
   const dept = departments.find((d) => d.id === profile.department_id);
 
-  // Keyboard: Ctrl/Cmd+K palette, "c" quick capture when not typing
+  // Keyboard: Ctrl/Cmd+K palette, Ctrl/Cmd+J Ask GHL, "c" quick capture when not typing
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setPaletteOpen((o) => !o);
       }
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "j") {
+        e.preventDefault();
+        setAskOpen((o) => !o);
+      }
       const target = e.target as HTMLElement;
       const typing = ["INPUT", "TEXTAREA", "SELECT"].includes(target?.tagName) || target?.isContentEditable;
-      if (!typing && !e.ctrlKey && !e.metaKey && !e.altKey && e.key === "c" && !paletteOpen) {
+      if (!typing && !e.ctrlKey && !e.metaKey && !e.altKey && e.key === "c" && !paletteOpen && !askOpen) {
         e.preventDefault();
         setCaptureOpen(true);
       }
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [paletteOpen]);
+  }, [paletteOpen, askOpen]);
 
   // Realtime badge counts
   React.useEffect(() => {
@@ -169,6 +176,12 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
               <Button variant="primary" size="sm" icon onClick={() => setCaptureOpen(true)} className="sm:hidden" aria-label="New">
                 <Plus size={16} />
               </Button>
+              <Button variant="ghost" size="sm" onClick={() => setAskOpen(true)} className="hidden sm:inline-flex" title="Ask GHL (Ctrl+J)">
+                <Sparkles size={15} className="text-[var(--violet)]" /> Ask
+              </Button>
+              <Button variant="ghost" size="sm" icon onClick={() => setAskOpen(true)} className="sm:hidden" aria-label="Ask GHL">
+                <Sparkles size={16} className="text-[var(--violet)]" />
+              </Button>
               <Button variant="ghost" size="sm" icon onClick={toggle} aria-label="Toggle theme">
                 {dark ? <Sun size={16} /> : <Moon size={16} />}
               </Button>
@@ -198,6 +211,19 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
 
           <main className="flex-1 min-w-0 pb-16 lg:pb-0">{children}</main>
 
+          {/* Mobile: floating Ask GHL button above the bottom nav (hidden inside chat conversations where the composer lives) */}
+          {!askOpen && !pathname.startsWith("/chat/") && (
+            <button
+              type="button"
+              onClick={() => setAskOpen(true)}
+              className="lg:hidden fixed right-4 z-30 w-11 h-11 rounded-full text-white flex items-center justify-center active:scale-95 transition-transform"
+              style={{ bottom: "calc(56px + 16px + env(safe-area-inset-bottom))", background: "linear-gradient(135deg, var(--brand), var(--violet))", boxShadow: "var(--shadow-lg)" }}
+              aria-label="Ask GHL"
+            >
+              <Sparkles size={20} />
+            </button>
+          )}
+
           {/* Mobile bottom nav */}
           <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 glass border-t safe-b">
             <div className="grid grid-cols-5">
@@ -216,9 +242,10 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
         </div>
       </div>
 
-      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} onCapture={() => { setPaletteOpen(false); setCaptureOpen(true); }} />
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} onCapture={() => { setPaletteOpen(false); setCaptureOpen(true); }} onAsk={() => { setPaletteOpen(false); setAskOpen(true); }} />
       <NotificationsPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
       <QuickCapture open={captureOpen} onClose={() => setCaptureOpen(false)} />
+      <AskPanel open={askOpen} onClose={closeAsk} />
     </ToastProvider>
   );
 }

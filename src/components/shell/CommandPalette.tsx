@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
-import { Search, Plus, FolderKanban, MessageSquare, Video, CheckSquare, Megaphone, User, ListChecks, FileText, Gavel, Building2, BookOpen, Wand2, Calendar, Gauge, Users } from "lucide-react";
+import { Search, Plus, FolderKanban, MessageSquare, Video, CheckSquare, Megaphone, User, ListChecks, FileText, Gavel, Building2, BookOpen, Wand2, Calendar, Gauge, Users, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useSession } from "@/components/providers/SessionProvider";
 import { Kbd, Spinner } from "@/components/ui";
@@ -18,7 +18,7 @@ const KIND_ICON: Record<string, React.ReactNode> = {
   department: <Building2 size={15} />, approval: <CheckSquare size={15} />,
 };
 
-export function CommandPalette({ open, onClose, onCapture }: { open: boolean; onClose: () => void; onCapture: () => void }) {
+export function CommandPalette({ open, onClose, onCapture, onAsk }: { open: boolean; onClose: () => void; onCapture: () => void; onAsk?: () => void }) {
   const router = useRouter();
   const { profile, people } = useSession();
   const [q, setQ] = React.useState("");
@@ -30,6 +30,7 @@ export function CommandPalette({ open, onClose, onCapture }: { open: boolean; on
   const go = React.useCallback((href: string) => { onClose(); router.push(href); }, [onClose, router]);
 
   const actions: Action[] = React.useMemo(() => [
+    ...(onAsk ? [{ id: "ask", label: "Ask GHL (AI)", icon: <Sparkles size={15} />, run: onAsk, keywords: "ai assistant question chat brief summarise" }] : []),
     { id: "task", label: "Create task", icon: <Plus size={15} />, run: onCapture, keywords: "new todo" },
     { id: "project", label: "New project", icon: <FolderKanban size={15} />, run: () => go("/projects/new") },
     { id: "delegate", label: "Delegate work (natural language)", icon: <Wand2 size={15} />, run: () => go("/delegate") },
@@ -41,7 +42,7 @@ export function CommandPalette({ open, onClose, onCapture }: { open: boolean; on
     { id: "calendar", label: "Calendar", icon: <Calendar size={15} />, run: () => go("/calendar") },
     { id: "people", label: "People directory", icon: <Users size={15} />, run: () => go("/people") },
     ...(isManagerPlus(profile.role) ? [{ id: "command", label: "Command Center", icon: <Gauge size={15} />, run: () => go("/command") }] : []),
-  ], [go, onCapture, profile.role]);
+  ], [go, onCapture, onAsk, profile.role]);
 
   const filteredActions = q.trim() ? actions.filter((a) => (a.label + " " + (a.keywords || "")).toLowerCase().includes(q.toLowerCase())) : actions;
   const quickPeople = q.trim().length >= 2 ? people.filter((p) => p.full_name.toLowerCase().includes(q.toLowerCase())).slice(0, 3) : [];
@@ -110,7 +111,7 @@ export function CommandPalette({ open, onClose, onCapture }: { open: boolean; on
         <div className="flex items-center gap-3 px-4 h-9 border-t text-[11px] text-muted">
           <span><Kbd>↑</Kbd> <Kbd>↓</Kbd> navigate</span>
           <span><Kbd>Enter</Kbd> open</span>
-          <span className="ml-auto"><Kbd>C</Kbd> quick capture</span>
+          <span className="ml-auto flex items-center gap-3"><span className="hidden sm:inline"><Kbd>Ctrl</Kbd> <Kbd>J</Kbd> ask AI</span><span><Kbd>C</Kbd> quick capture</span></span>
         </div>
       </div>
     </div>,

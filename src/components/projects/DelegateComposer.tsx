@@ -11,6 +11,8 @@ import { PersonPicker, DepartmentPicker } from "@/components/pickers";
 import { useSession } from "@/components/providers/SessionProvider";
 import { PersonChip, StatusPill, DueLabel } from "@/components/tasks/TaskBits";
 import { parseDelegation, type DelegationProposal, type DelegationStep } from "@/components/projects/parseDelegation";
+import { useAIStatus } from "@/components/ai/useAIStatus";
+import { callAI, type DelegationAI } from "@/lib/ai/types";
 import { ago, cn, fmtDate, relDate, type Task } from "@/lib/utils";
 
 export type RecentDelegation = Pick<Task, "id" | "title" | "status" | "priority" | "due_date" | "assignee_id" | "approver_id" | "department_id" | "project_id" | "created_at"> & { project: { id: string; name: string } | null };
@@ -27,6 +29,27 @@ function toLocalInput(d: Date | null) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+function parseIso(s: string | null) {
+  if (!s) return null;
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/** Map the AI parser's result onto the rule-based proposal shape used by the editor. */
+function fromAI(r: DelegationAI): DelegationProposal {
+  const steps: DelegationStep[] = r.steps.map((s, i, arr) => ({
+    title: s.title,
+    department_id: s.department_id,
+    assignee_id: s.assignee_id,
+    due_date: parseIso(s.due_date) || (i === arr.length - 1 ? parseIso(r.deadline) : null),
+    depends_on_previous: i > 0 && s.depends_on_previous,
+    final: i === arr.length - 1,
+    source: s.description || "",
+    priority: s.priority,
+  }));
+  return { project_id: r.project_id, project_name: null, summary: r.summary, deadline: parseIso(r.deadline), approver_needed: r.approver_needed, steps };
+}
+
 export function DelegateComposer({ projects, recent }: { projects: { id: string; name: string }[]; recent: RecentDelegation[] }) {
   const { profile, people, departments } = useSession();
   const router = useRouter();
@@ -39,20 +62,43 @@ export function DelegateComposer({ projects, recent }: { projects: { id: string;
   const [steps, setSteps] = React.useState<DelegationStep[]>([]);
   const [busy, setBusy] = React.useState(false);
   const [result, setResult] = React.useState<string[] | null>(null);
+  const [analysing, setAnalysing] = React.useState(false);
+  const [viaAI, setViaAI] = React.useState(false);
+  const ai = useAIStatus();
 
-  function analyse() {
-    if (!text.trim()) return;
-    const p = parseDelegation(text, {
-      people: people.map((x) => ({ id: x.id, full_name: x.full_name, department_id: x.department_id })),
-      departments: departments.map((d) => ({ id: d.id, name: d.name, slug: d.slug, head_id: d.head_id })),
-      projects,
-    });
+  function apply(p: DelegationProposal, fromAi: boolean) {
     setProposal(p);
     setProjectId(p.project_id || "");
     setApprover(p.approver_needed ? profile.id : "");
     setSummary(p.summary);
     setSteps(p.steps);
     setResult(null);
+    setViaAI(fromAi);
+  }
+
+  function analyseWithRules() {
+    const p = parseDelegation(text, {
+      people: people.map((x) => ({ id: x.id, full_name: x.full_name, department_id: x.department_id })),
+      departments: departments.map((d) => ({ id: d.id, name: d.name, slug: d.slug, head_id: d.head_id })),
+      projects,
+    });
+    apply(p, false);
+  }
+
+  async function analyse() {
+    if (!text.trim()) return;
+    if (!ai.enabled) return analyseWithRules();
+    setAnalysing(true);
+    try {
+      const r = await callAI<DelegationAI>("delegate-parse", { text: text.trim() });
+      if (!r.steps?.length) throw new Error("No steps found");
+      apply(fromAI(r), true);
+    } catch {
+      toast.push("AI unavailable — used rule-based parsing", "info");
+      analyseWithRules();
+    } finally {
+      setAnalysing(false);
+    }
   }
 
   const setStep = (i: number, patch: Partial<DelegationStep>) => setSteps((s) => s.map((x, j) => (j === i ? { ...x, ...patch } : x)));
@@ -78,7 +124,7 @@ export function DelegateComposer({ projects, recent }: { projects: { id: string;
       due_date: s.due_date ? s.due_date.toISOString() : null,
       depends_on_previous: i > 0 && s.depends_on_previous,
       final: i === valid.length - 1,
-      priority: "normal",
+      priority: s.priority || "normal",
     }));
     const { data, error } = await createClient().rpc("create_delegation", {
       p_project: (projectId || null) as unknown as string,
@@ -107,9 +153,9 @@ export function DelegateComposer({ projects, recent }: { projects: { id: string;
           {EXAMPLES.map((ex, i) => (
             <button key={i} className="text-xs px-2 py-1 rounded-full tone-neutral hover:bg-[var(--line)] text-left max-w-full truncate" style={{ maxWidth: 320 }} onClick={() => setText(ex)} title={ex}>{ex.length > 60 ? ex.slice(0, 58) + "…" : ex}</button>
           ))}
-          <Button variant="primary" className="ml-auto" onClick={analyse} disabled={!text.trim()}><Sparkles size={15} /> Build workflow</Button>
+          <Button variant="primary" className="ml-auto" onClick={analyse} disabled={!text.trim()} loading={analysing}><Sparkles size={15} /> Build workflow</Button>
         </div>
-        <div className="text-[11px] text-muted mt-2">Understands people by name, departments (content, design, tech, sales, finance…), projects, deadlines (Friday evening, tomorrow, in 3 days, 12 Sep), ordering (first, then, after) and “I approve”.</div>
+        <div className="text-[11px] text-muted mt-2">{ai.enabled ? "AI reads the instruction against your directory and projects: people, departments, deadlines, ordering, priorities and “I approve”. You review every step before anything is created." : "Understands people by name, departments (content, design, tech, sales, finance…), projects, deadlines (Friday evening, tomorrow, in 3 days, 12 Sep), ordering (first, then, after) and “I approve”."}</div>
       </Card>
 
       {/* Result chain */}
@@ -130,8 +176,14 @@ export function DelegateComposer({ projects, recent }: { projects: { id: string;
         <div className="space-y-3 anim-fade-up">
           <Card className="p-[var(--s4)] space-y-3">
             <div className="flex items-center justify-between gap-2 flex-wrap">
-              <span className="h3">Proposed workflow</span>
-              <span className="text-xs text-muted">{steps.length} step{steps.length !== 1 ? "s" : ""}{proposal.deadline ? ` · deadline ${relDate(proposal.deadline)} ${fmtDate(proposal.deadline, true)}` : " · no deadline detected"}</span>
+              <span className="inline-flex items-center gap-2">
+                <span className="h3">Proposed workflow</span>
+                {viaAI && <Pill tone="tone-violet"><Sparkles size={10} /> AI</Pill>}
+              </span>
+              <span className="text-xs text-muted inline-flex items-center gap-2 flex-wrap">
+                <span>{steps.length} step{steps.length !== 1 ? "s" : ""}{proposal.deadline ? ` · deadline ${relDate(proposal.deadline)} ${fmtDate(proposal.deadline, true)}` : " · no deadline detected"}</span>
+                {viaAI && <button type="button" className="link" onClick={analyseWithRules}>Re-parse with rules</button>}
+              </span>
             </div>
             <div className="grid sm:grid-cols-3 gap-3">
               <Field label="Project" hint={proposal.project_name && !proposal.project_id ? `Mentioned “${proposal.project_name}” — not found, pick one or leave empty` : undefined}>

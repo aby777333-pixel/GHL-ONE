@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Flag, Gauge, Hourglass, Layers, Video } from "lucide-react";
+import { AlertTriangle, Flag, Gauge, Hourglass, Layers, Sparkles, Video } from "lucide-react";
 import { Card, CardHeader, EmptyState, PageHeader, Pill, Tabs, Avatar, Progress } from "@/components/ui";
 import { TaskRow, PersonChip, PersonName, type TaskRowData } from "@/components/tasks/TaskBits";
 import { useSession } from "@/components/providers/SessionProvider";
@@ -11,6 +11,7 @@ import { ago, cn, fmtTime, humanize, relDate, PRIORITY_TONE, PROJECT_STATUS_LABE
 import { computeHealth, DepartmentHealthGrid, HealthRing, PulseStrip, scoreTone, type DeptHealth, type Pulse } from "./CommandBits";
 import { loadLevel, type WorkloadRow } from "@/components/home/HomeManager";
 import { pulseBrief } from "@/components/home/HomeExecutive";
+import { RiskBriefing } from "@/components/ai/RiskBriefing";
 
 type T = TaskRowData & { department_id: string | null };
 type Proj = { id: string; name: string; status: string; due_date: string | null; progress: number; department_id: string | null; owner_id: string | null; priority: string; classification: string };
@@ -23,7 +24,7 @@ type Act = { id: number; action: string; entity_type: string; entity_id: string 
 type Ann = { id: string; title: string; published_at: string; mandatory: boolean };
 type Dep = { task_id: string; depends_on_id: string };
 
-type TabKey = "overview" | "projects" | "workload" | "bottlenecks" | "approvals" | "activity";
+type TabKey = "overview" | "projects" | "workload" | "bottlenecks" | "approvals" | "activity" | "ai";
 
 export function CommandCenter(props: { initialTab?: string; pulse: Pulse; departments: DeptHealth[]; workload: WorkloadRow[]; critical: T[]; waiting: T[]; overdue: T[]; projects: Proj[]; approvals: Appr[]; milestones: Milestone[]; meetings: Meeting[]; decisions: Dec[]; risks: Risk[]; activity: Act[]; announcements: Ann[]; deps: Dep[] }) {
   const { pulse, departments, workload, critical, waiting, overdue, projects, approvals, milestones, meetings, decisions, risks, activity, deps } = props;
@@ -43,6 +44,7 @@ export function CommandCenter(props: { initialTab?: string; pulse: Pulse; depart
     { key: "bottlenecks", label: "Bottlenecks & risks", count: bottlenecks.length + risks.length },
     { key: "approvals", label: "Approvals", count: approvals.length },
     { key: "activity", label: "Activity" },
+    { key: "ai", label: "AI briefing" },
   ];
 
   return (
@@ -91,6 +93,7 @@ export function CommandCenter(props: { initialTab?: string; pulse: Pulse; depart
             </Card>
           </div>
           <div className="space-y-[var(--s3)]">
+            <RiskBriefing />
             <Card>
               <CardHeader title="Upcoming milestones" subtitle="Next 14 days" />
               {milestones.length === 0 ? <EmptyState title="No milestones due" className="py-6" /> : (
@@ -267,6 +270,13 @@ export function CommandCenter(props: { initialTab?: string; pulse: Pulse; depart
             </div>
           )}
         </Card>
+      )}
+
+      {tab === "ai" && (
+        <div key="ai" className="space-y-[var(--s3)]">
+          <div className="flex items-center gap-2 text-xs text-muted px-1"><Sparkles size={13} className="text-[var(--accent)]" /> Generated from the same company data as this page — department health, workload, approvals, risks and decisions — filtered to what you can see.</div>
+          <RiskBriefing full />
+        </div>
       )}
 
       {tab === "activity" && (

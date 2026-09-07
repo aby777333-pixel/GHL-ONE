@@ -15,5 +15,10 @@ Positioning: *One Company. One Workspace. One Source of Truth.*
 - Roles: super_admin > director > executive > department_head > manager > team_lead > employee > intern > consultant > vendor > guest. Helpers `isAdminRole`, `isManagerPlus`, `isLeadPlus`, `isInternal`.
 - Never run `next build` while `next dev` is running. Verify in the browser, then commit → push → deploy.
 
+## Intelligence (Phase 2)
+- Server-only AI layer in `src/lib/ai/` (`client.ts` = Anthropic SDK wrapper `complete()` / `extract()` + usage logging; `context.ts` = permission-safe context builders that ALWAYS use the caller's RLS-scoped Supabase client; `prompts.ts` = stable cacheable system prompts; `route.ts` = `withAI()` auth/error wrapper + summary cache helpers). Routes under `src/app/api/ai/*` (ask, brief, project-summary, meeting-extract, extract-tasks, delegate-parse, catch-up, risks, search, status). Client code uses `callAI()` and types from `@/lib/ai/types` and must handle `.disabled` (no `ANTHROPIC_API_KEY`).
+- Model: `claude-opus-5` (override with `AI_MODEL`). Cheap routes use `effort: "low"`. The AI never executes actions — it proposes; humans confirm in the UI.
+- Cached outputs live in `ai_summaries`; usage in `ai_usage` (admin-visible).
+
 ## Migrations
 `supabase/migrations/*.sql` are the source of truth and are applied to the remote project via the Supabase MCP (`apply_migration`). Keep them additive.

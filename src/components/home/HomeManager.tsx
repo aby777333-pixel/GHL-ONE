@@ -6,6 +6,7 @@ import { TaskRow, type TaskRowData } from "@/components/tasks/TaskBits";
 import { useSession } from "@/components/providers/SessionProvider";
 import { cn, fmtDate, greeting } from "@/lib/utils";
 import { AnnouncementsCard, ApprovalsCard, MeetingsCard, MessagesCard, ProjectsCard, SectionLink, TodayCard, personalBrief, type Personal } from "./shared";
+import { BriefCard } from "@/components/ai/BriefCard";
 
 export type WorkloadRow = { user_id: string; full_name: string; avatar_url: string | null; designation: string | null; department_id: string | null; presence: string; open_tasks: number; urgent: number; overdue: number; blocked: number; waiting: number; due_week: number; on_leave: boolean; est_hours: number };
 
@@ -56,6 +57,7 @@ export function HomeManager({ personal, workload, teamTasks, projects }: { perso
       <PageHeader eyebrow={fmtDate(new Date())} title={greeting(profile.full_name)} subtitle={personalBrief(personal) + ` ${blocked.length} team item${blocked.length === 1 ? "" : "s"} blocked, ${overdue.length} overdue.`} />
       <div className="grid lg:grid-cols-3 gap-[var(--s3)] stagger">
         <div className="lg:col-span-2 space-y-[var(--s3)]">
+          <BriefCard variant="manager" />
           <div className="grid md:grid-cols-2 gap-[var(--s3)]">
             <Card>
               <CardHeader title="Blocked work" subtitle="Why work isn't moving" action={<SectionLink href="/tasks?status=blocked">All</SectionLink>} />

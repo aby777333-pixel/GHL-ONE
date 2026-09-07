@@ -7,6 +7,7 @@ import { Pill, Stat } from "@/components/ui";
 import { useSession } from "@/components/providers/SessionProvider";
 import { PersonChip, TaskRow } from "@/components/tasks/TaskBits";
 import type { ProjectRoomData } from "@/components/projects/ProjectRoom";
+import { ProjectAITeaser } from "@/components/ai/ProjectSummary";
 import { cn, relDate, PROJECT_STATUS_LABEL, WAITING_LABEL, APPROVAL_STATUS_LABEL } from "@/lib/utils";
 
 type Stats = { total: number; done: number; open: number; overdue: number; blocked: number; waiting: number; progress: number };
@@ -123,6 +124,7 @@ export function ProjectOverview({ data, stats, onGo }: { data: ProjectRoomData; 
       </div>
 
       <aside className="space-y-[var(--s3)] min-w-0">
+        <ProjectAITeaser projectId={project.id} onOpen={() => onGo("ai")} />
         <section className="card p-[var(--s4)] flex items-center gap-4">
           <Ring value={stats.progress} tone={ringTone} />
           <div className="min-w-0">

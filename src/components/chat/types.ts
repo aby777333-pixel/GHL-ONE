@@ -47,4 +47,4 @@ export type SendPayload = {
   kind: "text" | "voice" | "file";
 };
 
-export type MessageAction = "reply" | "task" | "decision" | "pin" | "copy" | "edit" | "delete" | "forward" | "sheet";
+export type MessageAction = "reply" | "task" | "extract" | "decision" | "pin" | "copy" | "edit" | "delete" | "forward" | "sheet";

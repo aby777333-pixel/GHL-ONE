@@ -1,7 +1,7 @@
 import { getSession } from "@/lib/session";
 import { SearchClient } from "./SearchClient";
 
-export const metadata = { title: "Search — GHL ONE" };
+export const metadata = { title: "Search" };
 
 export default async function SearchPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   await getSession();

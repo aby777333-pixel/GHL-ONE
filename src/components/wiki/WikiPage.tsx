@@ -94,7 +94,7 @@ export function WikiPage({ page, siblings }: { page: WikiPageData; siblings: { i
           <div className="eyebrow mb-1">{page.category}</div>
           <h1 className="h1 break-words">{page.title}</h1>
           <div className="flex items-center gap-2 flex-wrap mt-2 text-xs text-muted">
-            <span className="inline-flex items-center gap-1.5"><Avatar name={page.author?.full_name} src={page.author?.avatar_url} size={18} />{page.author ? <Link href={`/people/${page.author.id}`} className="hover:underline">{page.author.full_name}</Link> : "Unknown author"}</span>
+            <span className="inline-flex items-center gap-1.5"><Avatar name={page.author?.full_name || "GHL ONE"} src={page.author?.avatar_url} size={18} />{page.author ? <Link href={`/people/${page.author.id}`} className="hover:underline">{page.author.full_name}</Link> : "GHL ONE"}</span>
             <span className="inline-flex items-center gap-1"><Clock size={12} /> updated {ago(page.updated_at)}</span>
             {page.department && <span className="inline-flex items-center gap-1"><Building2 size={12} /><span className="w-1.5 h-1.5 rounded-full" style={{ background: page.department.color }} />{page.department.name}</span>}
             <ClassificationPill value={page.classification} />

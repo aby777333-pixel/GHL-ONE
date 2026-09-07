@@ -8,6 +8,7 @@ import { fmtDate, greeting } from "@/lib/utils";
 import { AnnouncementsCard, ApprovalsCard, MeetingsCard, MessagesCard, ProjectsCard, SectionLink, TodayCard, personalBrief, type Personal } from "./shared";
 import { BriefCard } from "@/components/ai/BriefCard";
 import { TeamTodayCard } from "@/components/attendance";
+import { TeamGoalsCard } from "@/components/goals/GoalMini";
 
 export type WorkloadRow = { user_id: string; full_name: string; avatar_url: string | null; designation: string | null; department_id: string | null; presence: string; open_tasks: number; urgent: number; overdue: number; blocked: number; waiting: number; due_week: number; on_leave: boolean; est_hours: number };
 
@@ -75,6 +76,7 @@ export function HomeManager({ personal, workload, teamTasks, projects }: { perso
         </div>
         <div className="space-y-[var(--s3)]">
           <TeamTodayCard departmentId={profile.role === "manager" || profile.role === "team_lead" || profile.role === "department_head" ? profile.department_id : null} />
+          <TeamGoalsCard />
           <ApprovalsCard items={personal.approvals} />
           <MessagesCard unread={personal.unreadTotal} />
           <MeetingsCard items={personal.meetings} />

@@ -13,7 +13,7 @@ export default async function PersonPage({ params, searchParams }: { params: Pro
 
   const { data: person } = await supabase
     .from("profiles")
-    .select("*, manager:profiles!profiles_manager_id_fkey(id,full_name,avatar_url,designation), department:departments!profiles_department_id_fkey(id,name,color), team:teams!profiles_team_id_fkey(id,name)")
+    .select("*, manager:manager_id(id,full_name,avatar_url,designation), department:departments!profiles_department_id_fkey(id,name,color), team:teams!profiles_team_id_fkey(id,name)")
     .eq("id", id)
     .maybeSingle();
   if (!person) notFound();

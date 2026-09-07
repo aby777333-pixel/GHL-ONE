@@ -12,6 +12,7 @@ import { PersonChip, PriorityPill } from "@/components/tasks/TaskBits";
 import { ago, cn, isAdminRole, type Channel } from "@/lib/utils";
 import { asVisibility, VISIBILITY_META, untilLabel, type ChannelType } from "./visibility";
 import { CreateRoomModal } from "./CreateRoomModal";
+import { RecognitionWall } from "@/components/growth/Recognition";
 import { asDeptStatus, DEPT_STATUS_META, fmtRemaining, slaRemaining, type HelpRequest } from "@/components/help/lib";
 
 export type Availability = {
@@ -200,6 +201,9 @@ export function CommonHub({ data }: { data: CommonHubData }) {
           </div>
         </section>
       </div>
+
+      {/* Recognition wall */}
+      <RecognitionWall />
 
       {/* Groups & rooms */}
       <section>

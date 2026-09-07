@@ -2,9 +2,10 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Lightbulb, Plus, ChevronUp, FolderKanban, ArrowUpRight, Flame, Clock } from "lucide-react";
-import { Button, Card, EmptyState, Field, Input, Modal, PageHeader, Pill, Select, Textarea, useToast } from "@/components/ui";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Lightbulb, Plus, ChevronUp, FolderKanban, ArrowUpRight, Flame, Clock, Inbox } from "lucide-react";
+import { Button, Card, EmptyState, Field, Input, Modal, PageHeader, Pill, Select, Tabs, Textarea, useToast } from "@/components/ui";
+import { Suggestions } from "@/components/ideas/Suggestions";
 import { PersonChip } from "@/components/tasks/TaskBits";
 import { useSession } from "@/components/providers/SessionProvider";
 import { createClient } from "@/lib/supabase/client";
@@ -18,8 +19,10 @@ const STATUS_TONE: Record<string, string> = { open: "tone-neutral", under_review
 export function IdeasClient({ ideas: initial, myVotes: initialVotes, openNew }: { ideas: Idea[]; myVotes: string[]; openNew: boolean }) {
   const { profile } = useSession();
   const router = useRouter();
+  const sp = useSearchParams();
   const toast = useToast();
   const manager = isManagerPlus(profile.role);
+  const [tab, setTab] = React.useState<"ideas" | "suggestions">(sp.get("tab") === "suggestions" ? "suggestions" : "ideas");
   const [ideas, setIdeas] = React.useState(initial);
   const [voted, setVoted] = React.useState<Set<string>>(() => new Set(initialVotes));
   const [sort, setSort] = React.useState<"votes" | "newest">("votes");
@@ -78,8 +81,10 @@ export function IdeasClient({ ideas: initial, myVotes: initialVotes, openNew }: 
 
   return (
     <div className="page page-narrow">
-      <PageHeader eyebrow="Idea Board" title="Ideas" subtitle="Anyone can suggest. Everyone can vote. Management turns the best into projects." actions={<Button variant="primary" onClick={() => setShowNew(true)}><Plus size={15} /> Submit idea</Button>} />
+      <PageHeader eyebrow="Idea Board" title={tab === "ideas" ? "Ideas" : "Suggestion box"} subtitle={tab === "ideas" ? "Anyone can suggest. Everyone can vote. Management turns the best into projects." : "Quiet, private improvements — process, tools, workplace. Anonymous if you prefer."} actions={tab === "ideas" ? <Button variant="primary" onClick={() => setShowNew(true)}><Plus size={15} /> Submit idea</Button> : undefined} />
+      <Tabs tabs={[{ key: "ideas" as const, label: <span className="inline-flex items-center gap-1.5"><Lightbulb size={13} /> Ideas</span>, count: ideas.length || undefined }, { key: "suggestions" as const, label: <span className="inline-flex items-center gap-1.5"><Inbox size={13} /> Suggestion box</span> }]} value={tab} onChange={(t) => { setTab(t); router.replace(t === "ideas" ? "/ideas" : "/ideas?tab=suggestions", { scroll: false }); }} className="mb-[var(--s3)]" />
 
+      {tab === "suggestions" ? <Suggestions openNew={sp.get("new") === "2"} /> : (<>
       <div className="flex items-center gap-2 mb-[var(--s3)] flex-wrap">
         <div className="inline-flex rounded-[var(--radius-sm)] border overflow-hidden">
           <button className={cn("btn btn-sm rounded-none border-0", sort === "votes" ? "btn-primary" : "btn-ghost")} onClick={() => setSort("votes")}><Flame size={13} /> Top</button>
@@ -140,6 +145,8 @@ export function IdeasClient({ ideas: initial, myVotes: initialVotes, openNew }: 
           })}
         </div>
       )}
+
+      </>)}
 
       {showNew && <SubmitIdeaModal onClose={() => { setShowNew(false); if (openNew) router.replace("/ideas"); }} onCreated={(i) => setIdeas((s) => [i, ...s])} />}
     </div>

@@ -8,6 +8,8 @@ import { Card, CardHeader, EmptyState } from "@/components/ui";
 import { TaskRow } from "@/components/tasks/TaskBits";
 import { BriefCard } from "@/components/ai/BriefCard";
 import { ClockCard } from "@/components/attendance";
+import { BuddyHomeCard } from "@/components/ai/BuddyHomeCard";
+import { KudosCard } from "@/components/growth/Recognition";
 
 export function HomeEmployee({ personal }: { personal: Personal }) {
   const { profile } = useSession();
@@ -17,6 +19,7 @@ export function HomeEmployee({ personal }: { personal: Personal }) {
       <div className="grid lg:grid-cols-3 gap-[var(--s3)] stagger">
         <div className="lg:col-span-2 space-y-[var(--s3)]">
           <ClockCard />
+          <BuddyHomeCard />
           <BriefCard variant="employee" />
           <TodayCard p={personal} />
           {personal.waitingOnMe.length > 0 && (
@@ -31,6 +34,7 @@ export function HomeEmployee({ personal }: { personal: Personal }) {
           <MessagesCard unread={personal.unreadTotal} />
           <ApprovalsCard items={personal.approvals} />
           <MeetingsCard items={personal.meetings} />
+          <KudosCard />
           <AnnouncementsCard items={personal.announcements} />
           {personal.tasks.length === 0 && personal.projects.length === 0 && (
             <EmptyState title="Welcome to GHL ONE" hint="Your manager will assign work and projects here. Meanwhile, explore the Wiki and say hello in #general." />

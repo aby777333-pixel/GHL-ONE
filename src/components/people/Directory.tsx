@@ -4,8 +4,10 @@ import { Blink } from "@/components/providers/ActivityProvider";
 
 import * as React from "react";
 import Link from "next/link";
-import { Users, LayoutGrid, Network, X } from "lucide-react";
-import { Avatar, EmptyState, PageHeader, SearchInput, Select } from "@/components/ui";
+import { Users, LayoutGrid, Network, X, MoreHorizontal, MessageSquareHeart, Trophy } from "lucide-react";
+import { Avatar, EmptyState, PageHeader, SearchInput, Select, Menu, MenuItem } from "@/components/ui";
+import { FeedbackModal } from "@/components/growth/FeedbackModal";
+import { KudosModal } from "@/components/growth/KudosModal";
 import { useSession } from "@/components/providers/SessionProvider";
 import { cn, ROLE_LABEL, type RoleLevel } from "@/lib/utils";
 import type { DirectoryPerson } from "./types";
@@ -105,8 +107,9 @@ export function Directory({ people, initial }: { people: DirectoryPerson[]; init
 }
 
 function PersonCard({ p, me }: { p: DirectoryPerson; me: boolean }) {
-  const { departments } = useSession();
+  const { departments, profile } = useSession();
   const dept = departments.find((d) => d.id === p.department_id);
+  const [modal, setModal] = React.useState<"feedback" | "kudos" | null>(null);
   return (
     <div className="card card-hover p-[var(--s3)] flex flex-col gap-2 min-w-0">
       <Link href={`/people/${p.id}`} className="flex items-start gap-3 min-w-0">
@@ -131,8 +134,16 @@ function PersonCard({ p, me }: { p: DirectoryPerson; me: boolean }) {
         <div className="flex items-center gap-1.5 mt-auto pt-1">
           <ChatButton userId={p.id} />
           <AssignTaskButton userId={p.id} />
+          <span className="ml-auto">
+            <Menu trigger={<button className="btn btn-ghost btn-sm btn-icon" aria-label="More"><MoreHorizontal size={14} /></button>} width={190}>
+              <MenuItem icon={<Trophy size={13} />} onClick={() => setModal("kudos")}>Recognise</MenuItem>
+              <MenuItem icon={<MessageSquareHeart size={13} />} onClick={() => setModal("feedback")}>Give feedback</MenuItem>
+            </Menu>
+          </span>
         </div>
       )}
+      {modal === "feedback" && <FeedbackModal toUserId={p.id} isManagerOfRecipient={p.manager_id === profile.id} onClose={() => setModal(null)} />}
+      {modal === "kudos" && <KudosModal toUserId={p.id} onClose={() => setModal(null)} />}
     </div>
   );
 }

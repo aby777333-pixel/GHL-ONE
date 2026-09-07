@@ -11,9 +11,10 @@ import { TeamBoard } from "./TeamBoard";
 import { RosterTab } from "./RosterTab";
 import { TimesheetTab } from "./TimesheetTab";
 import { CorrectionsTab } from "./CorrectionsTab";
+import { ShiftHandover } from "./ShiftHandover";
 import type { AttendanceDay, BoardRow, Shift, ShiftSwap } from "./attendanceUtils";
 
-type TabKey = "me" | "team" | "roster" | "timesheet" | "corrections";
+type TabKey = "me" | "team" | "roster" | "timesheet" | "corrections" | "handover";
 type HelpRow = Pick<Tables<"help_requests">, "id" | "title" | "status" | "created_at" | "form_data" | "details" | "owner_id">;
 
 export type AttendanceData = {
@@ -37,7 +38,7 @@ export function AttendanceClient({ data }: { data: AttendanceData }) {
   useSeen("nav:/attendance");
   const lead = isLeadPlus(profile.role) || data.hasAttendancePerm;
   const requested = sp.get("tab") as TabKey | null;
-  const [tab, setTab] = React.useState<TabKey>(requested && ["me", "team", "roster", "timesheet", "corrections"].includes(requested) && (requested !== "team" || lead) ? requested : "me");
+  const [tab, setTab] = React.useState<TabKey>(requested && ["me", "team", "roster", "timesheet", "corrections", "handover"].includes(requested) && (requested !== "team" || lead) ? requested : "me");
 
   function go(t: TabKey) {
     setTab(t);
@@ -52,6 +53,7 @@ export function AttendanceClient({ data }: { data: AttendanceData }) {
     { key: "roster", label: "Roster", count: data.swaps.filter((s) => s.status === "pending").length || undefined },
     { key: "timesheet", label: "Timesheet" },
     { key: "corrections", label: "Corrections" },
+    { key: "handover", label: "Handover" },
   ];
 
   return (
@@ -62,6 +64,7 @@ export function AttendanceClient({ data }: { data: AttendanceData }) {
       {tab === "team" && lead && <TeamBoard initialRows={data.board} initialDay={data.today} />}
       {tab === "roster" && <RosterTab shifts={data.shifts} initialSwaps={data.swaps} />}
       {tab === "timesheet" && <TimesheetTab tasks={data.tasks} />}
+      {tab === "handover" && <ShiftHandover openId={sp.get("id")} />}
       {tab === "corrections" && <CorrectionsTab hrDepartmentId={data.hrDepartmentId} serviceId={data.serviceId} initialRequests={data.myRequests} hasAttendancePerm={data.hasAttendancePerm} />}
     </div>
   );

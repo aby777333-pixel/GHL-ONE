@@ -33,6 +33,8 @@ import {
 } from "@/lib/live/types";
 import { cn } from "@/lib/utils";
 import { useLiveKit } from "./useLiveKit";
+import { getLiveSession } from "./liveSession";
+import { getLiveState, setActiveRoom } from "./liveStore";
 import { Stage } from "./Stage";
 import { ControlBar } from "./ControlBar";
 import { ParticipantsRail, type WaitingPerson } from "./ParticipantsRail";
@@ -163,7 +165,7 @@ export function LiveRoom(props: LiveRoomProps) {
     [annots, toast, handleMoveTo]
   );
 
-  const lk = useLiveKit({ roomId, guestToken, guestName, onData, onDisconnected: () => setRecording(false) });
+  const lk = useLiveKit({ roomId, guestToken, guestName, guest, onData, onDisconnected: () => setRecording(false) });
 
   const meId = me?.id || lk.meta?.identity || "";
   const meName = me?.name || guestName || "You";
@@ -255,22 +257,62 @@ export function LiveRoom(props: LiveRoomProps) {
   }, []);
 
   /* --------------------------------------------------------------- cleanup */
+  /** Set once the leave has been recorded, so the unmount below never records it twice. */
+  const leftRef = React.useRef(false);
   const cleanup = React.useCallback(async () => {
+    leftRef.current = true;
     if (roomId && !guest) await leaveRoom(roomId).catch(() => null);
     await lk.leave();
   }, [roomId, guest, lk]);
 
+  /**
+   * Leaving the PAGE is not leaving the ROOM any more. A member join lives on in `liveSession`
+   * (LiveProvider holds the audio and the mini bar), so unmounting must not run the leave RPC and
+   * must not disconnect. A page that never became a session — a guest, or someone still in the
+   * waiting room — still records its leave exactly as before. Closing the tab is handled by the
+   * session itself once it exists, so the two never both fire.
+   */
   React.useEffect(() => {
-    const onLeave = () => {
+    const partOnly = () => {
+      if (leftRef.current || getLiveSession()) return;
       if (roomId && !guest) void leaveRoom(roomId).catch(() => null);
     };
-    window.addEventListener("beforeunload", onLeave);
+    window.addEventListener("beforeunload", partOnly);
     return () => {
-      window.removeEventListener("beforeunload", onLeave);
-      void cleanup();
+      window.removeEventListener("beforeunload", partOnly);
+      partOnly();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, guest]);
+
+  /* ------------------------------------------------- mini bar (off-page truth) */
+  /**
+   * Everything the floating bar shows while the user works elsewhere. `LiveProvider` keeps
+   * patching it from the room's own events once this page is gone.
+   */
+  const peerCount = lk.peers.length;
+  const lkRole = lk.meta?.role;
+  React.useEffect(() => {
+    if (guest || !roomId) return;
+    if (lk.state !== "connected" && lk.state !== "reconnecting") return;
+    // Only ever describe a call that actually exists — once we have left, this must stay quiet
+    // rather than resurrect the mini bar as the room tears down.
+    if (getLiveSession()?.roomId !== roomId) return;
+    const prev = getLiveState().active;
+    setActiveRoom({
+      id: roomId,
+      title,
+      kind,
+      role: lkRole || "participant",
+      startedAt: prev && prev.id === roomId ? prev.startedAt : Date.now(),
+      mode,
+      sharing: lk.sharing,
+      recording,
+      micOn: lk.micOn,
+      camOn: lk.camOn,
+      participants: peerCount,
+      quality: lk.quality,
+    });
+  }, [guest, roomId, lk.state, lk.sharing, lk.micOn, lk.camOn, lk.quality, lkRole, peerCount, recording, mode, title, kind]);
 
   /* --------------------------------------------------------- reactions fade */
   React.useEffect(() => {
@@ -475,6 +517,7 @@ export function LiveRoom(props: LiveRoomProps) {
         <div className="flex-1 min-w-0 relative">
           <Stage
             className="h-full"
+            audio={!!guest}
             mode={mode}
             onMode={(m) => {
               setMode(m);

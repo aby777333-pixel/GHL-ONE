@@ -92,6 +92,12 @@ export type StageProps = {
   boardId?: string | null;
   docId?: string | null;
   canWhiteboard?: boolean;
+  /**
+   * Render the remote-audio sink here. Only ONE place in the app may own it or every voice doubles:
+   * for members `LiveProvider` owns it (the call outlives this page), so the room passes `false`;
+   * guests are outside the app shell and have no provider, so the guest room passes `true`.
+   */
+  audio?: boolean;
   /* annotations */
   strokes: Stroke[];
   pointers: Pointer[];
@@ -275,7 +281,7 @@ export function Stage(props: StageProps) {
         {confidentialFor && <Watermark text={`${confidentialFor} · ${new Date().toLocaleString()}`} />}
       </div>
 
-      <AudioSink peers={peers} />
+      {props.audio && <AudioSink peers={peers} />}
     </div>
   );
 }

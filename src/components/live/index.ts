@@ -23,3 +23,4 @@ export { useRoomRecorder, type UseRoomRecorder, type UseRoomRecorderOptions, typ
 export { useRoomRecording, type UseRoomRecordingArgs } from "./RoomRecording";
 export { useLiveKit, viewOf, type LiveKitApi, type PeerView, type JoinState, type DeviceState } from "./useLiveKit";
 export * from "./liveStore";
+export { getLiveSession, isSessionLive, useLiveSession, endLiveSession, clearLiveSession, type LiveSession } from "./liveSession";

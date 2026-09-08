@@ -6,6 +6,13 @@
  * mic/camera/screen publishing, device switching, background blur, connection quality,
  * low-bandwidth modes, reconnect handling and the typed data channel (`LiveDataMessage`).
  *
+ * The room OUTLIVES this hook. For a member join the connected `Room` is published to
+ * `liveSession.ts` (module scope), so navigating away from `/live/<id>` only detaches this
+ * component's listeners — the call carries on and the floating mini bar tells the truth. A page
+ * that mounts while a session for the same room exists ADOPTS it instead of joining again.
+ * Guests (`guest: true`, or a `guestToken` join) keep the old behaviour: connect on mount,
+ * disconnect on unmount, because nothing outside their page could keep their audio alive.
+ *
  * Nothing in here touches Supabase — room state lives in `@/lib/live/client`.
  */
 import * as React from "react";
@@ -22,6 +29,7 @@ import {
 } from "livekit-client";
 import { fetchToken, type TokenResponse } from "@/lib/live/client";
 import type { BandwidthMode, LiveDataMessage, QualityLevel } from "@/lib/live/types";
+import { clearLiveSession, endLiveSession, getLiveSession, isSessionLive, patchLiveSession, setLiveSession, type LiveSession } from "./liveSession";
 
 export type JoinState =
   | "idle"
@@ -106,6 +114,11 @@ export type UseLiveKitOptions = {
   /** External guest join (capability token from `live_guest_link`). */
   guestToken?: string;
   guestName?: string;
+  /**
+   * Guest mode (`/live/guest/<token>` — outside the app shell). Guests never persist their
+   * connection across navigation: there is no `LiveProvider` there to hold their audio.
+   */
+  guest?: boolean;
   /** Wait for an explicit `join()` call instead of connecting on mount. */
   manual?: boolean;
   /** Start with the camera on. Mic and camera are OFF by default — never auto-enable. */
@@ -118,7 +131,10 @@ export type UseLiveKitOptions = {
 };
 
 export function useLiveKit(opts: UseLiveKitOptions) {
-  const { roomId, guestToken, guestName, manual, startCam, startMic } = opts;
+  const { roomId, guestToken, guestName, guest, manual, startCam, startMic } = opts;
+
+  /** Only a member join is kept alive across navigation (see the file header). */
+  const persistable = !!roomId && !guestToken && !guest;
 
   const dataCb = React.useRef(opts.onData);
   const metaCb = React.useRef(opts.onMeta);
@@ -183,9 +199,41 @@ export function useLiveKit(opts: UseLiveKitOptions) {
   /** Lets the waiting-room poller re-run `join` without referencing it before it exists. */
   const joinRef = React.useRef<() => void>(() => {});
 
+  /**
+   * Wire this component's listeners onto a room and hand back the exact undo. Unmounting detaches
+   * (the room may be shared with `LiveProvider` and a later mount of this page) — it never
+   * `removeAllListeners()`, which would silently unhook the recorder and the global audio bridge.
+   */
   const attach = React.useCallback(
     (r: Room) => {
       const rerender = () => bump();
+      const onDevices = () => void refreshDevices();
+      const onPlayback = () => setNeedsAudioUnlock(!r.canPlaybackAudio);
+      const onSpeakers = (list: Participant[]) => setSpeakers(list.map((p) => p.identity));
+      const onReconnecting = () => {
+        setState("reconnecting");
+        patchLiveSession({ state: "reconnecting" });
+      };
+      const onReconnected = () => {
+        setState("connected");
+        patchLiveSession({ state: "connected" });
+      };
+      const onGone = () => {
+        // The room really went away (host ended it, server closed it) — the session must not outlive it.
+        if (getLiveSession()?.room === r) clearLiveSession();
+        if (!aliveRef.current) return;
+        setState("ended");
+        goneCb.current?.();
+      };
+      const onData = (payload: Uint8Array, from?: RemoteParticipant) => {
+        try {
+          const msg = JSON.parse(new TextDecoder().decode(payload)) as LiveDataMessage;
+          dataCb.current?.(msg, from);
+        } catch {
+          /* ignore malformed frames */
+        }
+      };
+
       r.on(RoomEvent.ParticipantConnected, rerender)
         .on(RoomEvent.ParticipantDisconnected, rerender)
         .on(RoomEvent.TrackSubscribed, rerender)
@@ -199,36 +247,88 @@ export function useLiveKit(opts: UseLiveKitOptions) {
         .on(RoomEvent.ParticipantMetadataChanged, rerender)
         .on(RoomEvent.RecordingStatusChanged, rerender)
         .on(RoomEvent.ConnectionQualityChanged, rerender)
-        .on(RoomEvent.MediaDevicesChanged, () => void refreshDevices())
-        .on(RoomEvent.ActiveDeviceChanged, () => void refreshDevices())
-        .on(RoomEvent.AudioPlaybackStatusChanged, () => {
-          setNeedsAudioUnlock(!r.canPlaybackAudio);
-        })
-        .on(RoomEvent.ActiveSpeakersChanged, (list: Participant[]) => {
-          setSpeakers(list.map((p) => p.identity));
-        })
-        .on(RoomEvent.Reconnecting, () => setState("reconnecting"))
-        .on(RoomEvent.Reconnected, () => setState("connected"))
-        .on(RoomEvent.Disconnected, () => {
-          if (!aliveRef.current) return;
-          setState("ended");
-          goneCb.current?.();
-        })
-        .on(RoomEvent.DataReceived, (payload: Uint8Array, from?: RemoteParticipant) => {
-          try {
-            const msg = JSON.parse(new TextDecoder().decode(payload)) as LiveDataMessage;
-            dataCb.current?.(msg, from);
-          } catch {
-            /* ignore malformed frames */
-          }
-        });
+        .on(RoomEvent.MediaDevicesChanged, onDevices)
+        .on(RoomEvent.ActiveDeviceChanged, onDevices)
+        .on(RoomEvent.AudioPlaybackStatusChanged, onPlayback)
+        .on(RoomEvent.ActiveSpeakersChanged, onSpeakers)
+        .on(RoomEvent.Reconnecting, onReconnecting)
+        .on(RoomEvent.Reconnected, onReconnected)
+        .on(RoomEvent.Disconnected, onGone)
+        .on(RoomEvent.DataReceived, onData);
+
+      return () => {
+        r.off(RoomEvent.ParticipantConnected, rerender)
+          .off(RoomEvent.ParticipantDisconnected, rerender)
+          .off(RoomEvent.TrackSubscribed, rerender)
+          .off(RoomEvent.TrackUnsubscribed, rerender)
+          .off(RoomEvent.TrackPublished, rerender)
+          .off(RoomEvent.TrackUnpublished, rerender)
+          .off(RoomEvent.LocalTrackPublished, rerender)
+          .off(RoomEvent.LocalTrackUnpublished, rerender)
+          .off(RoomEvent.TrackMuted, rerender)
+          .off(RoomEvent.TrackUnmuted, rerender)
+          .off(RoomEvent.ParticipantMetadataChanged, rerender)
+          .off(RoomEvent.RecordingStatusChanged, rerender)
+          .off(RoomEvent.ConnectionQualityChanged, rerender)
+          .off(RoomEvent.MediaDevicesChanged, onDevices)
+          .off(RoomEvent.ActiveDeviceChanged, onDevices)
+          .off(RoomEvent.AudioPlaybackStatusChanged, onPlayback)
+          .off(RoomEvent.ActiveSpeakersChanged, onSpeakers)
+          .off(RoomEvent.Reconnecting, onReconnecting)
+          .off(RoomEvent.Reconnected, onReconnected)
+          .off(RoomEvent.Disconnected, onGone)
+          .off(RoomEvent.DataReceived, onData);
+      };
     },
     [bump, refreshDevices]
+  );
+
+  /** Undo for the listeners this component put on the current room. */
+  const detachRef = React.useRef<(() => void) | null>(null);
+
+  /**
+   * Re-use a room that is already connected (the user came back to the page, or never really left).
+   * No re-join, no second participant, no flicker.
+   */
+  const adopt = React.useCallback(
+    (s: LiveSession) => {
+      const r = s.room;
+      if (r.state === ConnectionState.Disconnected) return false;
+      detachRef.current?.();
+      detachRef.current = attach(r);
+      roomRef.current = r;
+      setRoom(r);
+      setMeta(s.meta);
+      metaCb.current?.(s.meta);
+      setState(r.state === ConnectionState.Reconnecting ? "reconnecting" : "connected");
+      setError(null);
+      setNeedsAudioUnlock(!r.canPlaybackAudio);
+      setSpeakers(r.activeSpeakers.map((p) => p.identity));
+      const camTrack = r.localParticipant.getTrackPublication(Track.Source.Camera)?.track as LocalVideoTrack | undefined;
+      setBlurOn(!!camTrack?.getProcessor());
+      void refreshDevices();
+      bump();
+      return true;
+    },
+    [attach, bump, refreshDevices]
   );
 
   const join = React.useCallback(async () => {
     if (joiningRef.current || roomRef.current) return;
     if (!roomId && !guestToken) return;
+
+    const open = getLiveSession();
+    if (persistable && isSessionLive(open) && open.roomId === roomId) {
+      // Already connected to this very room (mini bar → Return, or a re-render race): adopt it.
+      if (adopt(open)) return;
+    }
+    if (open) {
+      // Never two concurrent connections. Leaving a DIFFERENT room is recorded exactly as a leave;
+      // a dead session for this same room is only swept up, since we are about to join it again.
+      await endLiveSession({ notifyServer: open.roomId !== roomId });
+      if (!aliveRef.current) return;
+    }
+
     joiningRef.current = true;
     setState("connecting");
     setError(null);
@@ -246,15 +346,20 @@ export function useLiveKit(opts: UseLiveKitOptions) {
         audioCaptureDefaults: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
         publishDefaults: { simulcast: true, red: true, dtx: true },
       });
-      attach(r);
+      detachRef.current?.();
+      detachRef.current = attach(r);
       await r.connect(t.url, t.token);
       if (!aliveRef.current) {
+        detachRef.current?.();
+        detachRef.current = null;
         await r.disconnect().catch(() => null);
         return;
       }
       roomRef.current = r;
       setRoom(r);
       setState("connected");
+      // From here the call belongs to the session, not to this page.
+      if (persistable && roomId) setLiveSession({ roomId, room: r, meta: t, token: t.token, url: t.url, state: "connected" });
       setNeedsAudioUnlock(!r.canPlaybackAudio);
       void refreshDevices();
       if (t.canPublish !== false) {
@@ -281,12 +386,23 @@ export function useLiveKit(opts: UseLiveKitOptions) {
       return;
     }
     joiningRef.current = false;
-  }, [roomId, guestToken, guestName, startCam, startMic, attach, bump, refreshDevices]);
+  }, [roomId, guestToken, guestName, startCam, startMic, persistable, adopt, attach, bump, refreshDevices]);
 
+  /**
+   * Explicit intent: end the call. This is the ONLY path (besides the session's own `beforeunload`
+   * and a room that ended remotely) that disconnects — unmounting no longer does.
+   * Callers that already ran `leave_live_room` keep owning that RPC, so it still fires once.
+   */
   const leave = React.useCallback(async () => {
     const r = roomRef.current;
     roomRef.current = null;
     setRoom(null);
+    detachRef.current?.();
+    detachRef.current = null;
+    if (getLiveSession()?.room === r) {
+      await endLiveSession();
+      return;
+    }
     if (!r) return;
     try {
       await r.localParticipant.setScreenShareEnabled(false);
@@ -304,15 +420,29 @@ export function useLiveKit(opts: UseLiveKitOptions) {
   React.useEffect(() => {
     aliveRef.current = true;
     // Deferred so the very first render is not followed by a synchronous state cascade.
-    const kick = manual ? null : setTimeout(() => void join(), 0);
+    const kick = setTimeout(() => {
+      // Coming back to a call that never stopped: adopt it, do not join again.
+      const open = getLiveSession();
+      if (persistable && isSessionLive(open) && open.roomId === roomId && adopt(open)) return;
+      if (!manual) void join();
+    }, 0);
     return () => {
       if (kick) clearTimeout(kick);
       aliveRef.current = false;
       if (waitTimer.current) clearTimeout(waitTimer.current);
+      const r = roomRef.current;
+      if (r && getLiveSession()?.room === r) {
+        // The call carries on without this page: drop our listeners and local UI state only.
+        detachRef.current?.();
+        detachRef.current = null;
+        roomRef.current = null;
+        setRoom(null);
+        return;
+      }
       void leave();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomId, guestToken, manual]);
+  }, [roomId, guestToken, manual, persistable]);
 
   /* ------------------------------------------------------------------ media */
   const localPub = room?.localParticipant;

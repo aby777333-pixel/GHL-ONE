@@ -9,6 +9,9 @@
  *  · keeps `useLive().active` in sync (an ended room clears it)
  *  · renders the floating mini call bar / picture-in-picture so a person can keep working while in a room
  *    ("You are in <room> · Return")
+ *  · OWNS THE AUDIO of the persisted call (`liveSession`): remote voices need a mounted <audio>
+ *    element, and the room page is gone once the user navigates away — so the sink lives here, and
+ *    `Stage` only renders its own for guests (who have no provider). One sink, never two.
  */
 
 import * as React from "react";
@@ -20,7 +23,11 @@ import { createClient } from "@/lib/supabase/client";
 import { leaveRoom, respondInvite } from "@/lib/live/client";
 import { ROOM_KIND_LABEL, type LiveInvite, type RoomKind } from "@/lib/live/types";
 import { cn } from "@/lib/utils";
-import { dismissInvite, pushInvite, setActiveRoom, setMinimized, useLive } from "./liveStore";
+import { RoomEvent, type Room } from "livekit-client";
+import { dismissInvite, getLiveState, patchActiveRoom, pushInvite, setActiveRoom, setMinimized, useLive } from "./liveStore";
+import { clearLiveSession, endLiveSession, getLiveSession, useLiveSession, type LiveSession } from "./liveSession";
+import { viewOf, type PeerView } from "./useLiveKit";
+import { AudioSink } from "./VideoTile";
 
 /** Ring for 60s — the server marks the invite `missed` at 90s. */
 const RING_MS = 60_000;
@@ -31,6 +38,15 @@ export function LiveProvider() {
   const pathname = usePathname();
   const toast = useToast();
   const { invites, active, minimized } = useLive();
+  const session = useLiveSession();
+
+  /**
+   * A full page reload really does lose the media connection. If anything survived into a fresh
+   * load with no session behind it, clear it — a bar that says "you are in a room" must be true.
+   */
+  React.useEffect(() => {
+    if (getLiveState().active && !getLiveSession()) setActiveRoom(null);
+  }, []);
 
   /* ------------------------------------------------------------ incoming invites */
   React.useEffect(() => {
@@ -95,7 +111,13 @@ export function LiveProvider() {
       .channel(`live-room-watch-${activeId}`)
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "live_rooms", filter: `id=eq.${activeId}` }, (p) => {
         const row = p.new as { status?: string };
-        if (row.status === "ended" || row.status === "archived") setActiveRoom(null);
+        // `end_live_room` (or an archive) really ends the call — drop the media too, not just the bar.
+        if (row.status === "ended" || row.status === "archived") {
+          // `keepListeners` so the room page (if it is open) still hears Disconnected and shows
+          // "This room has ended", and a recording still gets the chance to save itself.
+          if (getLiveSession()?.roomId === activeId) void endLiveSession({ keepListeners: true });
+          else setActiveRoom(null);
+        }
       });
     supabase.auth.getSession().then(({ data }) => {
       if (cancelled) return;
@@ -132,6 +154,9 @@ export function LiveProvider() {
     } catch {
       /* ignore */
     }
+    // Explicit intent — this is one of the few places allowed to disconnect. `leave_live_room` has
+    // already run just above, so the session must not run it again.
+    await endLiveSession();
     setActiveRoom(null);
     toast.push("You left the room", "info");
   }
@@ -166,9 +191,74 @@ export function LiveProvider() {
         </Modal>
       )}
 
+      {session && <SessionBridge session={session} />}
+
       {active && !inThisRoom && <MiniBar onReturn={() => router.push(`/live/${active.id}`)} onLeave={hangUp} />}
     </>
   );
+}
+
+/* ------------------------------------------------------------- persisted call */
+/**
+ * The persisted call's home in the React tree: the single remote-audio sink (so voices keep
+ * playing while the user works elsewhere) plus the mic / camera / share / participant / quality
+ * truth behind the mini bar. Mounted for as long as the session exists, on every page of the shell.
+ */
+function SessionBridge({ session }: { session: LiveSession }) {
+  const room: Room = session.room;
+  const [tick, setTick] = React.useState(0);
+
+  React.useEffect(() => {
+    const bump = () => setTick((t) => t + 1);
+    const onGone = () => clearLiveSession();
+    room
+      .on(RoomEvent.ParticipantConnected, bump)
+      .on(RoomEvent.ParticipantDisconnected, bump)
+      .on(RoomEvent.TrackSubscribed, bump)
+      .on(RoomEvent.TrackUnsubscribed, bump)
+      .on(RoomEvent.TrackPublished, bump)
+      .on(RoomEvent.TrackUnpublished, bump)
+      .on(RoomEvent.LocalTrackPublished, bump)
+      .on(RoomEvent.LocalTrackUnpublished, bump)
+      .on(RoomEvent.TrackMuted, bump)
+      .on(RoomEvent.TrackUnmuted, bump)
+      .on(RoomEvent.ParticipantMetadataChanged, bump)
+      .on(RoomEvent.ConnectionQualityChanged, bump)
+      .on(RoomEvent.ActiveSpeakersChanged, bump)
+      .on(RoomEvent.Disconnected, onGone);
+    return () => {
+      room
+        .off(RoomEvent.ParticipantConnected, bump)
+        .off(RoomEvent.ParticipantDisconnected, bump)
+        .off(RoomEvent.TrackSubscribed, bump)
+        .off(RoomEvent.TrackUnsubscribed, bump)
+        .off(RoomEvent.TrackPublished, bump)
+        .off(RoomEvent.TrackUnpublished, bump)
+        .off(RoomEvent.LocalTrackPublished, bump)
+        .off(RoomEvent.LocalTrackUnpublished, bump)
+        .off(RoomEvent.TrackMuted, bump)
+        .off(RoomEvent.TrackUnmuted, bump)
+        .off(RoomEvent.ParticipantMetadataChanged, bump)
+        .off(RoomEvent.ConnectionQualityChanged, bump)
+        .off(RoomEvent.ActiveSpeakersChanged, bump)
+        .off(RoomEvent.Disconnected, onGone);
+    };
+  }, [room]);
+
+  const peers = React.useMemo<PeerView[]>(() => {
+    const list = [viewOf(room.localParticipant, true)];
+    for (const p of room.remoteParticipants.values()) list.push(viewOf(p, false));
+    return list;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [room, tick]);
+
+  const me = peers[0];
+  React.useEffect(() => {
+    if (!me) return;
+    patchActiveRoom({ micOn: me.micOn, camOn: me.camOn, sharing: me.sharing, participants: peers.length, quality: me.quality });
+  }, [me, peers.length]);
+
+  return <AudioSink peers={peers} />;
 }
 
 /* ------------------------------------------------------------------ mini bar */

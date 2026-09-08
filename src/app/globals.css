@@ -201,6 +201,22 @@ body {
 .textarea { height: auto; padding: 9px 11px; min-height: 89px; resize: vertical; line-height: 1.5; }
 .input:focus, .select:focus, .textarea:focus { border-color: var(--brand-2); box-shadow: 0 0 0 3px color-mix(in oklab, var(--brand-2) 22%, transparent); }
 .input::placeholder, .textarea::placeholder { color: var(--fg-muted); }
+/*
+  Icon padding for inputs. `@import "tailwindcss"` puts the padding utilities in @layer utilities, and an
+  UNLAYERED rule beats any layered one no matter the specificity — so the `padding: 0 11px`
+  above silently won and every `.input pl-9` kept 11px of padding. The leading icon then sat
+  on top of the placeholder ("Search…" with the S underneath the magnifier). These re-assert
+  the values we actually use, unlayered, so they apply.
+  Adding a new icon input? Use one of the paddings below, or add it here — a bare Tailwind
+  pl-* on `.input` will not work.
+*/
+.input.pl-8 { padding-left: 2rem; }
+.input.pl-9 { padding-left: 2.25rem; }
+.input.pl-10 { padding-left: 2.5rem; }
+.input.pl-12 { padding-left: 3rem; }
+.input.pr-9 { padding-right: 2.25rem; }
+.input.pr-10 { padding-right: 2.5rem; }
+.input.pr-24 { padding-right: 6rem; }
 .select { appearance: none; padding-right: 30px; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>"); background-repeat: no-repeat; background-position: right 10px center; }
 .label { display: block; font-size: 0.75rem; font-weight: 500; color: var(--fg-2); margin-bottom: 5px; }
 

@@ -775,6 +775,7 @@ export type Database = {
           kind: string
           org_id: string
           owner_id: string | null
+          recording_id: string | null
           review_at: string | null
           search: unknown
           source_id: string | null
@@ -796,6 +797,7 @@ export type Database = {
           kind?: string
           org_id: string
           owner_id?: string | null
+          recording_id?: string | null
           review_at?: string | null
           search?: unknown
           source_id?: string | null
@@ -817,6 +819,7 @@ export type Database = {
           kind?: string
           org_id?: string
           owner_id?: string | null
+          recording_id?: string | null
           review_at?: string | null
           search?: unknown
           source_id?: string | null
@@ -860,6 +863,13 @@ export type Database = {
             columns: ["owner_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_knowledge_recording_id_fkey"
+            columns: ["recording_id"]
+            isOneToOne: false
+            referencedRelation: "live_recordings"
             referencedColumns: ["id"]
           },
         ]
@@ -1994,6 +2004,270 @@ export type Database = {
           },
         ]
       }
+      board_access_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          board_id: string
+          created_at: string
+          details: Json
+          id: number
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          board_id: string
+          created_at?: string
+          details?: Json
+          id?: never
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          board_id?: string
+          created_at?: string
+          details?: Json
+          id?: never
+        }
+        Relationships: [
+          {
+            foreignKeyName: "board_access_log_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "board_access_log_board_id_fkey"
+            columns: ["board_id"]
+            isOneToOne: false
+            referencedRelation: "boards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      board_comments: {
+        Row: {
+          author_id: string | null
+          board_id: string
+          body: string
+          created_at: string
+          element_id: string | null
+          id: string
+          mentions: string[]
+          page_id: string | null
+          resolved: boolean
+          task_id: string | null
+        }
+        Insert: {
+          author_id?: string | null
+          board_id: string
+          body: string
+          created_at?: string
+          element_id?: string | null
+          id?: string
+          mentions?: string[]
+          page_id?: string | null
+          resolved?: boolean
+          task_id?: string | null
+        }
+        Update: {
+          author_id?: string | null
+          board_id?: string
+          body?: string
+          created_at?: string
+          element_id?: string | null
+          id?: string
+          mentions?: string[]
+          page_id?: string | null
+          resolved?: boolean
+          task_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "board_comments_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "board_comments_board_id_fkey"
+            columns: ["board_id"]
+            isOneToOne: false
+            referencedRelation: "boards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "board_comments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      board_versions: {
+        Row: {
+          board_id: string
+          created_at: string
+          created_by: string | null
+          doc: Json
+          id: string
+          label: string | null
+          version: number
+        }
+        Insert: {
+          board_id: string
+          created_at?: string
+          created_by?: string | null
+          doc: Json
+          id?: string
+          label?: string | null
+          version: number
+        }
+        Update: {
+          board_id?: string
+          created_at?: string
+          created_by?: string | null
+          doc?: Json
+          id?: string
+          label?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "board_versions_board_id_fkey"
+            columns: ["board_id"]
+            isOneToOne: false
+            referencedRelation: "boards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "board_versions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      boards: {
+        Row: {
+          archived: boolean
+          created_at: string
+          created_by: string | null
+          department_id: string | null
+          doc: Json
+          id: string
+          kind: string
+          locked: boolean
+          member_ids: string[]
+          org_id: string
+          owner_id: string | null
+          project_id: string | null
+          room_id: string | null
+          team_id: string | null
+          template_key: string | null
+          title: string
+          updated_at: string
+          version: number
+          visibility: string
+        }
+        Insert: {
+          archived?: boolean
+          created_at?: string
+          created_by?: string | null
+          department_id?: string | null
+          doc?: Json
+          id?: string
+          kind?: string
+          locked?: boolean
+          member_ids?: string[]
+          org_id: string
+          owner_id?: string | null
+          project_id?: string | null
+          room_id?: string | null
+          team_id?: string | null
+          template_key?: string | null
+          title: string
+          updated_at?: string
+          version?: number
+          visibility?: string
+        }
+        Update: {
+          archived?: boolean
+          created_at?: string
+          created_by?: string | null
+          department_id?: string | null
+          doc?: Json
+          id?: string
+          kind?: string
+          locked?: boolean
+          member_ids?: string[]
+          org_id?: string
+          owner_id?: string | null
+          project_id?: string | null
+          room_id?: string | null
+          team_id?: string | null
+          template_key?: string | null
+          title?: string
+          updated_at?: string
+          version?: number
+          visibility?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "boards_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "boards_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "boards_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "boards_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "boards_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "boards_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "live_rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "boards_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bookings: {
         Row: {
           created_at: string
@@ -2702,6 +2976,7 @@ export type Database = {
           is_private: boolean
           is_readonly: boolean
           last_message_at: string | null
+          live_room_id: string | null
           name: string
           org_id: string
           owner_id: string | null
@@ -2729,6 +3004,7 @@ export type Database = {
           is_private?: boolean
           is_readonly?: boolean
           last_message_at?: string | null
+          live_room_id?: string | null
           name: string
           org_id: string
           owner_id?: string | null
@@ -2756,6 +3032,7 @@ export type Database = {
           is_private?: boolean
           is_readonly?: boolean
           last_message_at?: string | null
+          live_room_id?: string | null
           name?: string
           org_id?: string
           owner_id?: string | null
@@ -2787,6 +3064,13 @@ export type Database = {
             columns: ["department_id"]
             isOneToOne: false
             referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channels_live_room_id_fkey"
+            columns: ["live_room_id"]
+            isOneToOne: false
+            referencedRelation: "live_rooms"
             referencedColumns: ["id"]
           },
           {
@@ -2852,6 +3136,120 @@ export type Database = {
           {
             foreignKeyName: "checkins_user_id_fkey"
             columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      collab_favorites: {
+        Row: {
+          created_at: string
+          entity_id: string
+          kind: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          entity_id: string
+          kind: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          entity_id?: string
+          kind?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collab_favorites_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      collab_policies: {
+        Row: {
+          can_create_public_rooms: boolean
+          can_invite_guests: boolean
+          can_record: boolean
+          can_remote_assist: boolean
+          can_share_screen: boolean
+          can_start_calls: boolean
+          can_townhall: boolean
+          can_video: boolean
+          can_whiteboard: boolean
+          confidential_default: boolean
+          department_id: string | null
+          id: string
+          org_id: string
+          recording_retention_days: number | null
+          role: Database["public"]["Enums"]["role_level"] | null
+          scope: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          can_create_public_rooms?: boolean
+          can_invite_guests?: boolean
+          can_record?: boolean
+          can_remote_assist?: boolean
+          can_share_screen?: boolean
+          can_start_calls?: boolean
+          can_townhall?: boolean
+          can_video?: boolean
+          can_whiteboard?: boolean
+          confidential_default?: boolean
+          department_id?: string | null
+          id?: string
+          org_id: string
+          recording_retention_days?: number | null
+          role?: Database["public"]["Enums"]["role_level"] | null
+          scope?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          can_create_public_rooms?: boolean
+          can_invite_guests?: boolean
+          can_record?: boolean
+          can_remote_assist?: boolean
+          can_share_screen?: boolean
+          can_start_calls?: boolean
+          can_townhall?: boolean
+          can_video?: boolean
+          can_whiteboard?: boolean
+          confidential_default?: boolean
+          department_id?: string | null
+          id?: string
+          org_id?: string
+          recording_retention_days?: number | null
+          role?: Database["public"]["Enums"]["role_level"] | null
+          scope?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collab_policies_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collab_policies_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collab_policies_updated_by_fkey"
+            columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -3594,6 +3992,7 @@ export type Database = {
           department_id: string | null
           follow_up: string | null
           id: string
+          live_room_id: string | null
           meeting_id: string | null
           message_id: string | null
           org_id: string
@@ -3615,6 +4014,7 @@ export type Database = {
           department_id?: string | null
           follow_up?: string | null
           id?: string
+          live_room_id?: string | null
           meeting_id?: string | null
           message_id?: string | null
           org_id: string
@@ -3636,6 +4036,7 @@ export type Database = {
           department_id?: string | null
           follow_up?: string | null
           id?: string
+          live_room_id?: string | null
           meeting_id?: string | null
           message_id?: string | null
           org_id?: string
@@ -3667,6 +4068,13 @@ export type Database = {
             columns: ["department_id"]
             isOneToOne: false
             referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "decisions_live_room_id_fkey"
+            columns: ["live_room_id"]
+            isOneToOne: false
+            referencedRelation: "live_rooms"
             referencedColumns: ["id"]
           },
           {
@@ -5055,6 +5463,7 @@ export type Database = {
           escalation_level: number
           form_data: Json
           id: string
+          live_room_id: string | null
           org_id: string
           owner_id: string | null
           priority: Database["public"]["Enums"]["task_priority"]
@@ -5082,6 +5491,7 @@ export type Database = {
           escalation_level?: number
           form_data?: Json
           id?: string
+          live_room_id?: string | null
           org_id: string
           owner_id?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
@@ -5109,6 +5519,7 @@ export type Database = {
           escalation_level?: number
           form_data?: Json
           id?: string
+          live_room_id?: string | null
           org_id?: string
           owner_id?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
@@ -5136,6 +5547,13 @@ export type Database = {
             columns: ["department_id"]
             isOneToOne: false
             referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "help_requests_live_room_id_fkey"
+            columns: ["live_room_id"]
+            isOneToOne: false
+            referencedRelation: "live_rooms"
             referencedColumns: ["id"]
           },
           {
@@ -5458,6 +5876,7 @@ export type Database = {
           channel_id: string | null
           department_id: string | null
           id: string
+          live_room_id: string | null
           org_id: string
           owner_id: string | null
           postmortem: string | null
@@ -5474,6 +5893,7 @@ export type Database = {
           channel_id?: string | null
           department_id?: string | null
           id?: string
+          live_room_id?: string | null
           org_id: string
           owner_id?: string | null
           postmortem?: string | null
@@ -5490,6 +5910,7 @@ export type Database = {
           channel_id?: string | null
           department_id?: string | null
           id?: string
+          live_room_id?: string | null
           org_id?: string
           owner_id?: string | null
           postmortem?: string | null
@@ -5515,6 +5936,13 @@ export type Database = {
             columns: ["department_id"]
             isOneToOne: false
             referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incidents_live_room_id_fkey"
+            columns: ["live_room_id"]
+            isOneToOne: false
+            referencedRelation: "live_rooms"
             referencedColumns: ["id"]
           },
           {
@@ -6261,6 +6689,1136 @@ export type Database = {
           },
         ]
       }
+      live_doc_comments: {
+        Row: {
+          accepted: boolean | null
+          anchor: string | null
+          author_id: string | null
+          body: string
+          created_at: string
+          doc_id: string
+          id: string
+          mentions: string[]
+          resolved: boolean
+          suggestion: string | null
+          task_id: string | null
+        }
+        Insert: {
+          accepted?: boolean | null
+          anchor?: string | null
+          author_id?: string | null
+          body: string
+          created_at?: string
+          doc_id: string
+          id?: string
+          mentions?: string[]
+          resolved?: boolean
+          suggestion?: string | null
+          task_id?: string | null
+        }
+        Update: {
+          accepted?: boolean | null
+          anchor?: string | null
+          author_id?: string | null
+          body?: string
+          created_at?: string
+          doc_id?: string
+          id?: string
+          mentions?: string[]
+          resolved?: boolean
+          suggestion?: string | null
+          task_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "live_doc_comments_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_doc_comments_doc_id_fkey"
+            columns: ["doc_id"]
+            isOneToOne: false
+            referencedRelation: "live_docs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_doc_comments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      live_doc_versions: {
+        Row: {
+          body: string
+          created_at: string
+          created_by: string | null
+          doc_id: string
+          id: string
+          label: string | null
+          version: number
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          created_by?: string | null
+          doc_id: string
+          id?: string
+          label?: string | null
+          version: number
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          created_by?: string | null
+          doc_id?: string
+          id?: string
+          label?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "live_doc_versions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_doc_versions_doc_id_fkey"
+            columns: ["doc_id"]
+            isOneToOne: false
+            referencedRelation: "live_docs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      live_docs: {
+        Row: {
+          archived: boolean
+          body: string
+          created_at: string
+          created_by: string | null
+          department_id: string | null
+          id: string
+          kind: string
+          meeting_id: string | null
+          member_ids: string[]
+          org_id: string
+          owner_id: string | null
+          project_id: string | null
+          room_id: string | null
+          suggestion_mode: boolean
+          task_id: string | null
+          title: string
+          updated_at: string
+          version: number
+          visibility: string
+        }
+        Insert: {
+          archived?: boolean
+          body?: string
+          created_at?: string
+          created_by?: string | null
+          department_id?: string | null
+          id?: string
+          kind?: string
+          meeting_id?: string | null
+          member_ids?: string[]
+          org_id: string
+          owner_id?: string | null
+          project_id?: string | null
+          room_id?: string | null
+          suggestion_mode?: boolean
+          task_id?: string | null
+          title: string
+          updated_at?: string
+          version?: number
+          visibility?: string
+        }
+        Update: {
+          archived?: boolean
+          body?: string
+          created_at?: string
+          created_by?: string | null
+          department_id?: string | null
+          id?: string
+          kind?: string
+          meeting_id?: string | null
+          member_ids?: string[]
+          org_id?: string
+          owner_id?: string | null
+          project_id?: string | null
+          room_id?: string | null
+          suggestion_mode?: boolean
+          task_id?: string | null
+          title?: string
+          updated_at?: string
+          version?: number
+          visibility?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "live_docs_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_docs_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_docs_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_docs_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_docs_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_docs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_docs_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "live_rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_docs_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      live_events: {
+        Row: {
+          actor_id: string | null
+          actor_name: string | null
+          created_at: string
+          id: number
+          kind: string
+          org_id: string
+          payload: Json
+          room_id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          actor_name?: string | null
+          created_at?: string
+          id?: never
+          kind: string
+          org_id: string
+          payload?: Json
+          room_id: string
+        }
+        Update: {
+          actor_id?: string | null
+          actor_name?: string | null
+          created_at?: string
+          id?: never
+          kind?: string
+          org_id?: string
+          payload?: Json
+          room_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "live_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_events_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_events_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "live_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      live_guest_links: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          expires_at: string
+          guest_email: string | null
+          guest_name: string | null
+          id: string
+          max_uses: number
+          org_id: string
+          revoked: boolean
+          room_id: string
+          token: string
+          uses: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string
+          guest_email?: string | null
+          guest_name?: string | null
+          id?: string
+          max_uses?: number
+          org_id: string
+          revoked?: boolean
+          room_id: string
+          token?: string
+          uses?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string
+          guest_email?: string | null
+          guest_name?: string | null
+          id?: string
+          max_uses?: number
+          org_id?: string
+          revoked?: boolean
+          room_id?: string
+          token?: string
+          uses?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "live_guest_links_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_guest_links_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_guest_links_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "live_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      live_invites: {
+        Row: {
+          created_at: string
+          from_user: string
+          id: string
+          kind: string
+          message: string | null
+          org_id: string
+          responded_at: string | null
+          room_id: string
+          status: string
+          to_user: string
+        }
+        Insert: {
+          created_at?: string
+          from_user: string
+          id?: string
+          kind?: string
+          message?: string | null
+          org_id: string
+          responded_at?: string | null
+          room_id: string
+          status?: string
+          to_user: string
+        }
+        Update: {
+          created_at?: string
+          from_user?: string
+          id?: string
+          kind?: string
+          message?: string | null
+          org_id?: string
+          responded_at?: string | null
+          room_id?: string
+          status?: string
+          to_user?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "live_invites_from_user_fkey"
+            columns: ["from_user"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_invites_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_invites_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "live_rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_invites_to_user_fkey"
+            columns: ["to_user"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      live_notes: {
+        Row: {
+          body: string
+          org_id: string
+          room_id: string
+          updated_at: string
+          updated_by: string | null
+          version: number
+        }
+        Insert: {
+          body?: string
+          org_id: string
+          room_id: string
+          updated_at?: string
+          updated_by?: string | null
+          version?: number
+        }
+        Update: {
+          body?: string
+          org_id?: string
+          room_id?: string
+          updated_at?: string
+          updated_by?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "live_notes_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_notes_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: true
+            referencedRelation: "live_rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_notes_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      live_participants: {
+        Row: {
+          device: string | null
+          hand_raised: boolean
+          invited_by: string | null
+          joined_at: string
+          left_at: string | null
+          role: string
+          room_id: string
+          user_id: string
+        }
+        Insert: {
+          device?: string | null
+          hand_raised?: boolean
+          invited_by?: string | null
+          joined_at?: string
+          left_at?: string | null
+          role?: string
+          room_id: string
+          user_id: string
+        }
+        Update: {
+          device?: string | null
+          hand_raised?: boolean
+          invited_by?: string | null
+          joined_at?: string
+          left_at?: string | null
+          role?: string
+          room_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "live_participants_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_participants_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "live_rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_participants_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      live_polls: {
+        Row: {
+          anonymous: boolean
+          board_id: string | null
+          closed_at: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          multi: boolean
+          options: Json
+          org_id: string
+          question: string
+          room_id: string | null
+          status: string
+          votes: Json
+        }
+        Insert: {
+          anonymous?: boolean
+          board_id?: string | null
+          closed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          multi?: boolean
+          options?: Json
+          org_id: string
+          question: string
+          room_id?: string | null
+          status?: string
+          votes?: Json
+        }
+        Update: {
+          anonymous?: boolean
+          board_id?: string | null
+          closed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          multi?: boolean
+          options?: Json
+          org_id?: string
+          question?: string
+          room_id?: string | null
+          status?: string
+          votes?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "live_polls_board_fk"
+            columns: ["board_id"]
+            isOneToOne: false
+            referencedRelation: "boards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_polls_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_polls_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_polls_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "live_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      live_questions: {
+        Row: {
+          anonymous: boolean
+          answer: string | null
+          answered: boolean
+          answered_by: string | null
+          author_id: string | null
+          body: string
+          created_at: string
+          id: string
+          org_id: string
+          room_id: string
+          upvotes: string[]
+        }
+        Insert: {
+          anonymous?: boolean
+          answer?: string | null
+          answered?: boolean
+          answered_by?: string | null
+          author_id?: string | null
+          body: string
+          created_at?: string
+          id?: string
+          org_id: string
+          room_id: string
+          upvotes?: string[]
+        }
+        Update: {
+          anonymous?: boolean
+          answer?: string | null
+          answered?: boolean
+          answered_by?: string | null
+          author_id?: string | null
+          body?: string
+          created_at?: string
+          id?: string
+          org_id?: string
+          room_id?: string
+          upvotes?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "live_questions_answered_by_fkey"
+            columns: ["answered_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_questions_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_questions_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_questions_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "live_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      live_recording_replies: {
+        Row: {
+          at_sec: number | null
+          author_id: string | null
+          body: string | null
+          created_at: string
+          id: string
+          kind: string
+          recording_id: string
+          storage_path: string | null
+        }
+        Insert: {
+          at_sec?: number | null
+          author_id?: string | null
+          body?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          recording_id: string
+          storage_path?: string | null
+        }
+        Update: {
+          at_sec?: number | null
+          author_id?: string | null
+          body?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          recording_id?: string
+          storage_path?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "live_recording_replies_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_recording_replies_recording_id_fkey"
+            columns: ["recording_id"]
+            isOneToOne: false
+            referencedRelation: "live_recordings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      live_recordings: {
+        Row: {
+          access: string
+          access_ids: string[]
+          channel_id: string | null
+          chapters: Json
+          created_at: string
+          department_id: string | null
+          description: string | null
+          downloadable: boolean
+          duration_sec: number
+          expires_at: string | null
+          help_request_id: string | null
+          id: string
+          kind: string
+          knowledge_id: string | null
+          mime_type: string
+          org_id: string
+          owner_id: string
+          project_id: string | null
+          room_id: string | null
+          size_bytes: number
+          status: string
+          storage_path: string
+          summary: Json | null
+          task_id: string | null
+          thumbnail_path: string | null
+          title: string
+          transcript: string | null
+          transcript_segments: Json
+          updated_at: string
+          views: number
+        }
+        Insert: {
+          access?: string
+          access_ids?: string[]
+          channel_id?: string | null
+          chapters?: Json
+          created_at?: string
+          department_id?: string | null
+          description?: string | null
+          downloadable?: boolean
+          duration_sec?: number
+          expires_at?: string | null
+          help_request_id?: string | null
+          id?: string
+          kind?: string
+          knowledge_id?: string | null
+          mime_type?: string
+          org_id: string
+          owner_id: string
+          project_id?: string | null
+          room_id?: string | null
+          size_bytes?: number
+          status?: string
+          storage_path: string
+          summary?: Json | null
+          task_id?: string | null
+          thumbnail_path?: string | null
+          title: string
+          transcript?: string | null
+          transcript_segments?: Json
+          updated_at?: string
+          views?: number
+        }
+        Update: {
+          access?: string
+          access_ids?: string[]
+          channel_id?: string | null
+          chapters?: Json
+          created_at?: string
+          department_id?: string | null
+          description?: string | null
+          downloadable?: boolean
+          duration_sec?: number
+          expires_at?: string | null
+          help_request_id?: string | null
+          id?: string
+          kind?: string
+          knowledge_id?: string | null
+          mime_type?: string
+          org_id?: string
+          owner_id?: string
+          project_id?: string | null
+          room_id?: string | null
+          size_bytes?: number
+          status?: string
+          storage_path?: string
+          summary?: Json | null
+          task_id?: string | null
+          thumbnail_path?: string | null
+          title?: string
+          transcript?: string | null
+          transcript_segments?: Json
+          updated_at?: string
+          views?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "live_recordings_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_recordings_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_recordings_help_request_id_fkey"
+            columns: ["help_request_id"]
+            isOneToOne: false
+            referencedRelation: "help_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_recordings_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_recordings_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_recordings_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_recordings_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "live_rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_recordings_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      live_rooms: {
+        Row: {
+          channel_id: string | null
+          co_hosts: string[]
+          confidential: boolean
+          created_at: string
+          created_by: string | null
+          department_id: string | null
+          ended_at: string | null
+          help_request_id: string | null
+          host_id: string | null
+          id: string
+          incident_id: string | null
+          kind: string
+          last_active_at: string
+          livekit_room: string | null
+          locked: boolean
+          meeting_id: string | null
+          org_id: string
+          parent_room_id: string | null
+          peak_participants: number
+          persistent: boolean
+          project_id: string | null
+          settings: Json
+          started_at: string
+          status: string
+          task_id: string | null
+          team_id: string | null
+          title: string
+          updated_at: string
+          visibility: string
+          waiting_room: boolean
+        }
+        Insert: {
+          channel_id?: string | null
+          co_hosts?: string[]
+          confidential?: boolean
+          created_at?: string
+          created_by?: string | null
+          department_id?: string | null
+          ended_at?: string | null
+          help_request_id?: string | null
+          host_id?: string | null
+          id?: string
+          incident_id?: string | null
+          kind?: string
+          last_active_at?: string
+          livekit_room?: string | null
+          locked?: boolean
+          meeting_id?: string | null
+          org_id: string
+          parent_room_id?: string | null
+          peak_participants?: number
+          persistent?: boolean
+          project_id?: string | null
+          settings?: Json
+          started_at?: string
+          status?: string
+          task_id?: string | null
+          team_id?: string | null
+          title: string
+          updated_at?: string
+          visibility?: string
+          waiting_room?: boolean
+        }
+        Update: {
+          channel_id?: string | null
+          co_hosts?: string[]
+          confidential?: boolean
+          created_at?: string
+          created_by?: string | null
+          department_id?: string | null
+          ended_at?: string | null
+          help_request_id?: string | null
+          host_id?: string | null
+          id?: string
+          incident_id?: string | null
+          kind?: string
+          last_active_at?: string
+          livekit_room?: string | null
+          locked?: boolean
+          meeting_id?: string | null
+          org_id?: string
+          parent_room_id?: string | null
+          peak_participants?: number
+          persistent?: boolean
+          project_id?: string | null
+          settings?: Json
+          started_at?: string
+          status?: string
+          task_id?: string | null
+          team_id?: string | null
+          title?: string
+          updated_at?: string
+          visibility?: string
+          waiting_room?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "live_rooms_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_rooms_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_rooms_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_rooms_help_request_id_fkey"
+            columns: ["help_request_id"]
+            isOneToOne: false
+            referencedRelation: "help_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_rooms_host_id_fkey"
+            columns: ["host_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_rooms_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "incidents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_rooms_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_rooms_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_rooms_parent_room_id_fkey"
+            columns: ["parent_room_id"]
+            isOneToOne: false
+            referencedRelation: "live_rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_rooms_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_rooms_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_rooms_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      live_transcripts: {
+        Row: {
+          created_at: string
+          id: number
+          lang: string
+          offset_ms: number | null
+          org_id: string
+          recording_id: string | null
+          room_id: string | null
+          speaker_id: string | null
+          speaker_name: string | null
+          text: string
+        }
+        Insert: {
+          created_at?: string
+          id?: never
+          lang?: string
+          offset_ms?: number | null
+          org_id: string
+          recording_id?: string | null
+          room_id?: string | null
+          speaker_id?: string | null
+          speaker_name?: string | null
+          text: string
+        }
+        Update: {
+          created_at?: string
+          id?: never
+          lang?: string
+          offset_ms?: number | null
+          org_id?: string
+          recording_id?: string | null
+          room_id?: string | null
+          speaker_id?: string | null
+          speaker_name?: string | null
+          text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "live_transcripts_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_transcripts_recording_fk"
+            columns: ["recording_id"]
+            isOneToOne: false
+            referencedRelation: "live_recordings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_transcripts_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "live_rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_transcripts_speaker_id_fkey"
+            columns: ["speaker_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       manager_history: {
         Row: {
           changed_at: string
@@ -6419,6 +7977,7 @@ export type Database = {
           department_id: string | null
           ends_at: string | null
           id: string
+          live_room_id: string | null
           location: string | null
           meeting_link: string | null
           notes: string | null
@@ -6441,6 +8000,7 @@ export type Database = {
           department_id?: string | null
           ends_at?: string | null
           id?: string
+          live_room_id?: string | null
           location?: string | null
           meeting_link?: string | null
           notes?: string | null
@@ -6463,6 +8023,7 @@ export type Database = {
           department_id?: string | null
           ends_at?: string | null
           id?: string
+          live_room_id?: string | null
           location?: string | null
           meeting_link?: string | null
           notes?: string | null
@@ -6484,6 +8045,13 @@ export type Database = {
             columns: ["department_id"]
             isOneToOne: false
             referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meetings_live_room_id_fkey"
+            columns: ["live_room_id"]
+            isOneToOne: false
+            referencedRelation: "live_rooms"
             referencedColumns: ["id"]
           },
           {
@@ -7381,12 +8949,17 @@ export type Database = {
           joined_at: string | null
           languages: string[]
           last_seen_at: string | null
+          live_room_id: string | null
+          live_state: string | null
           location: string | null
           manager_id: string | null
           notice_ends_on: string | null
           org_id: string | null
           phone: string | null
           presence: Database["public"]["Enums"]["presence_status"]
+          presence_before_live:
+            | Database["public"]["Enums"]["presence_status"]
+            | null
           probation_ends_on: string | null
           qualifications: string | null
           responsibilities: string | null
@@ -7425,12 +8998,17 @@ export type Database = {
           joined_at?: string | null
           languages?: string[]
           last_seen_at?: string | null
+          live_room_id?: string | null
+          live_state?: string | null
           location?: string | null
           manager_id?: string | null
           notice_ends_on?: string | null
           org_id?: string | null
           phone?: string | null
           presence?: Database["public"]["Enums"]["presence_status"]
+          presence_before_live?:
+            | Database["public"]["Enums"]["presence_status"]
+            | null
           probation_ends_on?: string | null
           qualifications?: string | null
           responsibilities?: string | null
@@ -7469,12 +9047,17 @@ export type Database = {
           joined_at?: string | null
           languages?: string[]
           last_seen_at?: string | null
+          live_room_id?: string | null
+          live_state?: string | null
           location?: string | null
           manager_id?: string | null
           notice_ends_on?: string | null
           org_id?: string | null
           phone?: string | null
           presence?: Database["public"]["Enums"]["presence_status"]
+          presence_before_live?:
+            | Database["public"]["Enums"]["presence_status"]
+            | null
           probation_ends_on?: string | null
           qualifications?: string | null
           responsibilities?: string | null
@@ -7511,6 +9094,13 @@ export type Database = {
             columns: ["jd_file_id"]
             isOneToOne: false
             referencedRelation: "files"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_live_room_id_fkey"
+            columns: ["live_room_id"]
+            isOneToOne: false
+            referencedRelation: "live_rooms"
             referencedColumns: ["id"]
           },
           {
@@ -9581,6 +11171,7 @@ export type Database = {
           requires_approval: boolean
           revision_count: number
           source_decision_id: string | null
+          source_live_room_id: string | null
           source_meeting_id: string | null
           source_message_id: string | null
           start_date: string | null
@@ -9622,6 +11213,7 @@ export type Database = {
           requires_approval?: boolean
           revision_count?: number
           source_decision_id?: string | null
+          source_live_room_id?: string | null
           source_meeting_id?: string | null
           source_message_id?: string | null
           start_date?: string | null
@@ -9663,6 +11255,7 @@ export type Database = {
           requires_approval?: boolean
           revision_count?: number
           source_decision_id?: string | null
+          source_live_room_id?: string | null
           source_meeting_id?: string | null
           source_message_id?: string | null
           start_date?: string | null
@@ -9750,6 +11343,13 @@ export type Database = {
             columns: ["source_decision_id"]
             isOneToOne: false
             referencedRelation: "decisions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_source_live_room_id_fkey"
+            columns: ["source_live_room_id"]
+            isOneToOne: false
+            referencedRelation: "live_rooms"
             referencedColumns: ["id"]
           },
           {
@@ -10474,6 +12074,34 @@ export type Database = {
       }
       automation_ctx: { Args: { p_entity: string; p_row: Json }; Returns: Json }
       blocker_chain: { Args: { p_task: string }; Returns: Json }
+      board_element_task: {
+        Args: {
+          p_assignee?: string
+          p_board: string
+          p_due?: string
+          p_element_id: string
+          p_priority?: Database["public"]["Enums"]["task_priority"]
+          p_title: string
+        }
+        Returns: string
+      }
+      board_restore: {
+        Args: { p_board: string; p_version_id: string }
+        Returns: undefined
+      }
+      board_snapshot: {
+        Args: { p_board: string; p_label?: string }
+        Returns: number
+      }
+      board_to_project: {
+        Args: {
+          p_board: string
+          p_due?: string
+          p_items?: Json
+          p_name: string
+        }
+        Returns: string
+      }
       break_policy_for: {
         Args: { p_user: string }
         Returns: {
@@ -10516,12 +12144,18 @@ export type Database = {
           url: string
         }[]
       }
+      call_person: {
+        Args: { p_user: string; p_video?: boolean }
+        Returns: string
+      }
       can_assign: {
         Args: { p_assignee: string; p_assigner?: string }
         Returns: boolean
       }
+      can_edit_board: { Args: { b: string }; Returns: boolean }
       can_edit_task: { Args: { t: string }; Returns: boolean }
       can_see_workforce: { Args: { p_department?: string }; Returns: boolean }
+      can_view_board: { Args: { b: string }; Returns: boolean }
       can_view_channel: { Args: { c: string }; Returns: boolean }
       can_view_classification: {
         Args: { c: Database["public"]["Enums"]["classification"] }
@@ -10529,7 +12163,10 @@ export type Database = {
       }
       can_view_contact: { Args: { p_id: string }; Returns: boolean }
       can_view_conversation: { Args: { p_id: string }; Returns: boolean }
+      can_view_live_doc: { Args: { d: string }; Returns: boolean }
+      can_view_live_room: { Args: { r: string }; Returns: boolean }
       can_view_project: { Args: { p: string }; Returns: boolean }
+      can_view_recording: { Args: { r: string }; Returns: boolean }
       can_view_screen: { Args: { p_key: string }; Returns: boolean }
       can_view_task: { Args: { t: string }; Returns: boolean }
       capacity_calendar: {
@@ -10567,6 +12204,10 @@ export type Database = {
           p_source?: string
         }
         Returns: Json
+      }
+      collab_can: {
+        Args: { p_action: string; p_user?: string }
+        Returns: boolean
       }
       collaboration_map: {
         Args: never
@@ -10625,6 +12266,10 @@ export type Database = {
           risk: string
         }[]
       }
+      create_breakouts: {
+        Args: { p_groups: Json; p_room: string }
+        Returns: string[]
+      }
       create_delegation: {
         Args: {
           p_approver: string
@@ -10654,6 +12299,7 @@ export type Database = {
         Args: { p_kind: string; p_user: string }
         Returns: string
       }
+      delete_collab_policy: { Args: { p_id: string }; Returns: undefined }
       department_availability: {
         Args: never
         Returns: {
@@ -10729,6 +12375,11 @@ export type Database = {
           source: string
         }[]
       }
+      end_breakouts: { Args: { p_room: string }; Returns: undefined }
+      end_live_room: {
+        Args: { p_room: string; p_summary?: string }
+        Returns: undefined
+      }
       escalate_help_requests: { Args: never; Returns: number }
       escalate_requests: { Args: never; Returns: number }
       eval_condition: { Args: { cond: Json; ctx: Json }; Returns: boolean }
@@ -10799,6 +12450,7 @@ export type Database = {
         }
         Returns: string
       }
+      huddle_suggestion: { Args: { p_channel: string }; Returns: Json }
       imm_array_to_string: { Args: { a: string[] }; Returns: string }
       import_people: { Args: { p_rows: Json }; Returns: Json }
       in_focus_window: {
@@ -10835,8 +12487,10 @@ export type Database = {
         Returns: boolean
       }
       is_internal: { Args: never; Returns: boolean }
+      is_internal_user: { Args: { p_user: string }; Returns: boolean }
       is_knowledge_owner: { Args: { d: string }; Returns: boolean }
       is_lead_plus: { Args: never; Returns: boolean }
+      is_live_host: { Args: { p_user?: string; r: string }; Returns: boolean }
       is_manager_of: { Args: { u: string }; Returns: boolean }
       is_manager_of_user: {
         Args: { p_manager: string; p_user: string }
@@ -10846,6 +12500,11 @@ export type Database = {
       is_primary_admin: { Args: never; Returns: boolean }
       is_primary_admin_user: { Args: { p_user: string }; Returns: boolean }
       is_project_member: { Args: { p: string }; Returns: boolean }
+      join_live_room: {
+        Args: { p_device?: string; p_room: string }
+        Returns: Json
+      }
+      knock: { Args: { p_message?: string; p_user: string }; Returns: string }
       leave_collisions: { Args: { p_leave: string }; Returns: Json }
       leave_days: {
         Args: { p_from: string; p_half: boolean; p_to: string }
@@ -10854,6 +12513,103 @@ export type Database = {
       leave_impact: {
         Args: { p_from: string; p_to: string; p_user: string }
         Returns: Json
+      }
+      leave_live_room: { Args: { p_room: string }; Returns: undefined }
+      live_bookmark: {
+        Args: { p_label?: string; p_offset_ms?: number; p_room: string }
+        Returns: undefined
+      }
+      live_doc_snapshot: {
+        Args: { p_doc: string; p_label?: string }
+        Returns: number
+      }
+      live_doc_task: {
+        Args: {
+          p_assignee?: string
+          p_doc: string
+          p_due?: string
+          p_text: string
+        }
+        Returns: string
+      }
+      live_governance: { Args: never; Returns: Json }
+      live_guest_consume: {
+        Args: { p_name: string; p_token: string }
+        Returns: undefined
+      }
+      live_guest_link: {
+        Args: {
+          p_email?: string
+          p_hours?: number
+          p_name?: string
+          p_room: string
+        }
+        Returns: string
+      }
+      live_guest_lookup: { Args: { p_token: string }; Returns: Json }
+      live_history: { Args: { p_id: string; p_type: string }; Returns: Json }
+      live_invite: {
+        Args: {
+          p_kind?: string
+          p_message?: string
+          p_room: string
+          p_user: string
+        }
+        Returns: string
+      }
+      live_invite_department: {
+        Args: { p_department: string; p_message?: string; p_room: string }
+        Returns: number
+      }
+      live_moderate: {
+        Args: {
+          p_action: string
+          p_room: string
+          p_user: string
+          p_value?: string
+        }
+        Returns: undefined
+      }
+      live_raise_hand: {
+        Args: { p_room: string; p_up: boolean }
+        Returns: undefined
+      }
+      live_room_decision: {
+        Args: {
+          p_decision: string
+          p_reason?: string
+          p_room: string
+          p_title: string
+        }
+        Returns: string
+      }
+      live_room_task: {
+        Args: {
+          p_assignee?: string
+          p_attachments?: Json
+          p_description?: string
+          p_due?: string
+          p_priority?: Database["public"]["Enums"]["task_priority"]
+          p_room: string
+          p_title: string
+        }
+        Returns: string
+      }
+      live_running_late: {
+        Args: { p_meeting: string; p_minutes?: number }
+        Returns: undefined
+      }
+      live_tick: { Args: never; Returns: number }
+      live_to_knowledge: {
+        Args: {
+          p_body: string
+          p_department?: string
+          p_kind?: string
+          p_recording?: string
+          p_room?: string
+          p_title: string
+        }
+        Returns: string
       }
       lock_feature: {
         Args: { p_feature: string; p_locked: boolean; p_reason?: string }
@@ -11045,6 +12801,10 @@ export type Database = {
         Args: { ctx: Json; target: string }
         Returns: string[]
       }
+      respond_live_invite: {
+        Args: { p_id: string; p_status: string }
+        Returns: undefined
+      }
       restore_handovers: { Args: never; Returns: number }
       restricted_hits: {
         Args: { p_limit?: number; p_q: string }
@@ -11141,11 +12901,21 @@ export type Database = {
         }[]
       }
       set_attendance_settings: { Args: { p_patch: Json }; Returns: Json }
+      set_collab_policy: {
+        Args: {
+          p_department: string
+          p_role: Database["public"]["Enums"]["role_level"]
+          p_scope: string
+          p_values: Json
+        }
+        Returns: string
+      }
       set_connect_settings: { Args: { p_patch: Json }; Returns: Json }
       set_employee_status: {
         Args: { p_reason?: string; p_status: string; p_user: string }
         Returns: undefined
       }
+      set_live_state: { Args: { p_state: string }; Returns: undefined }
       similar_help_requests: {
         Args: { p_department: string; p_limit?: number; p_title: string }
         Returns: {
@@ -11198,6 +12968,26 @@ export type Database = {
       }
       start_focus: {
         Args: { p_note?: string; p_task?: string }
+        Returns: string
+      }
+      start_live_room: {
+        Args: {
+          p_channel?: string
+          p_department?: string
+          p_help?: string
+          p_incident?: string
+          p_invitees?: string[]
+          p_kind?: string
+          p_meeting?: string
+          p_parent?: string
+          p_persistent?: boolean
+          p_project?: string
+          p_settings?: Json
+          p_task?: string
+          p_team?: string
+          p_title?: string
+          p_visibility?: string
+        }
         Returns: string
       }
       start_war_room: {

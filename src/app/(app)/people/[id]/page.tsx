@@ -40,6 +40,9 @@ export default async function PersonPage({ params, searchParams }: { params: Pro
       reports={reports || []}
       leaves={leaves || []}
       edit={sp.edit === "1"}
+      // Notification deep-links (e.g. a mentorship request) arrive as ?tab=…; the page has no
+      // tabs, so this scrolls to the matching card rather than silently landing at the top.
+      focus={typeof sp.tab === "string" ? sp.tab : null}
     />
   );
 }

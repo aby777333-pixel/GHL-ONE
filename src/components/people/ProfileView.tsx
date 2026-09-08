@@ -37,8 +37,20 @@ type ProjectItem = { role: string; id: string; name: string; status: string; pro
 type Report = { id: string; full_name: string; avatar_url: string | null; designation: string | null; presence: Profile["presence"]; department_id: string | null };
 type Leave = { id: string; starts_on: string; ends_on: string; kind: string; note: string | null; status: string };
 
-export function ProfileView({ person, tasks, projects, reports, leaves, edit }: { person: ProfileData; tasks: TaskRowData[]; projects: ProjectItem[]; reports: Report[]; leaves: Leave[]; edit?: boolean }) {
+export function ProfileView({ person, tasks, projects, reports, leaves, edit, focus }: { person: ProfileData; tasks: TaskRowData[]; projects: ProjectItem[]; reports: Report[]; leaves: Leave[]; edit?: boolean; focus?: string | null }) {
   const router = useRouter();
+  /**
+   * Notifications deep-link into a section of this page (a mentorship request arrives as
+   * `?tab=mentoring`). The profile has no tabs — everything is one long column — so without
+   * this the person landed at the top and concluded the request was missing. Scroll the
+   * matching card into view instead. `#career` in the URL is handled by the browser already;
+   * this covers the query-parameter form, including notifications sent before the link was fixed.
+   */
+  React.useEffect(() => {
+    if (focus !== "mentoring" && focus !== "career") return;
+    const t = setTimeout(() => document.getElementById("career")?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
+    return () => clearTimeout(t);
+  }, [focus]);
   const { profile: me } = useSession();
   const self = me.id === person.id;
   const canEdit = self || isManagerPlus(me.role) || isAdminRole(me.role);

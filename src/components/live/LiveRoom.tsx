@@ -41,6 +41,7 @@ import { ConnectionBanner } from "./QualityBadge";
 import { useAnnotations, type AnnotKind } from "./Annotations";
 import { RoomGate } from "./RoomGates";
 import { RoomDialogs } from "./RoomDialogs";
+import { useRoomRecording } from "./RoomRecording";
 
 export type LiveRoomProps = {
   roomId?: string;
@@ -172,11 +173,18 @@ export function LiveRoom(props: LiveRoomProps) {
   const confidential = !!(room?.confidential ?? lk.meta?.confidential);
   const canPublish = lk.meta?.canPublish !== false;
   const canShare = canPublish && settings.allow_screen_share !== false;
-  const canRecord = !guest && !confidential && settings.allow_recording !== false;
+  // Only the host or a co-host may record; everybody else sees the indicator, not the button.
+  const canRecord = !guest && isHost && !confidential && settings.allow_recording !== false;
   const canWhiteboard = !guest && settings.allow_whiteboard !== false;
   const title = room?.title || lk.meta?.title || "Live room";
   const kind = room?.kind || lk.meta?.kind || "huddle";
   const handUp = hands.has(meId);
+
+  /**
+   * Real recording: composites every participant in this browser and saves it to /recordings.
+   * `onStopped` keeps the red indicator honest when a take ends by itself (room gone, tab closing).
+   */
+  const roomRec = useRoomRecording({ room: lk.room, peers: lk.peers, roomId, roomRow: room, orgId, meId, meName, roomTitle: title, onStopped: () => setRecording(false) });
 
   /** §148–§150 — while you are presenting, only urgent things interrupt you. */
   const notify = React.useCallback(
@@ -308,6 +316,13 @@ export function LiveRoom(props: LiveRoomProps) {
   async function toggleRecording() {
     if (!roomId) return;
     const next = !recording;
+    if (next) {
+      const problem = await roomRec.start();
+      if (problem) return toast.push(problem, "danger");
+    } else {
+      // Saving happens in `useRoomRecording` as soon as the file is finished.
+      void roomRec.stop();
+    }
     setRecording(next);
     void lk.send({ t: "record", on: next, by: meName });
     await createClient()
@@ -372,7 +387,13 @@ export function LiveRoom(props: LiveRoomProps) {
 
   /* ---------------------------------------------------------------- gates */
   if (lk.state !== "connected" && lk.state !== "reconnecting") {
-    return <RoomGate state={lk.state} error={lk.error} title={title} roomId={roomId} guest={guest} backHref={backHref} onRetry={lk.retry} />;
+    // The recorder dialogs ride along so a save that is still running survives the room ending.
+    return (
+      <>
+        {roomRec.dialog}
+        <RoomGate state={lk.state} error={lk.error} title={title} roomId={roomId} guest={guest} backHref={backHref} onRetry={lk.retry} />
+      </>
+    );
   }
 
   /* ----------------------------------------------------------------- room */
@@ -599,6 +620,8 @@ export function LiveRoom(props: LiveRoomProps) {
           </div>
         </Modal>
       )}
+
+      {roomRec.dialog}
 
       <RoomDialogs
         lk={lk}

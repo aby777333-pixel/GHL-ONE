@@ -37,7 +37,8 @@ export async function proxy(request: NextRequest) {
   const isPublic = PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
 
   if (!user && pathname.startsWith("/api/")) {
-    // Token-authenticated public endpoints (personal calendar feed, incoming webhooks) and the harmless status probe.
+    // Token-authenticated public endpoints (personal calendar feed, incoming webhooks, and the
+    // push hook Postgres calls at /api/hooks/push/<secret>) and the harmless status probe.
     if (pathname === "/api/ai/status" || pathname.startsWith("/api/hooks/") || pathname.startsWith("/api/calendar/")) return response;
     // Guest join: the route itself requires a valid guest token and returns 401 for member joins.
     if (pathname === "/api/live/token") return response;
@@ -75,5 +76,7 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.json|icons|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
+  // `sw.js` must be served straight from /public: a redirect to /login (or a screen-governance
+  // round trip) would break service-worker registration and every push with it.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.json|sw.js|icons|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
 };

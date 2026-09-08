@@ -20,6 +20,7 @@ import { Blink } from "@/components/providers/ActivityProvider";
 import { ClockWidget } from "@/components/attendance";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 import { BreakGlassBanner } from "@/components/platform/BreakGlassDialog";
+import { PushRegistrar } from "@/components/notifications/PushOptIn";
 
 export type Counts = { inbox: number; approvals: number; chat: number };
 
@@ -313,6 +314,8 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
       <BuddyPanel open={askOpen} onClose={closeAsk} />
       <LiveProvider />
       <CollaborateMenu />
+      {/* Registers /sw.js and keeps this device's push row pointed at the active workspace. Never prompts. */}
+      <PushRegistrar />
     </ToastProvider>
   );
 }

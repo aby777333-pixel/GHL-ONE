@@ -13,6 +13,7 @@ import { ChatButton, RolePill } from "./PeopleBits";
 import { EntityLive } from "@/components/live/EntityLive";
 import { ProfileEditor } from "./ProfileEditor";
 import { NotificationSettings } from "./NotificationSettings";
+import { PushOptIn } from "@/components/notifications/PushOptIn";
 import { CalendarFeedCard } from "@/components/calendar/CalendarFeedCard";
 import { PrivacyCenter } from "./PrivacyCenter";
 import { ProfileSkills } from "@/components/growth/ProfileSkills";
@@ -180,7 +181,10 @@ export function ProfileView({ person, tasks, projects, reports, leaves, edit }: 
             <>
               <Card id="notifications" className="scroll-mt-24">
                 <CardHeader title="Notifications & quiet hours" subtitle="How and when GHL ONE reaches you. Critical items always get through." action={<BellRing size={15} className="text-muted" />} />
-                <div className="px-[var(--s4)] pb-[var(--s4)]"><NotificationSettings /></div>
+                <div className="px-[var(--s4)] pb-[var(--s4)] space-y-[var(--s4)]">
+                  <PushOptIn />
+                  <NotificationSettings />
+                </div>
               </Card>
               <Card id="calendar" className="scroll-mt-24">
                 <CardHeader title="Calendar subscription" subtitle="See your GHL ONE schedule inside Google, Outlook or Apple Calendar." action={<Rss size={15} className="text-muted" />} />

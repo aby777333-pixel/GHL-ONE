@@ -19,5 +19,7 @@ export { RoomGate } from "./RoomGates";
 export { RoomDialogs, type RoomDialogsProps } from "./RoomDialogs";
 export { QualityBadge, QualityDot, ConnectionBanner } from "./QualityBadge";
 export { AnnotationLayer, AnnotationToolbar, useAnnotations, ANNOT_COLORS, type AnnotKind, type Stroke, type Pointer } from "./Annotations";
+export { useRoomRecorder, type UseRoomRecorder, type UseRoomRecorderOptions, type RoomRecorderTake } from "./useRoomRecorder";
+export { useRoomRecording, type UseRoomRecordingArgs } from "./RoomRecording";
 export { useLiveKit, viewOf, type LiveKitApi, type PeerView, type JoinState, type DeviceState } from "./useLiveKit";
 export * from "./liveStore";

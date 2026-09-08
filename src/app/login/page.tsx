@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button, Field, Input } from "@/components/ui";
@@ -46,16 +47,28 @@ function LoginInner() {
 
   return (
     <div className="min-h-dvh flex items-center justify-center p-4 relative overflow-hidden">
-      <div className="absolute inset-0 -z-10" style={{ background: "radial-gradient(1200px 600px at 20% -10%, color-mix(in oklab, var(--brand) 18%, transparent), transparent 60%), radial-gradient(800px 500px at 100% 100%, color-mix(in oklab, var(--accent) 16%, transparent), transparent 60%)" }} />
+      {/*
+        The office photo sits behind the card. It is decorative, so it carries no alt text.
+        The scrim on top is deliberately dark in BOTH themes: the copy outside the card has no
+        surface of its own, and a theme-following scrim would leave white text on a bright photo
+        in light mode. The card keeps its own solid background, so the form stays legible either way.
+      */}
+      <div className="absolute inset-0 -z-10">
+        <Image src="/login-bg.webp" alt="" fill priority sizes="100vw" className="object-cover object-center" />
+        <div
+          className="absolute inset-0"
+          style={{ background: "linear-gradient(180deg, rgba(2,6,23,0.66) 0%, rgba(2,6,23,0.5) 38%, rgba(2,6,23,0.74) 100%)" }}
+        />
+      </div>
       <div className="w-full max-w-[400px] anim-fade-up">
         <div className="flex items-center gap-3 mb-8">
-          <div className="w-11 h-11 rounded-[13px] flex items-center justify-center text-white font-bold text-lg" style={{ background: "linear-gradient(135deg, var(--brand), #0f172a)" }}>G</div>
+          <div className="w-11 h-11 rounded-[13px] flex items-center justify-center text-white font-bold text-lg" style={{ background: "linear-gradient(135deg, var(--brand), #0f172a)", boxShadow: "0 6px 20px rgba(0,0,0,.35)" }}>G</div>
           <div>
-            <div className="text-lg font-semibold leading-tight">GHL ONE</div>
-            <div className="text-xs text-muted">One Company. One Workspace. One Source of Truth.</div>
+            <div className="text-lg font-semibold leading-tight text-white">GHL ONE</div>
+            <div className="text-xs text-white/75">One Company. One Workspace. One Source of Truth.</div>
           </div>
         </div>
-        <div className="card p-[var(--s4)]" style={{ boxShadow: "var(--shadow)" }}>
+        <div className="card p-[var(--s4)]" style={{ boxShadow: "0 24px 60px rgba(2,6,23,.45), var(--shadow-lg)" }}>
           <div className="h2 mb-1">{mode === "signin" ? "Sign in" : "Create your account"}</div>
           <div className="text-sm text-muted mb-5">{mode === "signin" ? "Use your GHL India Ventures work email." : "New accounts wait for admin activation unless pre-invited."}</div>
           <form onSubmit={submit} className="space-y-3">

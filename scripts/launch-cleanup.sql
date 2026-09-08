@@ -27,6 +27,9 @@ begin
   --    profiles is CASCADE or SET NULL, so deleting the auth users removes their profiles, channel
   --    memberships, messages, tasks etc. cleanly.
   delete from auth.users where lower(email) in ('ceo@ghl.demo','manager@ghl.demo','employee@ghl.demo','writer@ghl.demo');
+  -- QA accounts handed to the IT team for role-by-role testing (created 2026-09-08).
+  delete from invites where lower(email) like '%@ghl.test';
+  delete from auth.users where lower(email) like '%@ghl.test';
 
   raise notice 'Launch cleanup done. primary_admin_id=%, demo users removed=4', v_owner;
 end $$;

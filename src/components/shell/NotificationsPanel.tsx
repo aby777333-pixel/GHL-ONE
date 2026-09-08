@@ -6,6 +6,7 @@ import { AlertOctagon, AtSign, Bell, CheckCheck, CheckSquare, Clock, Info, Zap }
 import { createClient } from "@/lib/supabase/client";
 import { useSession } from "@/components/providers/SessionProvider";
 import { Button, EmptyState, Modal } from "@/components/ui";
+import { PushOptInPrompt } from "@/components/notifications/PushOptIn";
 import { ago, cn, type Notification } from "@/lib/utils";
 
 export const KIND_ICON: Record<string, React.ReactNode> = {
@@ -55,6 +56,7 @@ export function NotificationsPanel({ open, onClose }: { open: boolean; onClose: 
           <Button size="xs" variant="ghost" onClick={() => { onClose(); router.push("/inbox"); }}>Open Inbox</Button>
         </div>
       </div>
+      <PushOptInPrompt />
       {!loading && items.length === 0 && <EmptyState icon={<Bell size={18} />} title="You're all caught up" hint="Assignments, mentions, approvals and deadlines land here." />}
       <div className="space-y-1">
         {items.map((n) => (

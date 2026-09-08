@@ -17,6 +17,8 @@ import { Gantt } from "@/components/projects/Gantt";
 import { TeamPanel, MilestonesPanel, ChatPanel, FilesPanel, MeetingsPanel, DecisionsPanel, ApprovalsPanel, RisksPanel, ActivityPanel } from "@/components/projects/ProjectPanels";
 import { ProjectSummary } from "@/components/ai/ProjectSummary";
 import { BuddyQuickActions } from "@/components/ai/BuddyQuickActions";
+import { EntityLive } from "@/components/live/EntityLive";
+import { CollaborationHistory } from "@/components/live/CollaborationHistory";
 import { cn, isManagerPlus, relDate, CLASSIFICATION_LABEL, PROJECT_STATUSES, PROJECT_STATUS_LABEL, PROJECT_STATUS_TONE, type Project, type ProjectStatus, type Tables, type Classification, type TaskPriority } from "@/lib/utils";
 
 export type ProjectTask = TaskLite & { waiting_note: string | null };
@@ -125,6 +127,7 @@ export function ProjectRoom({ data }: { data: ProjectRoomData }) {
             </div>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
+            <EntityLive ctx={{ projectId: project.id, title: project.name }} />
             <BuddyQuickActions scope={{ projectId: project.id, path: `/projects/${project.id}` }} />
             {canEdit && <Button size="sm" variant="secondary" onClick={() => setEditOpen(true)}><Pencil size={14} /> Edit</Button>}
             {canEdit && !project.archived && <Button size="sm" variant="ghost" onClick={archive} title="Archive"><Archive size={14} /><span className="hidden sm:inline">Archive</span></Button>}
@@ -158,7 +161,12 @@ export function ProjectRoom({ data }: { data: ProjectRoomData }) {
       />
 
       <div className="anim-fade-in" key={tab}>
-        {tab === "overview" && <ProjectOverview data={data} stats={stats} onGo={(t) => go(t as Tab)} />}
+        {tab === "overview" && (
+          <>
+            <ProjectOverview data={data} stats={stats} onGo={(t) => go(t as Tab)} />
+            <CollaborationHistory type="project" id={project.id} className="mt-[var(--s4)]" />
+          </>
+        )}
         {tab === "ai" && <ProjectSummary projectId={project.id} />}
         {tab === "tasks" && <ProjectTaskBoard project={project} tasks={data.tasks} milestones={data.milestones} />}
         {tab === "timeline" && <Gantt tasks={data.tasks.filter((t) => !t.parent_id)} milestones={data.milestones} projectStart={project.start_date} projectDue={project.due_date} />}

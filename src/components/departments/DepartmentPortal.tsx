@@ -14,6 +14,7 @@ import { ago, cn, type Channel, type Department } from "@/lib/utils";
 import { asDeptStatus, DEPT_STATUSES, DEPT_STATUS_META, OPEN_STATUSES, slaLabel, type DeptStatus, type Service } from "@/components/help/lib";
 import { HelpRequestRow, useNow, type HelpRow } from "@/components/help/HelpBits";
 import { asVisibility, VISIBILITY_META } from "@/components/common/visibility";
+import { EntityLive } from "@/components/live/EntityLive";
 
 /* ------------------------------------------------------------ status panel */
 /** Status · on-duty · services intro · escalation ladder. Editable by heads / on-duty / managers+ / department leads. */
@@ -84,6 +85,10 @@ export function DepartmentStatusPanel({ d, canEdit }: { d: Department; canEdit: 
             </span>
           </div>
           {d.services_intro && <p className="text-sm text-2 mt-3 max-w-2xl">{d.services_intro}</p>}
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <EntityLive ctx={{ departmentId: d.id, title: `${d.name} room` }} label="Department room" />
+            <span className="text-[11px] text-muted">The department&apos;s always-on room — walk in, ask, walk out.</span>
+          </div>
         </div>
         {canEdit && (
           <div className="flex flex-col items-end gap-2 shrink-0">

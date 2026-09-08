@@ -2,7 +2,10 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { matchScreen, type Screen } from "@/lib/screens";
 
-const PUBLIC_PATHS = ["/login", "/auth", "/pending"];
+// `/live/guest/<token>` is an external-guest capability link: the token itself is the
+// credential (validated by `live_guest_lookup`), so the page and the token endpoint must be
+// reachable without a company session. Nothing else under /live is public.
+const PUBLIC_PATHS = ["/login", "/auth", "/pending", "/live/guest"];
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -36,6 +39,8 @@ export async function proxy(request: NextRequest) {
   if (!user && pathname.startsWith("/api/")) {
     // Token-authenticated public endpoints (personal calendar feed, incoming webhooks) and the harmless status probe.
     if (pathname === "/api/ai/status" || pathname.startsWith("/api/hooks/") || pathname.startsWith("/api/calendar/")) return response;
+    // Guest join: the route itself requires a valid guest token and returns 401 for member joins.
+    if (pathname === "/api/live/token") return response;
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
   if (!user && !isPublic) {

@@ -38,9 +38,9 @@ export function hasPerm(perms: string[], ...keys: string[]) {
 
 export type AdminTab =
   | "now" | "people" | "invites" | "hr" | "workflows" | "structure" | "responsibilities" | "departments" | "access" | "roles" | "screens" | "visibility" | "features" | "security"
-  | "organization" | "escalation" | "integrations" | "templates" | "ai" | "audit" | "access-log";
+  | "organization" | "escalation" | "integrations" | "templates" | "ai" | "live" | "audit" | "access-log" | "support";
 
-export const ADMIN_TABS: AdminTab[] = ["now", "people", "invites", "hr", "workflows", "structure", "responsibilities", "departments", "access", "roles", "screens", "visibility", "features", "security", "organization", "escalation", "integrations", "templates", "ai", "audit", "access-log"];
+export const ADMIN_TABS: AdminTab[] = ["now", "people", "invites", "hr", "workflows", "structure", "responsibilities", "departments", "access", "roles", "screens", "visibility", "features", "security", "organization", "escalation", "integrations", "templates", "ai", "live", "audit", "access-log", "support"];
 
 export function isAdminTab(v: unknown): v is AdminTab {
   return typeof v === "string" && (ADMIN_TABS as string[]).includes(v);
@@ -78,9 +78,14 @@ export function tabAllowed(tab: AdminTab, role: RoleLevel, perms: string[]): boo
     case "integrations": return admin || has("integrations.manage");
     case "templates": return manager || has("projects.manage");
     case "ai": return admin || has("ai.manage");
+    // GHL LIVE governance: what is live, today's totals, the audit trail and the collaboration permission matrix.
+    case "live": return admin || has("communication.manage");
     case "audit": return manager || has("audit.read");
     // Who viewed / exported what (`access_event_summary`): security or audit admins.
     case "access-log": return admin || has("security.manage", "audit.read");
+    // Platform support access (0022): the company's own door to the GHL ONE platform team.
+    // `grant_support_access` requires is_admin() in the database; others see the history read-only.
+    case "support": return admin || has("security.manage", "system.manage", "audit.read");
     default: return false;
   }
 }

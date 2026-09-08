@@ -1,0 +1,23 @@
+/** GHL BOARD — public surface. The LIVE room stage imports `BoardCanvas` from here. */
+export { BoardCanvas, default as Board } from "./BoardCanvas";
+export { BoardsHub } from "./BoardsHub";
+export { BoardTemplateGallery, templateDoc, templateElements, TEMPLATE_GROUPS, uid } from "./BoardTemplates";
+export { BoardToolbar, PageTabs, ZoomControls } from "./BoardToolbar";
+export { InlineTextEditor, LiveCursors, SelectionActions, TaskBadges } from "./BoardElementLayer";
+export type { OverlayAction } from "./BoardElementLayer";
+export type { BoardStyle, Tool } from "./BoardToolbar";
+export { BoardCommentsPanel, useBoardComments } from "./BoardComments";
+export type { BoardComment } from "./BoardComments";
+export { BoardVersions } from "./BoardVersions";
+export { BoardShare } from "./BoardShare";
+export { BoardAI, parseProposal } from "./BoardAI";
+export { BoardTimerBar, PresentBar } from "./BoardPresent";
+export { BoardToProjectModal, ElementTaskModal } from "./BoardToProject";
+export { useBoardDoc, applyOp, asDoc, emptyDoc } from "./useBoardDoc";
+export type { BoardDocApi, BoardRow, BoardTimer, Cursor } from "./useBoardDoc";
+export { boardSignedUrl, loadBoardImage, uploadBoardAsset, BOARD_MAX_BYTES } from "./boardAssets";
+export { exportPagePng, exportPagesPdf, logExport } from "./boardExport";
+export { BOARD_ICONS, ICON_NAMES, useIconImages } from "./boardIcons";
+export * from "./boardDraw";
+export { useBoardInput } from "./useBoardInput";
+export type { BoardInputOptions } from "./useBoardInput";

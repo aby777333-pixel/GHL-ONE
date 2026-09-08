@@ -17,7 +17,7 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
 
   if (body.action === "end") {
-    const { error } = await supabase.rpc("end_live_room", { p_room: body.roomId, p_summary: body.value ?? null });
+    const { error } = await supabase.rpc("end_live_room", { p_room: body.roomId, p_summary: body.value ?? undefined });
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     if (livekitEnabled()) {
       const { data: room } = await supabase.from("live_rooms").select("livekit_room").eq("id", body.roomId).maybeSingle();
@@ -29,7 +29,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   }
 
-  const { error } = await supabase.rpc("live_moderate", { p_room: body.roomId, p_user: body.userId ?? user.id, p_action: body.action, p_value: body.value ?? null });
+  const { error } = await supabase.rpc("live_moderate", { p_room: body.roomId, p_user: body.userId ?? user.id, p_action: body.action, p_value: body.value ?? undefined });
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
   if (livekitEnabled() && body.userId && ["mute", "remove", "stop_share"].includes(body.action)) {

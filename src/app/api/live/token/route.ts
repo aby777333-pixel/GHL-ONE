@@ -34,7 +34,7 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   if (!body.roomId) return NextResponse.json({ error: "roomId required" }, { status: 400 });
 
-  const { data: joined, error } = await supabase.rpc("join_live_room", { p_room: body.roomId, p_device: body.device ?? null });
+  const { data: joined, error } = await supabase.rpc("join_live_room", { p_room: body.roomId, p_device: body.device ?? undefined });
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   const j = joined as unknown as JoinResult;
   if (!j.ok) {
@@ -50,7 +50,7 @@ export async function POST(req: Request) {
     identity: user.id,
     name: profile?.full_name || user.email || "Member",
     room: j.livekit_room,
-    metadata: { avatar: profile?.avatar_url ?? null, role: j.role, designation: profile?.designation ?? null, level: profile?.role ?? null },
+    metadata: { avatar: profile?.avatar_url ?? undefined, role: j.role, designation: profile?.designation ?? undefined, level: profile?.role ?? undefined },
     canPublish,
     canPublishData: true,
   });

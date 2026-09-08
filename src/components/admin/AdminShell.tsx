@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Shield, Users, MailPlus, Building2, Settings2, ScrollText, LayoutTemplate, Sparkles, Siren, Plug, Activity, KeyRound, Crown, Eye, ToggleRight, ShieldAlert, Hourglass, Inbox, HeartHandshake, Workflow, Network, ClipboardList, LayoutGrid } from "lucide-react";
+import { Shield, Users, MailPlus, Building2, Settings2, ScrollText, LayoutTemplate, Sparkles, Siren, Plug, Activity, KeyRound, Crown, Eye, ToggleRight, ShieldAlert, Hourglass, Inbox, HeartHandshake, Workflow, Network, ClipboardList, LayoutGrid, Radio, LifeBuoy } from "lucide-react";
 import { PageHeader, Tabs, EmptyState } from "@/components/ui";
 import { useSession } from "@/components/providers/SessionProvider";
 import { Blink, useSeen } from "@/components/providers/ActivityProvider";
@@ -14,6 +14,7 @@ import { DepartmentsAdmin } from "./DepartmentsAdmin";
 import { OrganizationAdmin } from "./OrganizationAdmin";
 import { AuditLog } from "./AuditLog";
 import { AccessLog } from "./AccessLog";
+import { SupportAccess } from "./SupportAccess";
 import { TemplatesAdmin } from "./TemplatesAdmin";
 import { IntelligenceAdmin } from "./IntelligenceAdmin";
 import { EscalationAdmin } from "./EscalationAdmin";
@@ -25,6 +26,7 @@ import { VisibilityAdmin } from "./VisibilityAdmin";
 import { FeatureFlags, type FeatureFlagRow } from "./FeatureFlags";
 import { SecurityCenter, type ExpiringGrant, type GuestRow, type SecurityAuditRow, type SecurityEventRow } from "./SecurityCenter";
 import { ADMIN_TABS, tabAllowed, type AdminTab } from "./perms";
+import { LiveGovernance } from "./live/LiveGovernance";
 import { HrConsole, WorkflowsView, type HrData, type HrView } from "./hr";
 import { ScreenAccessManager, type ScreenData } from "./screens/ScreenAccessManager";
 import { ReportingTree } from "./people/ReportingTree";
@@ -112,8 +114,10 @@ export function AdminShell({ tab, people, invites, departments, teams, org, proj
     integrations: { label: <span className="inline-flex items-center gap-1.5"><Plug size={14} /> Integrations</span> },
     templates: { label: <span className="inline-flex items-center gap-1.5"><LayoutTemplate size={14} /> Templates</span> },
     ai: { label: <span className="inline-flex items-center gap-1.5"><Sparkles size={14} /> Intelligence</span> },
+    live: { label: <span className="inline-flex items-center gap-1.5"><Radio size={14} /> GHL LIVE</span> },
     audit: { label: <span className="inline-flex items-center gap-1.5"><ScrollText size={14} /> Audit log</span> },
     "access-log": { label: <span className="inline-flex items-center gap-1.5"><Eye size={14} /> Access log</span> },
+    support: { label: <span className="inline-flex items-center gap-1.5"><LifeBuoy size={14} /> Support access</span> },
   };
   const allowedTabs = ADMIN_TABS.filter(allowed).map((key) => ({ key, ...labels[key] }));
   const current = allowedTabs.some((t) => t.key === tab) ? tab : allowedTabs[0]?.key;
@@ -146,8 +150,10 @@ export function AdminShell({ tab, people, invites, departments, teams, org, proj
           {current === "integrations" && <IntegrationsAdmin integrations={integrations} channels={channels} />}
           {current === "templates" && <TemplatesAdmin projectTemplates={projectTemplates} taskTemplates={taskTemplates} />}
           {current === "ai" && <IntelligenceAdmin />}
+          {current === "live" && <LiveGovernance />}
           {current === "audit" && <AuditLog />}
           {current === "access-log" && <AccessLog />}
+          {current === "support" && <SupportAccess perms={perms} />}
         </>
       )}
     </div>

@@ -10,6 +10,10 @@ export type SessionCtx = {
   people: Pick<Profile, "id" | "full_name" | "avatar_url" | "designation" | "department_id" | "role" | "presence" | "email">[];
   /** Governed screens for this user (`effective_screens()`); empty = no governance loaded. */
   screens?: Screen[];
+  /** `is_platform_admin()` — this user administers the platform itself, above any single company. */
+  platformAdmin?: boolean;
+  /** `platform_role()` — platform_super_admin | platform_ops | platform_support | platform_security | … Null for everyone else. */
+  platformRole?: string | null;
 };
 
 const Ctx = React.createContext<SessionCtx | null>(null);

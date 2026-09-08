@@ -16,6 +16,8 @@ import { ThreadPanel } from "./ThreadPanel";
 import { RecordDecisionModal, ForwardModal, CatchUpModal, MembersDrawer } from "./ChatModals";
 import { ExtractTasksModal } from "@/components/ai/ExtractTasksModal";
 import { BuddyQuickActions } from "@/components/ai/BuddyQuickActions";
+import { EntityLive } from "@/components/live/EntityLive";
+import { HuddleNudge } from "@/components/live/HuddleNudge";
 import { BUDDY_MENTION_RE, askBuddyInChannel, isBuddyMessage } from "@/components/ai/buddyChat";
 import { BringInModal } from "./BringInModal";
 import { ConvertProjectModal } from "./ConvertProjectModal";
@@ -748,6 +750,11 @@ export function Conversation({
               <UserPlus size={17} />
             </Button>
           )}
+          <EntityLive
+            ctx={{ channelId: channel.id, projectId: channel.project_id, personId: isDm ? other?.id : null, title: title }}
+            size="sm"
+            compact
+          />
           <BuddyQuickActions
             scope={{ channelId: channel.id, projectId: channel.project_id || undefined, path: `/chat/${channel.id}` }}
             actions={[{ label: "What am I looking at", mode: "looking_at" }, { label: "Who can help", mode: "who_can_help" }, { label: "Draft a reply", mode: "draft", message: "Draft a reply to the latest message in this conversation" }, { label: "I'm stuck", mode: "stuck" }]}
@@ -907,6 +914,8 @@ export function Conversation({
               <span className={cn("pill max-w-full", otherDnd ? "tone-violet" : "tone-neutral")} title="Sending is fine — this just sets expectations on reply time"><MoonStar size={10} className="shrink-0" /><span className="truncate">{awayNote}</span></span>
             </div>
           )}
+
+          <HuddleNudge channelId={channel.id} />
 
           {!isMember && !isDm ? (
             <div className="border-t bg-[var(--bg-elev)] px-4 py-3 flex items-center justify-between gap-3 safe-b">

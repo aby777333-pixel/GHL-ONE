@@ -1,0 +1,23 @@
+/** GHL LIVE room experience — public surface. */
+export { LiveRoom, type LiveRoomProps } from "./LiveRoom";
+export { LiveHub, type HubRoom } from "./LiveHub";
+export { GuestJoin } from "./GuestJoin";
+export { Stage, STAGE_MODES } from "./Stage";
+export { VideoTile, AudioSink, useTrackElement } from "./VideoTile";
+export { ParticipantsRail, type RailActions, type WaitingPerson } from "./ParticipantsRail";
+export { ControlBar, type ControlBarProps } from "./ControlBar";
+export { DevicePicker } from "./DevicePicker";
+export { RoomPanel, type PanelTab } from "./RoomPanel";
+export { RoomChat } from "./RoomChat";
+export { RoomNotes, TaskModal, DecisionModal } from "./RoomNotes";
+export { RoomAI } from "./RoomAI";
+export { PollsQA } from "./PollsQA";
+export { Breakouts } from "./Breakouts";
+export { InviteSheet } from "./InviteSheet";
+export { HostControls } from "./HostControls";
+export { RoomGate } from "./RoomGates";
+export { RoomDialogs, type RoomDialogsProps } from "./RoomDialogs";
+export { QualityBadge, QualityDot, ConnectionBanner } from "./QualityBadge";
+export { AnnotationLayer, AnnotationToolbar, useAnnotations, ANNOT_COLORS, type AnnotKind, type Stroke, type Pointer } from "./Annotations";
+export { useLiveKit, viewOf, type LiveKitApi, type PeerView, type JoinState, type DeviceState } from "./useLiveKit";
+export * from "./liveStore";

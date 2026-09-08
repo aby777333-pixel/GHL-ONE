@@ -36,6 +36,7 @@ const NAV_BY_PATH: Array<[string, string]> = [
   ["/inbox", "nav:/inbox"], ["/attendance", "nav:/attendance"], ["/admin", "nav:/admin"], ["/projects", "nav:/projects"], ["/common", "nav:/common"],
   ["/announcements", "nav:/announcements"], ["/decisions", "nav:/decisions"], ["/departments", "nav:/departments"], ["/people", "nav:/people"],
   ["/leave", "nav:/leave"], ["/meetings", "nav:/meetings"], ["/ideas", "nav:/ideas"], ["/files", "nav:/files"], ["/connect", "nav:/connect"],
+  ["/live", "nav:/live"], ["/boards", "nav:/boards"], ["/recordings", "nav:/recordings"], ["/docs", "nav:/docs"],
 ];
 
 type Row = Record<string, unknown>;
@@ -84,8 +85,8 @@ export function ActivityProvider({ children, muted = false }: { children: React.
   React.useEffect(() => {
     const clear: string[] = [];
     for (const [prefix, zone] of NAV_BY_PATH) if (pathname === prefix || pathname.startsWith(prefix + "/")) clear.push(zone);
-    const m = pathname.match(/^\/(chat|projects|tasks|departments|people|help|connect)\/([^/?]+)/);
-    if (m) clear.push(`${{ chat: "channel", projects: "project", tasks: "task", departments: "dept", people: "user", help: "help", connect: "conversation" }[m[1]]}:${m[2]}`);
+    const m = pathname.match(/^\/(chat|projects|tasks|departments|people|help|connect|live)\/([^/?]+)/);
+    if (m) clear.push(`${{ chat: "channel", projects: "project", tasks: "task", departments: "dept", people: "user", help: "help", connect: "conversation", live: "live" }[m[1]]}:${m[2]}`);
     if (clear.length) {
       const t = setTimeout(() => seen(clear), 0);
       return () => clearTimeout(t);
@@ -206,6 +207,21 @@ export function ActivityProvider({ children, muted = false }: { children: React.
           light(zones, s("sla_breached") === "true" ? "danger" : s("vip") === "true" || s("priority") === "urgent" || s("priority") === "critical" ? "warn" : "brand", "Conversation");
           return;
         }
+        case "live_rooms": {
+          // GHL LIVE: a room opening / going live is exactly the kind of thing a light is for.
+          if (p.eventType === "DELETE" || s("created_by") === me) return;
+          const zones = [`live:${s("id")}`, `project:${s("project_id")}`, `dept:${s("department_id")}`, `channel:${s("channel_id")}`, `task:${s("task_id")}`, `help:${s("help_request_id")}`];
+          const status = s("status");
+          if (status === "live") zones.push("nav:/live");
+          if (status === "ended" || status === "archived") return;
+          light(zones, s("kind") === "war_room" ? "danger" : "success", "Live room");
+          return;
+        }
+        case "live_invites": {
+          if (p.eventType !== "INSERT" || s("to_user") !== me) return;
+          light(["nav:/live", `live:${s("room_id")}`, `user:${s("from_user")}`], "danger", s("kind") === "knock" ? "Someone is knocking" : "Incoming call");
+          return;
+        }
         case "conversation_messages": {
           if (p.eventType !== "INSERT" || s("author_id") === me || s("kind") === "system") return;
           light([`conversation:${s("conversation_id")}`, "nav:/connect"], s("status") === "pending_approval" ? "warn" : "brand", s("direction") === "inbound" ? "New reply" : "Message");
@@ -217,7 +233,7 @@ export function ActivityProvider({ children, muted = false }: { children: React.
     };
 
     const supabase = createClient();
-    const tables = ["messages", "tasks", "help_requests", "approvals", "notifications", "attendance_events", "access_requests", "handoffs", "leaves", "announcements", "decisions", "projects", "channels", "channel_members", "profiles", "conversations", "conversation_messages"];
+    const tables = ["messages", "tasks", "help_requests", "approvals", "notifications", "attendance_events", "access_requests", "handoffs", "leaves", "announcements", "decisions", "projects", "channels", "channel_members", "profiles", "conversations", "conversation_messages", "live_rooms", "live_invites"];
     let ch = supabase.channel("activity-lights");
     for (const table of tables) ch = ch.on("postgres_changes", { event: "*", schema: "public", table }, (p) => handle(p as unknown as Payload));
     // Realtime evaluates RLS with the token present at join time — make sure it is the user's, not the anon key.

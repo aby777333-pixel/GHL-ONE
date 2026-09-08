@@ -19,6 +19,7 @@ import { RecurrenceControl, describeRecurrence, parseRecurrence } from "@/compon
 import type { TaskLite } from "@/components/tasks/TaskListView";
 import { humaniseHistory } from "@/components/projects/humanise";
 import { BuddyQuickActions } from "@/components/ai/BuddyQuickActions";
+import { EntityLive } from "@/components/live/EntityLive";
 import { stagesFor, stageOf, withStage } from "@/components/departments/stages";
 import { AckBar, AssigneeLoadPill, DefinitionOfDone, fetchLoad, ReopenModal } from "@/components/tasks/TaskGovernance";
 import { WhoHasBall } from "@/components/mywork/WhoHasBall";
@@ -382,6 +383,7 @@ export function TaskDetail({ data }: { data: TaskDetailData }) {
           </div>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
+          <EntityLive ctx={{ taskId: task.id, projectId: task.project_id, title: task.title }} size="sm" />
           <BuddyQuickActions scope={{ taskId: task.id, projectId: task.project_id || undefined, path: `/tasks/${task.id}` }} />
           {!done && <Button variant="success" size="sm" onClick={() => setStatus("done")} className="hidden sm:inline-flex"><CheckCircle2 size={14} /> Mark done</Button>}
           {!done && !pendingHandoff && <Button variant="secondary" size="sm" onClick={() => setHandoffOpen(true)} className="hidden md:inline-flex" title="Hand off to another department"><ArrowRightLeft size={14} /> Hand off</Button>}

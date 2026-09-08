@@ -15,6 +15,8 @@ import { HelpStatusPill, SlaCountdown, StatusStepper, useNow } from "./HelpBits"
 import { parseFormData, parseHelpAttachments, parseSchema, slaLabel, type HelpRequest, type Service } from "./lib";
 import { RequestActions, useCanWork } from "./RequestActions";
 import { BuddyQuickActions } from "@/components/ai/BuddyQuickActions";
+import { EntityLive } from "@/components/live/EntityLive";
+import { CollaborationHistory } from "@/components/live/CollaborationHistory";
 
 export type HelpDetailData = {
   request: HelpRequest;
@@ -115,7 +117,10 @@ export function HelpRequestDetail({ data }: { data: HelpDetailData }) {
             </div>
           </div>
           <div className="flex flex-col items-end gap-1.5 shrink-0">
-            <BuddyQuickActions scope={{ helpId: r.id, projectId: r.project_id || undefined, path: `/help/${r.id}` }} size="xs" />
+            <div className="flex items-center gap-1.5">
+              <EntityLive ctx={{ helpId: r.id, projectId: r.project_id, departmentId: r.department_id, title: r.title }} size="xs" />
+              <BuddyQuickActions scope={{ helpId: r.id, projectId: r.project_id || undefined, path: `/help/${r.id}` }} size="xs" />
+            </div>
             <span className="text-[11px] text-muted">Owner</span>
             {r.owner_id ? <PersonChip id={r.owner_id} size={24} /> : <span className="text-xs text-muted">Not yet accepted</span>}
             <SlaCountdown r={r} now={now} />
@@ -136,6 +141,8 @@ export function HelpRequestDetail({ data }: { data: HelpDetailData }) {
           <div className="text-xs text-muted mt-[var(--s3)] pt-[var(--s3)] border-t inline-flex items-center gap-1.5"><Clock size={12} /> {data.service ? slaLabel(data.service.sla_ack_minutes) : "Waiting for the department to accept"}. You will be notified as soon as someone takes it.</div>
         )}
       </Card>
+
+      <CollaborationHistory type="help" id={r.id} />
 
       <div className="grid gap-[var(--s4)] lg:grid-cols-[1.618fr_1fr]">
         <div className="space-y-[var(--s4)] min-w-0">

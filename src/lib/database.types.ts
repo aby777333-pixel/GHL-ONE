@@ -376,6 +376,39 @@ export type Database = {
           },
         ]
       }
+      active_workspace: {
+        Row: {
+          org_id: string
+          switched_at: string
+          user_id: string
+        }
+        Insert: {
+          org_id: string
+          switched_at?: string
+          user_id: string
+        }
+        Update: {
+          org_id?: string
+          switched_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "active_workspace_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "active_workspace_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       admin_assignments: {
         Row: {
           admin_role_id: string
@@ -2323,6 +2356,60 @@ export type Database = {
           },
         ]
       }
+      break_glass_sessions: {
+        Row: {
+          actions: number
+          actor_id: string
+          ended_at: string | null
+          expires_at: string
+          id: string
+          justification: string
+          org_id: string
+          reason: string
+          scope: string
+          started_at: string
+        }
+        Insert: {
+          actions?: number
+          actor_id: string
+          ended_at?: string | null
+          expires_at: string
+          id?: string
+          justification: string
+          org_id: string
+          reason: string
+          scope?: string
+          started_at?: string
+        }
+        Update: {
+          actions?: number
+          actor_id?: string
+          ended_at?: string | null
+          expires_at?: string
+          id?: string
+          justification?: string
+          org_id?: string
+          reason?: string
+          scope?: string
+          started_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "break_glass_sessions_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "break_glass_sessions_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       break_policies: {
         Row: {
           block_when_uncovered: boolean
@@ -2971,6 +3058,7 @@ export type Database = {
           department_ids: string[]
           description: string | null
           dm_key: string | null
+          federation_id: string | null
           help_request_id: string | null
           id: string
           is_private: boolean
@@ -2999,6 +3087,7 @@ export type Database = {
           department_ids?: string[]
           description?: string | null
           dm_key?: string | null
+          federation_id?: string | null
           help_request_id?: string | null
           id?: string
           is_private?: boolean
@@ -3027,6 +3116,7 @@ export type Database = {
           department_ids?: string[]
           description?: string | null
           dm_key?: string | null
+          federation_id?: string | null
           help_request_id?: string | null
           id?: string
           is_private?: boolean
@@ -3064,6 +3154,13 @@ export type Database = {
             columns: ["department_id"]
             isOneToOne: false
             referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channels_federation_id_fkey"
+            columns: ["federation_id"]
+            isOneToOne: false
+            referencedRelation: "federations"
             referencedColumns: ["id"]
           },
           {
@@ -3428,6 +3525,166 @@ export type Database = {
             columns: ["task_id"]
             isOneToOne: false
             referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_invites: {
+        Row: {
+          company_name: string
+          contact_email: string
+          contact_name: string | null
+          created_at: string
+          created_by: string | null
+          expires_at: string
+          id: string
+          org_id: string | null
+          status: string
+          submitted: Json | null
+          template_key: string | null
+          token: string
+        }
+        Insert: {
+          company_name: string
+          contact_email: string
+          contact_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string
+          id?: string
+          org_id?: string | null
+          status?: string
+          submitted?: Json | null
+          template_key?: string | null
+          token?: string
+        }
+        Update: {
+          company_name?: string
+          contact_email?: string
+          contact_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string
+          id?: string
+          org_id?: string | null
+          status?: string
+          submitted?: Json | null
+          template_key?: string | null
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_invites_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_invites_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_invites_template_key_fkey"
+            columns: ["template_key"]
+            isOneToOne: false
+            referencedRelation: "company_templates"
+            referencedColumns: ["key"]
+          },
+        ]
+      }
+      company_onboarding: {
+        Row: {
+          channel_id: string | null
+          notes: string | null
+          org_id: string
+          owner_id: string | null
+          room_id: string | null
+          steps: Json
+          updated_at: string
+        }
+        Insert: {
+          channel_id?: string | null
+          notes?: string | null
+          org_id: string
+          owner_id?: string | null
+          room_id?: string | null
+          steps?: Json
+          updated_at?: string
+        }
+        Update: {
+          channel_id?: string | null
+          notes?: string | null
+          org_id?: string
+          owner_id?: string | null
+          room_id?: string | null
+          steps?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_onboarding_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_onboarding_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_onboarding_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_templates: {
+        Row: {
+          config: Json
+          created_at: string
+          created_by: string | null
+          description: string | null
+          industry: string | null
+          is_system: boolean
+          key: string
+          name: string
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          industry?: string | null
+          is_system?: boolean
+          key: string
+          name: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          industry?: string | null
+          is_system?: boolean
+          key?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_templates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -4327,6 +4584,54 @@ export type Database = {
           },
         ]
       }
+      employee_imports: {
+        Row: {
+          applied_at: string | null
+          created_at: string
+          id: string
+          org_id: string
+          report: Json
+          rows: Json
+          status: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          applied_at?: string | null
+          created_at?: string
+          id?: string
+          org_id: string
+          report?: Json
+          rows?: Json
+          status?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          applied_at?: string | null
+          created_at?: string
+          id?: string
+          org_id?: string
+          report?: Json
+          rows?: Json
+          status?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_imports_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_imports_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_transfers: {
         Row: {
           applied_at: string | null
@@ -4865,6 +5170,134 @@ export type Database = {
             columns: ["org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      federation_members: {
+        Row: {
+          added_at: string
+          added_by: string | null
+          federation_id: string
+          org_id: string
+          user_id: string
+        }
+        Insert: {
+          added_at?: string
+          added_by?: string | null
+          federation_id: string
+          org_id: string
+          user_id: string
+        }
+        Update: {
+          added_at?: string
+          added_by?: string | null
+          federation_id?: string
+          org_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "federation_members_added_by_fkey"
+            columns: ["added_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "federation_members_federation_id_fkey"
+            columns: ["federation_id"]
+            isOneToOne: false
+            referencedRelation: "federations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "federation_members_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "federation_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      federations: {
+        Row: {
+          approved_by_a: string | null
+          approved_by_b: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          org_a: string
+          org_b: string
+          purpose: string
+          requested_by: string | null
+          status: string
+        }
+        Insert: {
+          approved_by_a?: string | null
+          approved_by_b?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          org_a: string
+          org_b: string
+          purpose: string
+          requested_by?: string | null
+          status?: string
+        }
+        Update: {
+          approved_by_a?: string | null
+          approved_by_b?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          org_a?: string
+          org_b?: string
+          purpose?: string
+          requested_by?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "federations_approved_by_a_fkey"
+            columns: ["approved_by_a"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "federations_approved_by_b_fkey"
+            columns: ["approved_by_b"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "federations_org_a_fkey"
+            columns: ["org_a"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "federations_org_b_fkey"
+            columns: ["org_b"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "federations_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -7576,6 +8009,7 @@ export type Database = {
           created_by: string | null
           department_id: string | null
           ended_at: string | null
+          federation_id: string | null
           help_request_id: string | null
           host_id: string | null
           id: string
@@ -7608,6 +8042,7 @@ export type Database = {
           created_by?: string | null
           department_id?: string | null
           ended_at?: string | null
+          federation_id?: string | null
           help_request_id?: string | null
           host_id?: string | null
           id?: string
@@ -7640,6 +8075,7 @@ export type Database = {
           created_by?: string | null
           department_id?: string | null
           ended_at?: string | null
+          federation_id?: string | null
           help_request_id?: string | null
           host_id?: string | null
           id?: string
@@ -7684,6 +8120,13 @@ export type Database = {
             columns: ["department_id"]
             isOneToOne: false
             referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_rooms_federation_id_fkey"
+            columns: ["federation_id"]
+            isOneToOne: false
+            referencedRelation: "federations"
             referencedColumns: ["id"]
           },
           {
@@ -8077,6 +8520,57 @@ export type Database = {
           },
         ]
       }
+      memberships: {
+        Row: {
+          id: string
+          is_primary: boolean
+          joined_at: string
+          last_used_at: string | null
+          org_id: string
+          role: Database["public"]["Enums"]["role_level"]
+          status: string
+          title: string | null
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          is_primary?: boolean
+          joined_at?: string
+          last_used_at?: string | null
+          org_id: string
+          role?: Database["public"]["Enums"]["role_level"]
+          status?: string
+          title?: string | null
+          user_id: string
+        }
+        Update: {
+          id?: string
+          is_primary?: boolean
+          joined_at?: string
+          last_used_at?: string | null
+          org_id?: string
+          role?: Database["public"]["Enums"]["role_level"]
+          status?: string
+          title?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "memberships_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "memberships_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mentorships: {
         Row: {
           created_at: string
@@ -8417,6 +8911,7 @@ export type Database = {
           id: string
           kind: Database["public"]["Enums"]["notification_kind"]
           link: string | null
+          org_id: string | null
           read_at: string | null
           title: string
           user_id: string
@@ -8430,6 +8925,7 @@ export type Database = {
           id?: string
           kind?: Database["public"]["Enums"]["notification_kind"]
           link?: string | null
+          org_id?: string | null
           read_at?: string | null
           title: string
           user_id: string
@@ -8443,6 +8939,7 @@ export type Database = {
           id?: string
           kind?: Database["public"]["Enums"]["notification_kind"]
           link?: string | null
+          org_id?: string | null
           read_at?: string | null
           title?: string
           user_id?: string
@@ -8453,6 +8950,13 @@ export type Database = {
             columns: ["actor_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
           {
@@ -8602,32 +9106,191 @@ export type Database = {
           },
         ]
       }
-      organizations: {
+      org_features: {
         Row: {
-          created_at: string
-          id: string
-          name: string
-          settings: Json
-          slug: string
-          tagline: string | null
+          enabled: boolean
+          feature_key: string
+          limit_value: number | null
+          org_id: string
+          sandbox_user_ids: string[]
+          updated_at: string
+          updated_by: string | null
         }
         Insert: {
-          created_at?: string
-          id?: string
-          name: string
-          settings?: Json
-          slug: string
-          tagline?: string | null
+          enabled?: boolean
+          feature_key: string
+          limit_value?: number | null
+          org_id: string
+          sandbox_user_ids?: string[]
+          updated_at?: string
+          updated_by?: string | null
         }
         Update: {
+          enabled?: boolean
+          feature_key?: string
+          limit_value?: number | null
+          org_id?: string
+          sandbox_user_ids?: string[]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_features_feature_key_fkey"
+            columns: ["feature_key"]
+            isOneToOne: false
+            referencedRelation: "platform_features"
+            referencedColumns: ["key"]
+          },
+          {
+            foreignKeyName: "org_features_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "org_features_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organizations: {
+        Row: {
+          accent_color: string | null
+          activated_at: string | null
+          address: string | null
+          archived_at: string | null
+          country: string | null
+          created_at: string
+          created_by: string | null
+          custom_domain: string | null
+          domain_verified: boolean
+          domain_verify_token: string | null
+          email_domain: string | null
+          favicon_url: string | null
+          id: string
+          industry: string | null
+          legal_name: string | null
+          limits: Json
+          locale: string
+          login_bg_url: string | null
+          logo_url: string | null
+          maintenance_until: string | null
+          mfa_required: boolean
+          name: string
+          onboarding_stage: string
+          plan: string
+          primary_contact: string | null
+          restrict_to_domain: boolean
+          retention_days: number | null
+          settings: Json
+          slug: string
+          status: string
+          suspended_at: string | null
+          tagline: string | null
+          tenant_code: string | null
+          terminology: Json
+          timezone: string
+          updated_at: string
+          website: string | null
+          welcome_message: string | null
+          work_week: number[]
+        }
+        Insert: {
+          accent_color?: string | null
+          activated_at?: string | null
+          address?: string | null
+          archived_at?: string | null
+          country?: string | null
           created_at?: string
+          created_by?: string | null
+          custom_domain?: string | null
+          domain_verified?: boolean
+          domain_verify_token?: string | null
+          email_domain?: string | null
+          favicon_url?: string | null
           id?: string
+          industry?: string | null
+          legal_name?: string | null
+          limits?: Json
+          locale?: string
+          login_bg_url?: string | null
+          logo_url?: string | null
+          maintenance_until?: string | null
+          mfa_required?: boolean
+          name: string
+          onboarding_stage?: string
+          plan?: string
+          primary_contact?: string | null
+          restrict_to_domain?: boolean
+          retention_days?: number | null
+          settings?: Json
+          slug: string
+          status?: string
+          suspended_at?: string | null
+          tagline?: string | null
+          tenant_code?: string | null
+          terminology?: Json
+          timezone?: string
+          updated_at?: string
+          website?: string | null
+          welcome_message?: string | null
+          work_week?: number[]
+        }
+        Update: {
+          accent_color?: string | null
+          activated_at?: string | null
+          address?: string | null
+          archived_at?: string | null
+          country?: string | null
+          created_at?: string
+          created_by?: string | null
+          custom_domain?: string | null
+          domain_verified?: boolean
+          domain_verify_token?: string | null
+          email_domain?: string | null
+          favicon_url?: string | null
+          id?: string
+          industry?: string | null
+          legal_name?: string | null
+          limits?: Json
+          locale?: string
+          login_bg_url?: string | null
+          logo_url?: string | null
+          maintenance_until?: string | null
+          mfa_required?: boolean
           name?: string
+          onboarding_stage?: string
+          plan?: string
+          primary_contact?: string | null
+          restrict_to_domain?: boolean
+          retention_days?: number | null
           settings?: Json
           slug?: string
+          status?: string
+          suspended_at?: string | null
           tagline?: string | null
+          tenant_code?: string | null
+          terminology?: Json
+          timezone?: string
+          updated_at?: string
+          website?: string | null
+          welcome_message?: string | null
+          work_week?: number[]
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "organizations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       permission_overrides: {
         Row: {
@@ -8676,6 +9339,230 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      platform_admin_invites: {
+        Row: {
+          created_at: string
+          email: string
+          role: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          role?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          role?: string
+        }
+        Relationships: []
+      }
+      platform_admins: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          note: string | null
+          role: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          note?: string | null
+          role?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          note?: string | null
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_admins_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_admins_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      platform_announcements: {
+        Row: {
+          audience: string
+          body: string
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          publish_at: string
+          severity: string
+          target_orgs: string[]
+          title: string
+        }
+        Insert: {
+          audience?: string
+          body: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          publish_at?: string
+          severity?: string
+          target_orgs?: string[]
+          title: string
+        }
+        Update: {
+          audience?: string
+          body?: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          publish_at?: string
+          severity?: string
+          target_orgs?: string[]
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_announcements_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      platform_assignments: {
+        Row: {
+          created_at: string
+          org_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          org_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          org_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_assignments_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_assignments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      platform_audit_logs: {
+        Row: {
+          action: string
+          actor_email: string | null
+          actor_id: string | null
+          created_at: string
+          details: Json
+          entity_id: string | null
+          entity_type: string | null
+          id: number
+          org_id: string | null
+          reason: string | null
+          summary: string | null
+        }
+        Insert: {
+          action: string
+          actor_email?: string | null
+          actor_id?: string | null
+          created_at?: string
+          details?: Json
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: never
+          org_id?: string | null
+          reason?: string | null
+          summary?: string | null
+        }
+        Update: {
+          action?: string
+          actor_email?: string | null
+          actor_id?: string | null
+          created_at?: string
+          details?: Json
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: never
+          org_id?: string | null
+          reason?: string | null
+          summary?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_audit_logs_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_audit_logs_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      platform_features: {
+        Row: {
+          category: string
+          default_enabled: boolean
+          deprecated: boolean
+          description: string | null
+          key: string
+          label: string
+          position: number
+        }
+        Insert: {
+          category?: string
+          default_enabled?: boolean
+          deprecated?: boolean
+          description?: string | null
+          key: string
+          label: string
+          position?: number
+        }
+        Update: {
+          category?: string
+          default_enabled?: boolean
+          deprecated?: boolean
+          description?: string | null
+          key?: string
+          label?: string
+          position?: number
+        }
+        Relationships: []
       }
       policies: {
         Row: {
@@ -10767,6 +11654,64 @@ export type Database = {
           },
         ]
       }
+      support_sessions: {
+        Row: {
+          created_at: string
+          expires_at: string
+          granted_by: string | null
+          granted_to: string | null
+          id: string
+          org_id: string
+          reason: string | null
+          revoked_at: string | null
+          scope: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          granted_by?: string | null
+          granted_to?: string | null
+          id?: string
+          org_id: string
+          reason?: string | null
+          revoked_at?: string | null
+          scope?: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          granted_by?: string | null
+          granted_to?: string | null
+          id?: string
+          org_id?: string
+          reason?: string | null
+          revoked_at?: string | null
+          scope?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_sessions_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_sessions_granted_to_fkey"
+            columns: ["granted_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_sessions_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       survey_responses: {
         Row: {
           answers: Json
@@ -11426,6 +12371,53 @@ export type Database = {
           },
           {
             foreignKeyName: "teams_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tenant_usage: {
+        Row: {
+          active_users: number
+          ai_calls: number
+          day: string
+          employees: number
+          messages: number
+          org_id: string
+          projects: number
+          recordings: number
+          storage_mb: number
+          video_minutes: number
+        }
+        Insert: {
+          active_users?: number
+          ai_calls?: number
+          day: string
+          employees?: number
+          messages?: number
+          org_id: string
+          projects?: number
+          recordings?: number
+          storage_mb?: number
+          video_minutes?: number
+        }
+        Update: {
+          active_users?: number
+          ai_calls?: number
+          day?: string
+          employees?: number
+          messages?: number
+          org_id?: string
+          projects?: number
+          recordings?: number
+          storage_mb?: number
+          video_minutes?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_usage_org_id_fkey"
             columns: ["org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -12223,8 +13215,10 @@ export type Database = {
         }[]
       }
       commitment_reminders: { Args: never; Returns: number }
+      company_go_live_blockers: { Args: { p_org: string }; Returns: Json }
       company_now: { Args: never; Returns: Json }
       company_pulse: { Args: never; Returns: Json }
+      company_setup_health: { Args: { p_org: string }; Returns: Json }
       complete_follow_up: {
         Args: { p_id: string; p_outcome?: string }
         Returns: undefined
@@ -12270,6 +13264,23 @@ export type Database = {
         Args: { p_groups: Json; p_room: string }
         Returns: string[]
       }
+      create_company: {
+        Args: {
+          p_admin_email?: string
+          p_admin_name?: string
+          p_clone_from?: string
+          p_country?: string
+          p_departments?: Json
+          p_email_domain?: string
+          p_industry?: string
+          p_name: string
+          p_slug?: string
+          p_status?: string
+          p_template?: string
+          p_timezone?: string
+        }
+        Returns: string
+      }
       create_delegation: {
         Args: {
           p_approver: string
@@ -12295,6 +13306,7 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["role_level"]
       }
+      default_onboarding_steps: { Args: never; Returns: Json }
       delegate_for: {
         Args: { p_kind: string; p_user: string }
         Returns: string
@@ -12375,6 +13387,7 @@ export type Database = {
           source: string
         }[]
       }
+      end_break_glass: { Args: { p_id: string }; Returns: undefined }
       end_breakouts: { Args: { p_room: string }; Returns: undefined }
       end_live_room: {
         Args: { p_room: string; p_summary?: string }
@@ -12430,9 +13443,17 @@ export type Database = {
         Args: { p_reason: string; p_user: string }
         Returns: undefined
       }
+      grant_support_access: {
+        Args: { p_hours?: number; p_reason?: string; p_scope?: string }
+        Returns: string
+      }
       has_admin_perm: { Args: { perm: string }; Returns: boolean }
       has_admin_perm_user: {
         Args: { p_user: string; perm: string }
+        Returns: boolean
+      }
+      has_break_glass: {
+        Args: { p_org: string; p_user?: string }
         Returns: boolean
       }
       has_grant: {
@@ -12453,6 +13474,10 @@ export type Database = {
       huddle_suggestion: { Args: { p_channel: string }; Returns: Json }
       imm_array_to_string: { Args: { a: string[] }; Returns: string }
       import_people: { Args: { p_rows: Json }; Returns: Json }
+      in_federation: {
+        Args: { p_federation: string; p_user?: string }
+        Returns: boolean
+      }
       in_focus_window: {
         Args: { p_at: string; p_department: string }
         Returns: boolean
@@ -12497,6 +13522,13 @@ export type Database = {
         Returns: boolean
       }
       is_manager_plus: { Args: never; Returns: boolean }
+      is_meeting_participant: {
+        Args: { p_meeting: string; p_user?: string }
+        Returns: boolean
+      }
+      is_platform_admin: { Args: never; Returns: boolean }
+      is_platform_admin_user: { Args: { p_user: string }; Returns: boolean }
+      is_platform_owner: { Args: never; Returns: boolean }
       is_primary_admin: { Args: never; Returns: boolean }
       is_primary_admin_user: { Args: { p_user: string }; Returns: boolean }
       is_project_member: { Args: { p: string }; Returns: boolean }
@@ -12654,6 +13686,8 @@ export type Database = {
       }
       meeting_cost: { Args: { p_meeting: string }; Returns: Json }
       meeting_load: { Args: { p_day?: string; p_user?: string }; Returns: Json }
+      meeting_org: { Args: { p_meeting: string }; Returns: string }
+      meeting_project: { Args: { p_meeting: string }; Returns: string }
       my_attendance: {
         Args: { p_from: string; p_to: string }
         Returns: {
@@ -12721,6 +13755,7 @@ export type Database = {
           unread: number
         }[]
       }
+      my_workspaces: { Args: never; Returns: Json }
       needs_send_approval: { Args: { p_user?: string }; Returns: boolean }
       nudge_workflow_step: {
         Args: { p_note?: string; p_step: string }
@@ -12738,10 +13773,21 @@ export type Database = {
       open_dm: { Args: { other: string }; Returns: string }
       operational_inactivity: { Args: { p_hours?: number }; Returns: Json }
       org_completeness_audit: { Args: never; Returns: number }
+      org_feature_enabled: {
+        Args: { p_key: string; p_org?: string }
+        Returns: boolean
+      }
       org_health: { Args: never; Returns: Json }
       people_intelligence: { Args: { p_days?: number }; Returns: Json }
       person_name: { Args: { uid: string }; Returns: string }
       pick_agent: { Args: { p_inbox: string }; Returns: string }
+      platform_can_touch: {
+        Args: { p_org: string; p_user?: string }
+        Returns: boolean
+      }
+      platform_company: { Args: { p_org: string }; Returns: Json }
+      platform_overview: { Args: never; Returns: Json }
+      platform_role: { Args: { p_user?: string }; Returns: string }
       prepare_handover: {
         Args: {
           p_backup: string
@@ -12753,6 +13799,7 @@ export type Database = {
       }
       prepare_shift_handover: { Args: { p_department: string }; Returns: Json }
       probation_reminders: { Args: never; Returns: number }
+      publish_platform_announcement: { Args: { p_id: string }; Returns: number }
       purge_access_events: { Args: never; Returns: number }
       queue_message: {
         Args: {
@@ -12785,6 +13832,10 @@ export type Database = {
           status: string
         }[]
       }
+      request_federation: {
+        Args: { p_days?: number; p_other_org: string; p_purpose: string }
+        Returns: string
+      }
       resolve_conversation: {
         Args: { p_disposition?: string; p_id: string; p_note?: string }
         Returns: undefined
@@ -12800,6 +13851,10 @@ export type Database = {
       resolve_targets: {
         Args: { ctx: Json; target: string }
         Returns: string[]
+      }
+      respond_federation: {
+        Args: { p_approve: boolean; p_id: string }
+        Returns: undefined
       }
       respond_live_invite: {
         Args: { p_id: string; p_status: string }
@@ -12825,6 +13880,7 @@ export type Database = {
         Returns: undefined
       }
       revoke_session: { Args: { p_session: string }; Returns: undefined }
+      revoke_support_access: { Args: { p_id: string }; Returns: undefined }
       role_rank: {
         Args: { r: Database["public"]["Enums"]["role_level"] }
         Returns: number
@@ -12900,6 +13956,10 @@ export type Database = {
           title: string
         }[]
       }
+      set_active_workspace: {
+        Args: { p_org: string; p_reason?: string }
+        Returns: Json
+      }
       set_attendance_settings: { Args: { p_patch: Json }; Returns: Json }
       set_collab_policy: {
         Args: {
@@ -12910,12 +13970,25 @@ export type Database = {
         }
         Returns: string
       }
+      set_company_status: {
+        Args: { p_org: string; p_reason?: string; p_status: string }
+        Returns: undefined
+      }
       set_connect_settings: { Args: { p_patch: Json }; Returns: Json }
       set_employee_status: {
         Args: { p_reason?: string; p_status: string; p_user: string }
         Returns: undefined
       }
       set_live_state: { Args: { p_state: string }; Returns: undefined }
+      set_org_feature: {
+        Args: {
+          p_enabled: boolean
+          p_key: string
+          p_limit?: number
+          p_org: string
+        }
+        Returns: undefined
+      }
       similar_help_requests: {
         Args: { p_department: string; p_limit?: number; p_title: string }
         Returns: {
@@ -12955,6 +14028,16 @@ export type Database = {
       }
       start_access_review: {
         Args: { p_department?: string; p_due?: string; p_name: string }
+        Returns: string
+      }
+      start_break_glass: {
+        Args: {
+          p_justification: string
+          p_minutes?: number
+          p_org: string
+          p_reason: string
+          p_scope?: string
+        }
         Returns: string
       }
       start_conversation: {
@@ -13009,6 +14092,7 @@ export type Database = {
         Returns: string
       }
       stop_focus: { Args: never; Returns: Json }
+      storage_org_ok: { Args: { p_name: string }; Returns: boolean }
       task_from_message: {
         Args: {
           msg: string
@@ -13027,6 +14111,9 @@ export type Database = {
         Args: { p_day?: string; p_department?: string }
         Returns: Json
       }
+      tenant_isolation_probe: { Args: { p_other_org: string }; Returns: Json }
+      tenant_isolation_report: { Args: never; Returns: Json }
+      tenant_usage_snapshot: { Args: never; Returns: number }
       test_automation: { Args: { p_id: string; p_task: string }; Returns: Json }
       timesheet_suggestions: { Args: { p_day: string }; Returns: Json }
       touch_module: { Args: { p_module: string }; Returns: undefined }
@@ -13085,6 +14172,7 @@ export type Database = {
           waiting: number
         }[]
       }
+      workspaces_for_email: { Args: { p_email: string }; Returns: Json }
     }
     Enums: {
       approval_status: "pending" | "approved" | "rejected" | "changes_requested"

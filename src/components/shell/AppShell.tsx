@@ -13,8 +13,13 @@ import { CommandPalette } from "./CommandPalette";
 import { NotificationsPanel } from "./NotificationsPanel";
 import { QuickCapture } from "./QuickCapture";
 import { BuddyPanel, useBuddy } from "@/components/ai";
+import { LiveProvider } from "@/components/live/LiveProvider";
+import { CollaborateMenu } from "@/components/live/CollaborateMenu";
+import { CollaborateButton } from "@/components/live/CollaborateButton";
 import { Blink } from "@/components/providers/ActivityProvider";
 import { ClockWidget } from "@/components/attendance";
+import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
+import { BreakGlassBanner } from "@/components/platform/BreakGlassDialog";
 
 export type Counts = { inbox: number; approvals: number; chat: number };
 
@@ -37,7 +42,7 @@ function useTheme() {
 }
 
 export function AppShell({ children, initialCounts }: { children: React.ReactNode; initialCounts: Counts }) {
-  const { profile, departments, screens } = useSession();
+  const { profile, departments, screens, platformAdmin } = useSession();
   const pathname = usePathname();
   const router = useRouter();
   const { dark, toggle } = useTheme();
@@ -49,7 +54,7 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
   const closeAsk = React.useCallback(() => setAskOpen(false), []);
   const { open: buddyOpen } = useBuddy();
   const [counts, setCounts] = React.useState<Counts>(initialCounts);
-  const sections = React.useMemo(() => filterNav(navFor(profile.role), screens), [profile.role, screens]);
+  const sections = React.useMemo(() => filterNav(navFor(profile.role, { platformAdmin }), screens), [profile.role, screens, platformAdmin]);
   const dept = departments.find((d) => d.id === profile.department_id);
 
   // Do not disturb (notification_prefs.dnd_until) — read once, refreshed every minute so the moon disappears on expiry.
@@ -199,6 +204,8 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
             <button className="lg:hidden btn btn-ghost btn-sm btn-icon" onClick={() => setMobileOpen(true)} aria-label="Menu">
               <MenuIcon size={18} />
             </button>
+            {/* Which company am I in? Always visible, and coloured when you are here as platform staff. */}
+            <WorkspaceSwitcher />
             <button onClick={() => setPaletteOpen(true)} className="flex-1 min-w-0 max-w-xl flex items-center gap-2 h-9 px-3 rounded-[var(--radius-sm)] border bg-[var(--bg)] text-sm text-muted hover:border-[var(--line-strong)] transition-colors">
               <Search size={15} />
               <span className="truncate"><span className="sm:hidden">Search…</span><span className="hidden sm:inline">Search people, tasks, projects, messages, files…</span></span>
@@ -218,6 +225,7 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
               <Button variant="ghost" size="sm" icon onClick={() => setAskOpen(true)} className="sm:hidden" aria-label="GHL Buddy">
                 <Sparkles size={16} className="text-[var(--violet)]" />
               </Button>
+              <CollaborateButton ctx={{}} size="sm" variant="ghost" className="hidden sm:inline-flex" />
               <Button variant="ghost" size="sm" icon onClick={toggle} aria-label="Toggle theme">
                 {dark ? <Sun size={16} /> : <Moon size={16} />}
               </Button>
@@ -254,12 +262,19 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
                     {dndActive && <button type="button" onClick={() => setDnd(null)} className="pill tone-violet hover:opacity-80">Off</button>}
                   </div>
                 </div>
+                {/* `/auth/signout` is a Route Handler, not a page: it clears the session cookies
+                    server-side and redirects. `router.push` cannot navigate to one, so this has to
+                    be a real document request. */}
+                {/* eslint-disable-next-line @next/next/no-location-assign-relative-destination */}
                 <MenuItem icon={<LogOut size={14} />} onClick={() => (window.location.href = "/auth/signout")} danger>Sign out</MenuItem>
               </Menu>
             </div>
           </header>
 
-          <main className="flex-1 min-w-0 pb-16 lg:pb-0">{children}</main>
+          <main className="flex-1 min-w-0 pb-16 lg:pb-0">
+            {platformAdmin && <BreakGlassBanner className="mx-[var(--s3)] mt-[var(--s3)]" />}
+            {children}
+          </main>
 
           {/* Mobile: floating Ask GHL button above the bottom nav (hidden inside chat conversations where the composer lives) */}
           {!askOpen && !buddyOpen && !pathname.startsWith("/chat/") && (
@@ -296,6 +311,8 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
       <NotificationsPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
       <QuickCapture open={captureOpen} onClose={() => setCaptureOpen(false)} />
       <BuddyPanel open={askOpen} onClose={closeAsk} />
+      <LiveProvider />
+      <CollaborateMenu />
     </ToastProvider>
   );
 }

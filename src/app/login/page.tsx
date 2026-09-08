@@ -34,6 +34,9 @@ function LoginInner() {
       setLoading(false);
       if (error) return setErr(error.message);
       if (data.session) {
+        // Same full navigation as sign-in above: `router.push` would soft-navigate before the new
+        // session cookie has been seen by the proxy and the server render.
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
         window.location.assign("/");
       } else {
         setInfo("Check your email to confirm your account, then sign in.");

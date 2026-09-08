@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Video, MapPin, Link2, FolderKanban, Users, FileText, StickyNote, Mic, Gavel, FileCheck2, Plus, X, ExternalLink, Wand2, ClipboardList } from "lucide-react";
+import { ArrowLeft, Video, MapPin, Link2, FolderKanban, Users, FileText, StickyNote, Mic, Gavel, FileCheck2, Plus, X, ExternalLink, Wand2, ClipboardList, Clock3 } from "lucide-react";
 import { Avatar, Button, Card, CardHeader, Modal, useToast } from "@/components/ui";
 import { PersonChip } from "@/components/tasks/TaskBits";
 import { useSession } from "@/components/providers/SessionProvider";
@@ -13,6 +13,9 @@ import { RecordDecisionForm } from "@/components/decisions/RecordDecisionForm";
 import { MeetingAssistant, type MeetingAssistantHandle } from "@/components/ai/MeetingAssistant";
 import { useAIStatus } from "@/components/ai/useAIStatus";
 import { BuddyQuickActions } from "@/components/ai/BuddyQuickActions";
+import { EntityLive } from "@/components/live/EntityLive";
+import { CollaborationHistory } from "@/components/live/CollaborationHistory";
+import { runningLate } from "@/lib/live/client";
 import { AutosaveField } from "./AutosaveField";
 import { ActionItems, type LinkedTask, type MeetingAction } from "./ActionItems";
 import { PeopleMultiSelect } from "./PeopleMultiSelect";
@@ -112,6 +115,22 @@ export function MeetingRoom({ meeting: m, participantIds, actions, tasks, decisi
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
+            <EntityLive ctx={{ meetingId: m.id, projectId: m.project_id, title: m.title }} label="Join live" />
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={async () => {
+                try {
+                  await runningLate(m.id, 5);
+                  toast.push("Everyone in the meeting knows you are 5 minutes away", "success");
+                } catch (e) {
+                  toast.push(e instanceof Error ? e.message : "Could not notify", "danger");
+                }
+              }}
+              title="Tell the room you are on your way"
+            >
+              <Clock3 size={14} /> Running late
+            </Button>
             <BuddyQuickActions scope={{ meetingId: m.id, projectId: m.project_id || undefined, path: `/meetings/${m.id}` }} />
             {m.meeting_link && (
               <a href={m.meeting_link} target="_blank" rel="noreferrer" className="btn btn-primary"><Video size={15} /> Join meeting</a>
@@ -119,6 +138,8 @@ export function MeetingRoom({ meeting: m, participantIds, actions, tasks, decisi
           </div>
         </div>
       </Card>
+
+      <CollaborationHistory type="meeting" id={m.id} className="mb-[var(--s3)]" />
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-[var(--s3)] items-start">
         <div className="space-y-[var(--s3)] min-w-0">

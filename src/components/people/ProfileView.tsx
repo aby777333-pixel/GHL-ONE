@@ -10,6 +10,7 @@ import { useSession } from "@/components/providers/SessionProvider";
 import { ago, fmtDate, isAdminRole, isManagerPlus, PROJECT_STATUS_LABEL, PROJECT_STATUS_TONE, type Profile, type ProjectStatus } from "@/lib/utils";
 import { PRESENCE_LABEL, PRESENCE_TONE } from "./types";
 import { ChatButton, RolePill } from "./PeopleBits";
+import { EntityLive } from "@/components/live/EntityLive";
 import { ProfileEditor } from "./ProfileEditor";
 import { NotificationSettings } from "./NotificationSettings";
 import { CalendarFeedCard } from "@/components/calendar/CalendarFeedCard";
@@ -80,6 +81,7 @@ export function ProfileView({ person, tasks, projects, reports, leaves, edit }: 
           </div>
           <div className="flex items-center gap-2 flex-wrap sm:pb-1">
             {!self && <ChatButton userId={person.id} variant="primary" size="md" />}
+            {!self && <EntityLive ctx={{ personId: person.id, title: `Call with ${person.full_name}` }} include={["knock"]} label="Call · Video · Knock" />}
             {!self && (
               <>
                 <Link href={meetHref} className="btn btn-secondary" title="Call"><PhoneCall size={15} /><span className="hidden sm:inline">Call</span></Link>

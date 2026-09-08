@@ -12,6 +12,8 @@ import { PersonChip } from "@/components/tasks/TaskBits";
 import type { Json } from "@/lib/database.types";
 import { ago, cn, fmtDate, humanize, isLeadPlus, type Tables } from "@/lib/utils";
 import { Note } from "@/components/admin/AdminBits";
+import { EntityLive } from "@/components/live/EntityLive";
+import { CollaborationHistory } from "@/components/live/CollaborationHistory";
 
 export type Incident = Tables<"incidents">;
 export type IncidentData = {
@@ -131,14 +133,22 @@ export function IncidentView({ data }: { data: IncidentData }) {
             {inc.owner_id ? <PersonChip id={inc.owner_id} size={24} /> : <span className="text-xs text-muted">Unassigned</span>}
           </div>
         </div>
-        {canAct && inc.status !== "resolved" && (
+        {inc.status !== "resolved" && (
           <div className="flex flex-wrap items-center gap-2 mt-[var(--s4)] pt-[var(--s3)] border-t">
+            <EntityLive ctx={{ incidentId: inc.id, departmentId: inc.department_id, channelId: inc.channel_id, title: `War room · ${inc.title}` }} include={["war_room"]} label="Start war room" />
+            <span className="text-[11px] text-muted">Everyone in one room, now — the transcript and decisions stay on the incident.</span>
+          </div>
+        )}
+        {canAct && inc.status !== "resolved" && (
+          <div className="flex flex-wrap items-center gap-2 mt-[var(--s3)]">
             {inc.status === "open" && <Button size="sm" variant="secondary" loading={busy === "mitigate"} onClick={mitigate}><ShieldCheck size={14} /> Mark mitigated</Button>}
             <Button size="sm" variant="success" onClick={() => setResolving(true)}><CheckCircle2 size={14} /> Resolve</Button>
             {data.channel && <Link href={`/chat/${data.channel.id}`} className="btn btn-secondary btn-sm"><MessageSquare size={14} /> War room</Link>}
           </div>
         )}
       </Card>
+
+      <CollaborationHistory type="incident" id={inc.id} />
 
       <div className="grid gap-[var(--s4)] lg:grid-cols-[1.618fr_1fr]">
         <div className="space-y-[var(--s4)] min-w-0">

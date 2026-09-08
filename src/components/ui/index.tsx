@@ -147,8 +147,12 @@ export function Modal({ open, onClose, title, children, footer, width = 560, sid
   return createPortal(
     <div className="fixed inset-0 z-[100] flex" style={{ justifyContent: side ? "flex-end" : "center", alignItems: side ? "stretch" : "flex-start" }} role="dialog" aria-modal>
       <div className="absolute inset-0 bg-black/40 anim-fade-in" onClick={onClose} />
+      {/* Exactly ONE max-height per branch: `cn` is clsx with no tailwind-merge, so having
+          max-h-[100dvh] in the base and max-h-[84dvh] in the centred branch emitted both and the
+          later rule (100dvh) won. The box then stood 100dvh tall on top of its 8-10vh top margin,
+          pushing the footer of every tall modal below the viewport where it could not be reached. */}
       <div
-        className={cn("relative card anim-pop flex flex-col max-h-[100dvh] overflow-hidden", side ? "h-full rounded-none border-y-0 border-r-0 w-full sm:w-[min(100vw,var(--w))]" : "mt-[8vh] sm:mt-[10vh] w-[min(100vw-24px,var(--w))] max-h-[84dvh]")}
+        className={cn("relative card anim-pop flex flex-col overflow-hidden", side ? "h-full max-h-[100dvh] rounded-none border-y-0 border-r-0 w-full sm:w-[min(100vw,var(--w))]" : "mt-[8vh] sm:mt-[10vh] w-[min(100vw-24px,var(--w))] max-h-[84dvh]")}
         style={{ ["--w" as string]: `${width}px`, boxShadow: "var(--shadow-lg)" }}
       >
         {title !== undefined && (

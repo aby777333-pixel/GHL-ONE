@@ -14,20 +14,20 @@ export async function startRoom(kind: RoomKind, ctx: CollabContext = {}, opts: {
   const sb = createClient();
   const { data, error } = await sb.rpc("start_live_room", {
     p_kind: kind,
-    p_title: ctx.title ?? null,
-    p_channel: ctx.channelId ?? null,
-    p_project: ctx.projectId ?? null,
-    p_task: ctx.taskId ?? null,
-    p_department: ctx.departmentId ?? null,
-    p_help: ctx.helpId ?? null,
-    p_incident: ctx.incidentId ?? null,
-    p_meeting: ctx.meetingId ?? null,
-    p_team: ctx.teamId ?? null,
+    p_title: ctx.title ?? undefined,
+    p_channel: ctx.channelId ?? undefined,
+    p_project: ctx.projectId ?? undefined,
+    p_task: ctx.taskId ?? undefined,
+    p_department: ctx.departmentId ?? undefined,
+    p_help: ctx.helpId ?? undefined,
+    p_incident: ctx.incidentId ?? undefined,
+    p_meeting: ctx.meetingId ?? undefined,
+    p_team: ctx.teamId ?? undefined,
     p_invitees: ctx.invitees ?? [],
     p_settings: (opts.settings ?? {}) as never,
     p_persistent: opts.persistent ?? false,
-    p_visibility: opts.visibility ?? null,
-    p_parent: opts.parent ?? null,
+    p_visibility: opts.visibility ?? undefined,
+    p_parent: opts.parent ?? undefined,
   });
   if (error || !data) fail(error, "Could not start the room");
   return data as string;
@@ -40,7 +40,7 @@ export async function callPerson(userId: string, video = true) {
 }
 
 export async function knockPerson(userId: string, message?: string) {
-  const { data, error } = await createClient().rpc("knock", { p_user: userId, p_message: message ?? null });
+  const { data, error } = await createClient().rpc("knock", { p_user: userId, p_message: message ?? undefined });
   if (error || !data) fail(error, "Could not knock");
   return data as string;
 }
@@ -65,7 +65,7 @@ export async function leaveRoom(roomId: string) {
 }
 
 export async function endRoom(roomId: string, summary?: string) {
-  const res = await fetch("/api/live/moderate", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ roomId, action: "end", value: summary ?? null }) });
+  const res = await fetch("/api/live/moderate", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ roomId, action: "end", value: summary ?? undefined }) });
   if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error || "Could not end the room");
 }
 
@@ -79,13 +79,13 @@ export async function setLiveState(state: "in_call" | "in_meeting" | "presenting
 }
 
 export async function invitePerson(roomId: string, userId: string, kind: "ring" | "knock" | "invite" | "request_share" = "ring", message?: string) {
-  const { data, error } = await createClient().rpc("live_invite", { p_room: roomId, p_user: userId, p_kind: kind, p_message: message ?? null });
+  const { data, error } = await createClient().rpc("live_invite", { p_room: roomId, p_user: userId, p_kind: kind, p_message: message ?? undefined });
   if (error) fail(error, "Could not invite");
   return data as string;
 }
 
 export async function inviteDepartment(roomId: string, departmentId: string, message?: string) {
-  const { data, error } = await createClient().rpc("live_invite_department", { p_room: roomId, p_department: departmentId, p_message: message ?? null });
+  const { data, error } = await createClient().rpc("live_invite_department", { p_room: roomId, p_department: departmentId, p_message: message ?? undefined });
   if (error) fail(error, "Could not invite the department");
   return (data as number) ?? 0;
 }
@@ -100,20 +100,20 @@ export async function raiseHand(roomId: string, up: boolean) {
 
 export async function roomTask(roomId: string, input: { title: string; assigneeId?: string | null; due?: string | null; priority?: "critical" | "urgent" | "high" | "normal" | "low"; description?: string | null; attachments?: { path: string; name: string; type: string; size?: number }[] }) {
   const { data, error } = await createClient().rpc("live_room_task", {
-    p_room: roomId, p_title: input.title, p_assignee: input.assigneeId ?? null, p_due: input.due ?? null, p_priority: input.priority ?? "normal", p_description: input.description ?? null, p_attachments: (input.attachments ?? []) as never,
+    p_room: roomId, p_title: input.title, p_assignee: input.assigneeId ?? undefined, p_due: input.due ?? undefined, p_priority: input.priority ?? "normal", p_description: input.description ?? undefined, p_attachments: (input.attachments ?? []) as never,
   });
   if (error || !data) fail(error, "Could not create the task");
   return data as string;
 }
 
 export async function roomDecision(roomId: string, input: { title: string; decision: string; reason?: string | null }) {
-  const { data, error } = await createClient().rpc("live_room_decision", { p_room: roomId, p_title: input.title, p_decision: input.decision, p_reason: input.reason ?? null });
+  const { data, error } = await createClient().rpc("live_room_decision", { p_room: roomId, p_title: input.title, p_decision: input.decision, p_reason: input.reason ?? undefined });
   if (error || !data) fail(error, "Could not record the decision");
   return data as string;
 }
 
 export async function bookmark(roomId: string, label?: string, offsetMs?: number) {
-  await createClient().rpc("live_bookmark", { p_room: roomId, p_label: label ?? null, p_offset_ms: offsetMs ?? null });
+  await createClient().rpc("live_bookmark", { p_room: roomId, p_label: label ?? undefined, p_offset_ms: offsetMs ?? undefined });
 }
 
 export async function runningLate(meetingId: string, minutes = 5) {
@@ -133,7 +133,7 @@ export async function endBreakouts(roomId: string) {
 }
 
 export async function guestLink(roomId: string, name?: string, email?: string, hours = 4) {
-  const { data, error } = await createClient().rpc("live_guest_link", { p_room: roomId, p_name: name ?? null, p_email: email ?? null, p_hours: hours });
+  const { data, error } = await createClient().rpc("live_guest_link", { p_room: roomId, p_name: name ?? undefined, p_email: email ?? undefined, p_hours: hours });
   if (error || !data) fail(error, "Could not create a guest link");
   return `${window.location.origin}/live/guest/${data as string}`;
 }
@@ -158,7 +158,7 @@ export async function toggleFavorite(kind: "board" | "room" | "doc" | "recording
 export async function createBoard(input: { orgId: string; ownerId: string; title: string; kind?: BoardKind; visibility?: BoardVisibility; projectId?: string | null; departmentId?: string | null; teamId?: string | null; roomId?: string | null; templateKey?: BoardTemplateKey; doc?: BoardDoc; memberIds?: string[] }) {
   const { data, error } = await createClient().from("boards").insert({
     org_id: input.orgId, owner_id: input.ownerId, created_by: input.ownerId, title: input.title, kind: input.kind ?? "personal", visibility: input.visibility ?? (input.kind === "personal" ? "private" : "members"),
-    project_id: input.projectId ?? null, department_id: input.departmentId ?? null, team_id: input.teamId ?? null, room_id: input.roomId ?? null, template_key: input.templateKey ?? "blank",
+    project_id: input.projectId ?? undefined, department_id: input.departmentId ?? undefined, team_id: input.teamId ?? undefined, room_id: input.roomId ?? undefined, template_key: input.templateKey ?? "blank",
     doc: (input.doc ?? { pages: [{ id: "p1", title: "Page 1", elements: [] }] }) as never, member_ids: input.memberIds ?? [],
   }).select("id").single();
   if (error || !data) fail(error, "Could not create the board");
@@ -166,13 +166,13 @@ export async function createBoard(input: { orgId: string; ownerId: string; title
 }
 
 export async function boardTask(boardId: string, elementId: string, title: string, assigneeId?: string | null, due?: string | null) {
-  const { data, error } = await createClient().rpc("board_element_task", { p_board: boardId, p_element_id: elementId, p_title: title, p_assignee: assigneeId ?? null, p_due: due ?? null, p_priority: "normal" });
+  const { data, error } = await createClient().rpc("board_element_task", { p_board: boardId, p_element_id: elementId, p_title: title, p_assignee: assigneeId ?? undefined, p_due: due ?? undefined, p_priority: "normal" });
   if (error || !data) fail(error, "Could not create the task");
   return data as string;
 }
 
 export async function boardSnapshot(boardId: string, label?: string) {
-  const { error } = await createClient().rpc("board_snapshot", { p_board: boardId, p_label: label ?? null });
+  const { error } = await createClient().rpc("board_snapshot", { p_board: boardId, p_label: label ?? undefined });
   if (error) fail(error, "Could not snapshot");
 }
 
@@ -182,7 +182,7 @@ export async function boardRestore(boardId: string, versionId: string) {
 }
 
 export async function boardToProject(boardId: string, name: string, items: { title: string; description?: string; assignee_id?: string | null; priority?: string; due?: string | null }[], due?: string | null) {
-  const { data, error } = await createClient().rpc("board_to_project", { p_board: boardId, p_name: name, p_due: due ?? null, p_items: items as never });
+  const { data, error } = await createClient().rpc("board_to_project", { p_board: boardId, p_name: name, p_due: due ?? undefined, p_items: items as never });
   if (error || !data) fail(error, "Could not create the project");
   return data as string;
 }
@@ -191,7 +191,7 @@ export async function boardToProject(boardId: string, name: string, items: { tit
 export async function createDoc(input: { orgId: string; ownerId: string; title: string; kind?: LiveDocKind; body?: string; roomId?: string | null; meetingId?: string | null; projectId?: string | null; taskId?: string | null; departmentId?: string | null; visibility?: BoardVisibility; memberIds?: string[] }) {
   const { data, error } = await createClient().from("live_docs").insert({
     org_id: input.orgId, owner_id: input.ownerId, created_by: input.ownerId, title: input.title, kind: input.kind ?? "doc", body: input.body ?? "",
-    room_id: input.roomId ?? null, meeting_id: input.meetingId ?? null, project_id: input.projectId ?? null, task_id: input.taskId ?? null, department_id: input.departmentId ?? null,
+    room_id: input.roomId ?? undefined, meeting_id: input.meetingId ?? undefined, project_id: input.projectId ?? undefined, task_id: input.taskId ?? undefined, department_id: input.departmentId ?? undefined,
     visibility: input.visibility ?? "members", member_ids: input.memberIds ?? [],
   }).select("id").single();
   if (error || !data) fail(error, "Could not create the document");
@@ -199,18 +199,18 @@ export async function createDoc(input: { orgId: string; ownerId: string; title: 
 }
 
 export async function docTask(docId: string, text: string, assigneeId?: string | null, due?: string | null) {
-  const { data, error } = await createClient().rpc("live_doc_task", { p_doc: docId, p_text: text, p_assignee: assigneeId ?? null, p_due: due ?? null });
+  const { data, error } = await createClient().rpc("live_doc_task", { p_doc: docId, p_text: text, p_assignee: assigneeId ?? undefined, p_due: due ?? undefined });
   if (error || !data) fail(error, "Could not create the task");
   return data as string;
 }
 
 export async function docSnapshot(docId: string, label?: string) {
-  const { error } = await createClient().rpc("live_doc_snapshot", { p_doc: docId, p_label: label ?? null });
+  const { error } = await createClient().rpc("live_doc_snapshot", { p_doc: docId, p_label: label ?? undefined });
   if (error) fail(error, "Could not save a version");
 }
 
 export async function toKnowledge(input: { title: string; body: string; kind?: string; roomId?: string | null; recordingId?: string | null; departmentId?: string | null }) {
-  const { data, error } = await createClient().rpc("live_to_knowledge", { p_title: input.title, p_body: input.body, p_kind: input.kind ?? "guide", p_room: input.roomId ?? null, p_recording: input.recordingId ?? null, p_department: input.departmentId ?? null });
+  const { data, error } = await createClient().rpc("live_to_knowledge", { p_title: input.title, p_body: input.body, p_kind: input.kind ?? "guide", p_room: input.roomId ?? undefined, p_recording: input.recordingId ?? undefined, p_department: input.departmentId ?? undefined });
   if (error || !data) fail(error, "Could not create the knowledge draft");
   return data as string;
 }

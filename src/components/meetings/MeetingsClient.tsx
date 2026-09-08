@@ -3,13 +3,14 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Video, Plus, MapPin, Link2, FolderKanban, ListChecks, CalendarDays } from "lucide-react";
+import { Video, Plus, MapPin, Link2, FolderKanban, ListChecks, CalendarDays, Radio } from "lucide-react";
 import { AvatarStack, Button, Card, EmptyState, PageHeader, Tabs } from "@/components/ui";
 import { PersonChip } from "@/components/tasks/TaskBits";
 import { useSession } from "@/components/providers/SessionProvider";
 import { cn, fmtDate, relDate, type Meeting } from "@/lib/utils";
 import { ScheduleMeetingModal, type ScheduleDefaults } from "./ScheduleMeetingModal";
 import { durationLabel, durationMinutes, isPastMeeting } from "./meetingUtils";
+import { openCollaborate } from "@/components/live/liveStore";
 
 type TabKey = "upcoming" | "past" | "mine";
 export type MeetingListItem = Meeting & { participant_ids: string[]; action_count: number; confirmed_count: number };
@@ -43,7 +44,14 @@ export function MeetingsClient({ meetings, projects, openNew, defaults, initialT
         eyebrow="Meetings"
         title="Meetings"
         subtitle={upcoming.length ? `${upcoming.length} upcoming` : "Agenda, notes, decisions and action items — all in one room."}
-        actions={<Button variant="primary" onClick={() => setShowNew(true)}><Plus size={15} /> Schedule meeting</Button>}
+        actions={
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button variant="secondary" onClick={() => openCollaborate({ title: "Instant huddle" }, "huddle")} title="Skip the calendar — talk now">
+              <Radio size={15} /> Start instant huddle
+            </Button>
+            <Button variant="primary" onClick={() => setShowNew(true)}><Plus size={15} /> Schedule meeting</Button>
+          </div>
+        }
       />
       <Tabs tabs={[{ key: "upcoming", label: "Upcoming", count: upcoming.length }, { key: "past", label: "Past" }, { key: "mine", label: "Mine" }]} value={tab} onChange={setTab} className="mb-[var(--s3)]" />
 

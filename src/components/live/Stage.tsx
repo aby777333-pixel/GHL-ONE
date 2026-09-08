@@ -210,7 +210,11 @@ export function Stage(props: StageProps) {
               </div>
             )}
             <div
-              className={cn("grid gap-2 min-h-0", pinnedPeer ? "grid-flow-col auto-cols-[132px] overflow-x-auto no-scrollbar h-[92px] shrink-0" : cn("flex-1 content-start overflow-y-auto", gridCols(others.length)))}
+              // Rows must SHARE the stage height, not collapse to their minimum. `content-start`
+              // pinned every row to 132px while the cell still stretched the full stage width, so a
+              // single participant rendered as a ~1300x200 letterbox and object-cover cropped the face.
+              // minmax(132px, 1fr) keeps a sensible floor when the grid is full and fills the stage when it is not.
+              className={cn("grid gap-2 min-h-0", pinnedPeer ? "grid-flow-col auto-cols-[132px] overflow-x-auto no-scrollbar h-[92px] shrink-0" : cn("flex-1 overflow-y-auto auto-rows-[minmax(132px,1fr)]", gridCols(others.length)))}
             >
               {others.map((p) => (
                 <VideoTile

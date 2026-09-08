@@ -85,7 +85,10 @@ export function VideoTile({
         autoPlay
         playsInline
         muted={peer.isLocal}
-        className={cn("absolute inset-0 w-full h-full object-cover bg-black/80", !hasVideo && "hidden", peer.isLocal && "-scale-x-100")}
+        // `contain` on the main tiles: the cell rarely matches the camera's 16:9, so `cover` silently
+        // crops — heads lost off the top. Thumbnails in the pinned filmstrip keep `cover`, where
+        // filling the small box matters more than seeing the whole frame.
+        className={cn("absolute inset-0 w-full h-full bg-black/80", compact ? "object-cover" : "object-contain", !hasVideo && "hidden", peer.isLocal && "-scale-x-100")}
       />
       {!hasVideo && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">

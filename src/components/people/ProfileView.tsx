@@ -60,8 +60,17 @@ export function ProfileView({ person, tasks, projects, reports, leaves, edit }: 
       {/* Header */}
       <Card className="p-[var(--s4)] mb-[var(--s4)] overflow-hidden relative">
         <div className="absolute inset-x-0 top-0 h-[89px] opacity-90" style={{ background: `linear-gradient(135deg, ${person.department?.color || "var(--brand)"} 0%, color-mix(in oklab, ${person.department?.color || "var(--brand)"} 40%, var(--bg-elev)) 100%)` }} />
-        <div className="relative flex flex-col sm:flex-row sm:items-end gap-[var(--s3)] pt-[34px]">
-          <span className="rounded-full ring-4 ring-[var(--bg-elev)] w-fit"><Avatar name={person.full_name} src={person.avatar_url} size={89} presence={person.presence} /></span>
+        {/*
+          Only the avatar may overlap the banner. The banner is painted in the department's own
+          colour and Management's is #0f172a — near-black — while the name inherits var(--fg),
+          which is also near-black in light mode, so bottom-aligning the text beside the avatar
+          rendered the name invisible for anyone in a dark-coloured department. Every piece of
+          text now starts below the banner, which is correct for all 16 department colours.
+        */}
+        <div className="relative pt-[34px]">
+          <span className="rounded-full ring-4 ring-[var(--bg-elev)] w-fit inline-block"><Avatar name={person.full_name} src={person.avatar_url} size={89} presence={person.presence} /></span>
+        </div>
+        <div className="relative flex flex-col sm:flex-row sm:items-end gap-[var(--s3)] mt-[var(--s3)]">
           <div className="min-w-0 flex-1 sm:pb-1">
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="h1 truncate">{person.full_name}</h1>

@@ -42,7 +42,7 @@ export default async function ChatLayout({ children }: { children: React.ReactNo
   if (dmIds.length) {
     const { data: dmMembers } = await supabase
       .from("channel_members")
-      .select("channel_id,user_id,profiles(id,full_name,avatar_url,presence,designation)")
+      .select("channel_id,user_id,profiles!channel_members_user_id_fkey(id,full_name,avatar_url,presence,designation)")
       .in("channel_id", dmIds)
       .neq("user_id", session.userId);
     for (const row of dmMembers || []) others.set(row.channel_id, toPerson(row.profiles));

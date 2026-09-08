@@ -38,7 +38,7 @@ export default async function ChannelPage({ params, searchParams }: { params: Pr
   if (!channel) notFound();
 
   const [{ data: memberRows }, { data: msgRows }, { data: pinnedRows }] = await Promise.all([
-    supabase.from("channel_members").select("*, profiles(id,full_name,avatar_url,presence,designation)").eq("channel_id", id).order("joined_at"),
+    supabase.from("channel_members").select("*, profiles!channel_members_user_id_fkey(id,full_name,avatar_url,presence,designation)").eq("channel_id", id).order("joined_at"),
     supabase
       .from("messages")
       .select("*, message_reactions(message_id,user_id,emoji)")

@@ -680,7 +680,8 @@ export function Conversation({
   };
 
   const join = async () => {
-    const { error } = await createClient().from("channel_members").insert({ channel_id: channel.id, user_id: me });
+    // Upsert: if the membership row already exists (stale member list), treat it as joined instead of surfacing a PK error.
+    const { error } = await createClient().from("channel_members").upsert({ channel_id: channel.id, user_id: me }, { onConflict: "channel_id,user_id", ignoreDuplicates: true });
     if (error) toast.push(error.message, "danger");
     else {
       toast.push(`Joined #${channel.name}`, "success");

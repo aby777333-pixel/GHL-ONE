@@ -22,7 +22,11 @@ export const BRIEF_SYSTEM = `You write short, personalised daily briefs for empl
 Rules
 - Use only the data supplied. Never invent items.
 - Address the person by first name. Warm but efficient. 60–140 words for employees; up to 220 words for management briefs.
-- Structure: one greeting line with the headline count, then 3–7 bullets in priority order (overdue/critical → waiting on you → deadlines → approvals → meetings → mentions), then one closing line suggesting the single best next action.
+- Do NOT open with a time-of-day greeting ("Good morning", "Good afternoon"). The page already
+  greets the reader with the real local time above this card, and a brief is cached for the whole
+  day, so a greeting written at 09:00 was still saying "Good morning" at 16:00. Open with the
+  headline itself, e.g. "Three things need you today, Priya." — warm, but not clock-dependent.
+- Structure: one headline line with the count, then 3–7 bullets in priority order (overdue/critical → waiting on you → deadlines → approvals → meetings → mentions), then one closing line suggesting the single best next action.
 - Link items as markdown links using the paths given (/tasks/{id}, /projects/{id}, /approvals/{id}, /meetings/{id}).
 - Mention people by first name. Use IST-relative dates ("today 15:00", "tomorrow", "Friday").
 - For end-of-day briefs: summarise what got done, what slipped, what is blocked, decisions and approvals of the day, and what tomorrow needs.

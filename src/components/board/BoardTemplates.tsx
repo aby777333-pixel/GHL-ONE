@@ -5,7 +5,7 @@
  * gallery used by "New board" and "Apply template".
  */
 import * as React from "react";
-import { LayoutTemplate } from "lucide-react";
+import { Check, LayoutTemplate } from "lucide-react";
 import { BOARD_TEMPLATES, type BoardDoc, type BoardElement, type BoardElementType, type BoardTemplateKey } from "@/lib/live/types";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui";
@@ -349,25 +349,35 @@ export function BoardTemplateGallery({ value, onPick, compact }: { value?: Board
           <div key={group}>
             <div className="eyebrow mb-2">{group}</div>
             <div className={cn("grid gap-2", compact ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3")}>
-              {items.map((t) => (
-                <Card
-                  key={t.key}
-                  hover
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => onPick(t.key)}
-                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onPick(t.key); } }}
-                  className={cn("cursor-pointer p-[var(--s3)] flex items-start gap-2.5", value === t.key && "border-[var(--brand)]")}
-                >
-                  <span className="w-8 h-8 rounded-[var(--radius-sm)] sunken flex items-center justify-center shrink-0 text-muted">
-                    <LayoutTemplate size={15} />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block text-sm font-medium truncate">{t.label}</span>
-                    <span className="block text-[11px] text-muted truncate">{t.hint}</span>
-                  </span>
-                </Card>
-              ))}
+              {items.map((t) => {
+                /* Picking a template used to change a 1px border colour and nothing else, which is
+                   invisible on a dark card — testers reported the buttons as giving no feedback at
+                   all. The chosen one is now tinted, ringed and ticked. */
+                const picked = value === t.key;
+                return (
+                  <Card
+                    key={t.key}
+                    hover
+                    role="button"
+                    tabIndex={0}
+                    aria-pressed={picked}
+                    onClick={() => onPick(t.key)}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onPick(t.key); } }}
+                    className={cn(
+                      "cursor-pointer p-[var(--s3)] flex items-start gap-2.5 transition-colors",
+                      picked && "border-[var(--brand)] ring-2 ring-[var(--brand)] bg-[color-mix(in_oklab,var(--brand)_10%,transparent)]"
+                    )}
+                  >
+                    <span className={cn("w-8 h-8 rounded-[var(--radius-sm)] flex items-center justify-center shrink-0", picked ? "bg-[var(--brand)] text-[var(--brand-fg)]" : "sunken text-muted")}>
+                      {picked ? <Check size={15} /> : <LayoutTemplate size={15} />}
+                    </span>
+                    <span className="min-w-0">
+                      <span className={cn("block text-sm font-medium truncate", picked && "text-[var(--brand)]")}>{t.label}</span>
+                      <span className="block text-[11px] text-muted truncate">{t.hint}</span>
+                    </span>
+                  </Card>
+                );
+              })}
             </div>
           </div>
         );

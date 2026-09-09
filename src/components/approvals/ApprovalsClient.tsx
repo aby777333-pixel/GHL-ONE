@@ -36,7 +36,7 @@ export function ApprovalsClient({ approvals, projects, initialTab, openNew, defa
     { key: "for_me", label: "For me", count: forMe.length },
     { key: "mine", label: "Requested by me", count: mine.filter((a) => a.status === "pending").length },
     ...(manager ? [{ key: "all" as TabKey, label: "All pending", count: allPending.length }] : []),
-    { key: "history", label: "History" },
+    { key: "history", label: "History", count: history.length },
   ];
 
   const stale = forMe.filter((a) => Date.parse(a.created_at) < now - 48 * 3600 * 1000).length;
@@ -62,8 +62,22 @@ export function ApprovalsClient({ approvals, projects, initialTab, openNew, defa
           <EmptyState
             icon={tab === "history" ? <Inbox size={18} /> : <CheckSquare size={18} />}
             title={tab === "for_me" ? "Nothing waiting on you" : tab === "mine" ? "You haven't requested anything" : tab === "all" ? "No pending approvals" : "No decisions yet"}
-            hint={tab === "for_me" ? "Requests where you are the approver will appear here." : tab === "mine" ? "Design sign-offs, budgets, purchases, leave — request them here and track the status." : "Decided requests are kept here for the record."}
-            action={tab === "mine" ? <Button variant="primary" onClick={() => setShowNew(true)}><Plus size={15} /> Request approval</Button> : undefined}
+            hint={
+              (tab === "for_me" || tab === "all") && history.length
+                ? `Nothing is pending. ${history.length} decided request${history.length === 1 ? " is" : "s are"} in History — approving or rejecting moves a request there.`
+                : tab === "for_me"
+                  ? "Requests where you are the approver will appear here."
+                  : tab === "mine"
+                    ? "Design sign-offs, budgets, purchases, leave — request them here and track the status."
+                    : "Decided requests are kept here for the record."
+            }
+            action={
+              tab === "mine" ? (
+                <Button variant="primary" onClick={() => setShowNew(true)}><Plus size={15} /> Request approval</Button>
+              ) : (tab === "for_me" || tab === "all") && history.length ? (
+                <Button variant="secondary" onClick={() => setTab("history")}>See History</Button>
+              ) : undefined
+            }
           />
         </Card>
       ) : (

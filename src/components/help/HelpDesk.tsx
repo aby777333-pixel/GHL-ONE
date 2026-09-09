@@ -151,7 +151,7 @@ export function HelpDesk({ data }: { data: HelpDeskData }) {
       />
       <UrgentAssistanceModal open={urgent} onClose={() => setUrgent(false)} />
       {lead && <WarRoomModal open={warRoom} onClose={() => setWarRoom(false)} />}
-      <Tabs<Tab> tabs={tabs} value={tab} onChange={go} className="-mx-[var(--s4)] px-[var(--s4)] lg:-mx-[var(--s5)] lg:px-[var(--s5)] sticky top-[var(--topbar-h)] z-20 glass" />
+      <Tabs<Tab> tabs={tabs} value={tab} onChange={go} className="-mx-[var(--s4)] px-[var(--s4)] lg:-mx-[var(--s5)] lg:px-[var(--s5)] sticky top-[var(--topbar-h)] z-20 sticky-subbar" />
 
       <div key={tab} className="anim-fade-in">
         {tab === "ask" && (

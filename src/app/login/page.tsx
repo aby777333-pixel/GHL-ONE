@@ -4,6 +4,7 @@ import * as React from "react";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { MailCheck } from "lucide-react";
 import { Button, Field, Input } from "@/components/ui";
 import { Suspense } from "react";
 
@@ -15,13 +16,17 @@ function LoginInner() {
   const [password, setPassword] = React.useState("");
   const [name, setName] = React.useState("");
   const [err, setErr] = React.useState<string | null>(null);
-  const [info, setInfo] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(false);
+  /*
+    Signing up used to leave the whole registration form on screen with a one-line "check your
+    email" note tucked underneath it, so it read as if nothing had happened. The confirmation is
+    its own screen, and it is the only thing on it:  Create account → Check your email → Sign in.
+  */
+  const [sentTo, setSentTo] = React.useState<string | null>(null);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setErr(null);
-    setInfo(null);
     setLoading(true);
     const supabase = createClient();
     if (mode === "signin") {
@@ -40,7 +45,7 @@ function LoginInner() {
         // eslint-disable-next-line @next/next/no-location-assign-relative-destination
         window.location.assign("/");
       } else {
-        setInfo("Check your email to confirm your account, then sign in.");
+        setSentTo(email);
       }
     }
   }
@@ -69,6 +74,31 @@ function LoginInner() {
           </div>
         </div>
         <div className="card p-[var(--s4)]" style={{ boxShadow: "0 24px 60px rgba(2,6,23,.45), var(--shadow-lg)" }}>
+        {sentTo ? (
+          <div className="text-center py-[var(--s2)]">
+            <div className="w-12 h-12 rounded-full sunken inline-flex items-center justify-center text-[var(--success)] mb-[var(--s3)]">
+              <MailCheck size={22} />
+            </div>
+            <div className="h2 mb-1">Check your email</div>
+            <p className="text-sm text-muted">
+              We sent a confirmation link to <span className="font-medium text-[var(--fg)] break-all">{sentTo}</span>. Open it to
+              activate your account, then sign in.
+            </p>
+            <p className="text-xs text-muted mt-3">
+              Nothing arrived? Give it a minute and check your spam folder. New accounts also wait for admin activation
+              unless you were pre-invited.
+            </p>
+            <Button
+              variant="primary"
+              size="lg"
+              className="w-full mt-[var(--s4)]"
+              onClick={() => { setSentTo(null); setMode("signin"); setPassword(""); setName(""); }}
+            >
+              Back to sign in
+            </Button>
+          </div>
+        ) : (
+          <>
           <div className="h2 mb-1">{mode === "signin" ? "Sign in" : "Create your account"}</div>
           <div className="text-sm text-muted mb-5">{mode === "signin" ? "Use your GHL India Ventures work email." : "New accounts wait for admin activation unless pre-invited."}</div>
           <form onSubmit={submit} className="space-y-3">
@@ -84,7 +114,6 @@ function LoginInner() {
               <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} placeholder="••••••••" autoComplete={mode === "signin" ? "current-password" : "new-password"} />
             </Field>
             {err && <div className="text-sm text-danger">{err}</div>}
-            {info && <div className="text-sm text-success">{info}</div>}
             <Button type="submit" variant="primary" size="lg" className="w-full mt-2" loading={loading}>
               {mode === "signin" ? "Sign in" : "Create account"}
             </Button>
@@ -102,6 +131,8 @@ function LoginInner() {
               </>
             )}
           </div>
+          </>
+        )}
         </div>
         <div className="text-[11px] text-muted text-center mt-6">GHL India Ventures · Internal system. Authorised personnel only.</div>
       </div>

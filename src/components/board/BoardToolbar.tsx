@@ -3,7 +3,7 @@
 import * as React from "react";
 import {
   ArrowUpRight, Check, ChevronDown, Circle, Diamond, Eraser, FilePlus2, Frame, Hand, Highlighter, Image as ImageIcon,
-  Italic, Maximize2, Minus, MessageSquarePlus, MousePointer2, Pencil, Plus, Redo2, Share2, Smile, Square, StickyNote,
+  Maximize2, Minus, MessageSquarePlus, MousePointer2, Pencil, Plus, Redo2, Share2, Smile, Square, StickyNote,
   Table as TableIcon, Type, Undo2, X, Zap,
 } from "lucide-react";
 import { Button, Menu, MenuItem } from "@/components/ui";
@@ -105,7 +105,7 @@ export function BoardToolbar({
           </Menu>
           <Menu
             width={150}
-            trigger={<Button size="sm" variant="ghost" className="shrink-0"><Italic size={13} /> {style.fontSize} <ChevronDown size={12} /></Button>}
+            trigger={<Button size="sm" variant="ghost" className="shrink-0" title="Text size"><Type size={13} /> {style.fontSize}px <ChevronDown size={12} /></Button>}
           >
             {[11, 13, 15, 18, 24, 32, 48].map((s) => (
               <MenuItem key={s} onClick={() => setStyle({ fontSize: s })}>{s} px</MenuItem>

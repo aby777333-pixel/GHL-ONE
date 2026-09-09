@@ -166,6 +166,20 @@ body {
 .tone-brand { color: var(--brand-fg); background: var(--brand); }
 
 /*
+  Tailwind v4's preflight no longer gives <button> the browser's pointer cursor (a documented
+  change from v3). `.btn` sets `cursor: pointer` back, so every Button looked right — but every
+  plain <button> did not: the Inbox rows under Action required and Approvals navigate when you
+  click them and gave no hint they were clickable. Restore it in @layer base so a deliberate
+  `cursor-default` / `cursor-not-allowed` utility still wins.
+*/
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+}
+
+/*
   DISPLAY belongs in @layer components — the same unlayered-beats-@layer trap as the input
   paddings below, but for `display`. `.btn { display: inline-flex }` written unlayered beat
   Tailwind's `hidden` / `sm:hidden` / `lg:hidden` (which live in @layer utilities), so every
@@ -281,6 +295,22 @@ body {
 
 .skeleton { background: linear-gradient(90deg, var(--bg-sunken) 25%, var(--neutral-bg) 37%, var(--bg-sunken) 63%); background-size: 400% 100%; animation: shimmer 1.4s ease infinite; border-radius: var(--radius-sm); }
 @keyframes shimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
+
+/*
+  Sticky sub-navigation: the tab/filter bar on a project, department or help-desk page, which
+  parks directly under the topbar. It used `.glass`, and at 72% opacity the page text scrolled
+  visibly *through* the tabs and showed as a moving sliver in the space above them — the bar read
+  as floating in the middle of the content rather than as a header. It is opaque now, and paints
+  the page's own colour over the gap between itself and the topbar while it is stuck.
+*/
+.sticky-subbar { background: var(--bg); }
+.sticky-subbar::before {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: 100%;
+  height: var(--s4);
+  background: var(--bg);
+}
 
 /* Layout helpers */
 .page { padding: var(--s4); max-width: 1440px; margin: 0 auto; width: 100%; }

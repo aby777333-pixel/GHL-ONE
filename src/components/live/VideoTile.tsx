@@ -2,28 +2,67 @@
 /** One participant tile: video (or avatar), name, mic/cam/share/quality indicators, pin + host menu. */
 import * as React from "react";
 import { Hand, MicOff, MonitorUp, Pin, PinOff, Volume2 } from "lucide-react";
-import { Track, type Participant } from "livekit-client";
+import { ParticipantEvent, Track, type Participant } from "livekit-client";
 import { Avatar } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import type { PeerView } from "./useLiveKit";
 import { QualityDot } from "./QualityBadge";
 
-/** Attaches a LiveKit track to a <video>/<audio> element for as long as it is mounted. */
+/**
+ * Attaches a LiveKit track to a <video>/<audio> element for as long as it is mounted.
+ *
+ * A remote publication arrives in two steps: `TrackPublished` gives us the publication (and its
+ * sid) and `TrackSubscribed` — some time later — gives us the actual media track. Keying the
+ * effect on the sid alone meant it ran during that gap, found `publication.track` still
+ * undefined, bailed out, and then never ran again because the sid had not changed. The element
+ * stayed empty, which is why a screen share someone else started rendered as a black rectangle.
+ *
+ * Attaching is therefore driven by the participant's own subscription events, not by render.
+ */
 export function useTrackElement<T extends HTMLMediaElement>(participant: Participant, source: Track.Source) {
   const ref = React.useRef<T>(null);
-  const publication = participant.getTrackPublication(source);
-  const trackSid = publication?.trackSid;
-  const muted = publication?.isMuted;
   React.useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const track = participant.getTrackPublication(source)?.track;
-    if (!track) return;
-    track.attach(el);
-    return () => {
-      track.detach(el);
+    let attached: { detach: (el: HTMLMediaElement) => void } | null = null;
+    let attachedEl: HTMLMediaElement | null = null;
+
+    const release = () => {
+      if (attached && attachedEl) attached.detach(attachedEl);
+      attached = null;
+      attachedEl = null;
     };
-  }, [participant, source, trackSid, muted]);
+
+    const sync = () => {
+      const el = ref.current;
+      if (!el) return;
+      const track = participant.getTrackPublication(source)?.track;
+      if (track) {
+        if (attached === track && attachedEl === el) return;
+        release();
+        track.attach(el);
+        attached = track;
+        attachedEl = el;
+      } else {
+        release();
+      }
+    };
+
+    sync();
+    const events = [
+      ParticipantEvent.TrackSubscribed,
+      ParticipantEvent.TrackUnsubscribed,
+      ParticipantEvent.TrackPublished,
+      ParticipantEvent.TrackUnpublished,
+      ParticipantEvent.TrackMuted,
+      ParticipantEvent.TrackUnmuted,
+      ParticipantEvent.LocalTrackPublished,
+      ParticipantEvent.LocalTrackUnpublished,
+    ] as const;
+    for (const e of events) participant.on(e, sync);
+    return () => {
+      for (const e of events) participant.off(e, sync);
+      release();
+    };
+  }, [participant, source]);
   return ref;
 }
 

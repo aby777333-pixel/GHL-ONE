@@ -186,8 +186,23 @@ export function BoardCanvas({ boardId, embedded, roomId, initialBoard }: { board
     if (s.fontSize) p.fontSize = s.fontSize;
     if (s.icon) p.icon = s.icon;
     if (!Object.keys(p).length) return;
-    send(selection.map((id) => ({ op: "update", pageId, id, patch: p } as BoardOp)));
-  }, [selection, canEdit, send, pageId]);
+    /*
+      Font size needs the box to come with it. `fitFontSize` in boardDraw shrinks text until it fits
+      the element, so asking for 32px inside a 120px-tall sticky was silently scaled straight back
+      down and the control looked dead. Grow the element in proportion to the increase — never
+      shrink it — so the size the person picked is the size they get.
+    */
+    send(
+      selection.map((id) => {
+        const el = byId.get(id);
+        if (!s.fontSize || !el) return { op: "update", pageId, id, patch: p } as BoardOp;
+        const base = el.fontSize ?? (el.type === "sticky" ? 15 : el.type === "text" ? 18 : 13);
+        const ratio = s.fontSize / base;
+        const grow = ratio > 1 && el.h ? { h: Math.round(el.h * ratio) } : {};
+        return { op: "update", pageId, id, patch: { ...p, ...grow } } as BoardOp;
+      })
+    );
+  }, [selection, canEdit, send, pageId, byId]);
 
   const startEditing = React.useCallback((el: BoardElement) => {
     const value = el.type === "frame" ? el.title || "" : el.type === "table" ? (el.rows || []).map((r) => r.join(" | ")).join("\n") : el.text || "";

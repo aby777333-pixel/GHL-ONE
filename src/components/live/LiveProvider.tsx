@@ -84,19 +84,36 @@ export function LiveProvider() {
       });
     });
 
-    // Anything still pending when the page loads (a call placed while we were navigating).
-    supabase
-      .from("live_invites")
-      .select("*")
-      .eq("to_user", profile.id)
-      .eq("status", "pending")
-      .gt("created_at", new Date(Date.now() - RING_MS).toISOString())
-      .then(({ data }) => {
-        for (const row of (data || []) as unknown as LiveInvite[]) void onInvite(row);
-      });
+    /*
+      Anything still pending when the page loads (a call placed while we were navigating) — and
+      again whenever the tab comes back to the foreground. A ring that arrived while the tab was
+      hidden used to be dismissed by its own `RING_MS` timer before the person ever looked at it,
+      so returning to the tab showed nothing at all and the call read as "it never popped".
+      Realtime also stops delivering to a backgrounded tab that the browser has frozen, so this
+      catch-up is the only thing that closes that window.
+    */
+    const catchUp = () => {
+      supabase
+        .from("live_invites")
+        .select("*")
+        .eq("to_user", profile.id)
+        .eq("status", "pending")
+        .gt("created_at", new Date(Date.now() - RING_MS).toISOString())
+        .then(({ data }) => {
+          for (const row of (data || []) as unknown as LiveInvite[]) void onInvite(row);
+        });
+    };
+    catchUp();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") catchUp();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
 
     return () => {
       cancelled = true;
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
       supabase.removeChannel(ch);
     };
   }, [profile.id]);

@@ -117,7 +117,7 @@ export function DepartmentWorkspace({ data }: { data: DepartmentWorkspaceData })
           { key: "channel", label: "Channel" },
           { key: "files", label: "Files", count: data.files.length },
         ]}
-        className="-mx-[var(--s4)] px-[var(--s4)] lg:-mx-[var(--s5)] lg:px-[var(--s5)] sticky top-[var(--topbar-h)] z-20 glass"
+        className="-mx-[var(--s4)] px-[var(--s4)] lg:-mx-[var(--s5)] lg:px-[var(--s5)] sticky top-[var(--topbar-h)] z-20 sticky-subbar"
       />
 
       <div className="anim-fade-in" key={tab}>

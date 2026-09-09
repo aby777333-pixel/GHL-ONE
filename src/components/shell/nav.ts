@@ -1,5 +1,5 @@
 import {
-  LayoutDashboard, ListChecks, FolderKanban, MessageSquare, CheckSquare, Calendar, Files, BookOpen, Users, Building2, Gavel, Video, Inbox, Megaphone, Lightbulb, Shield, Wand2, Gauge, Search, Workflow, Clock, LifeBuoy, Globe2, Palmtree, GraduationCap, Target, Briefcase, Activity, MessagesSquare, ClipboardList, MessageCircleQuestion, Radio, PenTool, Clapperboard, FileText, Layers, type LucideIcon,
+  LayoutDashboard, ListChecks, FolderKanban, MessageSquare, CheckSquare, Calendar, Files, BookOpen, Users, Building2, Gavel, Video, Inbox, Megaphone, Lightbulb, Shield, Wand2, Gauge, Search, Workflow, Clock, LifeBuoy, Globe2, Palmtree, GraduationCap, Target, Briefcase, Activity, MessagesSquare, ClipboardList, MessageCircleQuestion, Radio, PenTool, Clapperboard, FileText, Layers, KeyRound, type LucideIcon,
 } from "lucide-react";
 import type { RoleLevel } from "@/lib/utils";
 import { isManagerPlus, isLeadPlus } from "@/lib/utils";
@@ -9,11 +9,17 @@ export type NavItem = { href: string; label: string; icon: LucideIcon; badge?: "
 export type NavSection = { title?: string; items: NavItem[] };
 
 /** Extra facts the nav needs that a role alone cannot answer. */
-export type NavContext = { platformAdmin?: boolean };
+export type NavContext = {
+  platformAdmin?: boolean;
+  /** Effective permission keys — lets the nav offer permission-gated screens without guessing from role. */
+  permissions?: string[];
+};
 
 export function navFor(role: RoleLevel, ctx: NavContext = {}): NavSection[] {
   const manager = isManagerPlus(role);
   const lead = isLeadPlus(role);
+  // Access Control is permission-gated, not role-gated: "admin" is a role, authority is a permission.
+  const security = (ctx.permissions || []).includes("security.manage");
   return [
     {
       items: [
@@ -68,12 +74,16 @@ export function navFor(role: RoleLevel, ctx: NavContext = {}): NavSection[] {
         { href: "/ideas", label: "Ideas", icon: Lightbulb },
         { href: "/search", label: "Search", icon: Search },
         ...(lead ? [{ href: "/admin", label: "Admin", icon: Shield }] : []),
+        ...(security && !ctx.platformAdmin ? [{ href: "/platform/access", label: "Access Control", icon: KeyRound }] : []),
       ],
     },
     // The platform layer sits above every company. Only `is_platform_admin()` people see it, and
     // every page behind it re-checks that in the database — this section is convenience, not control.
     ...(ctx.platformAdmin
-      ? [{ title: "Platform", items: [{ href: "/platform", label: "Command Center", icon: Layers }] } as NavSection]
+      ? [{ title: "Platform", items: [
+          { href: "/platform", label: "Command Center", icon: Layers },
+          { href: "/platform/access", label: "Access Control", icon: KeyRound },
+        ] } as NavSection]
       : []),
   ];
 }

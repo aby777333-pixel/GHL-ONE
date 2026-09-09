@@ -9,7 +9,7 @@ import type { Screen } from "@/lib/screens";
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession();
   const supabase = await createClient();
-  const [{ data: departments }, { data: people }, { count: inbox }, { count: approvals }, { data: unread }, { data: screens }, { data: platformAdmin }, { data: platformRole }] = await Promise.all([
+  const [{ data: departments }, { data: people }, { count: inbox }, { count: approvals }, { data: unread }, { data: screens }, { data: platformAdmin }, { data: platformRole }, { data: perms }] = await Promise.all([
     supabase.from("departments").select("*").order("position"),
     supabase.from("profiles").select("id,full_name,avatar_url,designation,department_id,role,presence,email").eq("is_active", true).order("full_name"),
     supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", session.userId).is("read_at", null),
@@ -18,11 +18,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     supabase.rpc("effective_screens"),
     supabase.rpc("is_platform_admin"),
     supabase.rpc("platform_role"),
+    // The keys this person actually holds, so the UI can stop offering controls that would only
+    // be refused. Convenience only — `has_perm` still decides in the database on every request.
+    supabase.rpc("effective_permissions"),
   ]);
+  const permissions = Array.isArray(perms)
+    ? (perms as unknown as { key: string; allowed: boolean }[]).filter((p) => p.allowed).map((p) => p.key)
+    : [];
   const chat = (unread || []).reduce((a, r) => a + Number(r.unread || 0), 0);
 
   return (
-    <SessionProvider value={{ profile: session.profile, departments: departments || [], people: people || [], screens: ((screens || []) as Screen[]), platformAdmin: !!platformAdmin, platformRole: (platformRole as string | null) ?? null }}>
+    <SessionProvider value={{ profile: session.profile, departments: departments || [], people: people || [], screens: ((screens || []) as Screen[]), platformAdmin: !!platformAdmin, platformRole: (platformRole as string | null) ?? null, permissions }}>
       <ActivityProvider>
         <AppShell initialCounts={{ inbox: inbox || 0, approvals: approvals || 0, chat }}>
           <PendingPoliciesBanner className="mx-[var(--s3)] mt-[var(--s3)]" />

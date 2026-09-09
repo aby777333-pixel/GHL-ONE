@@ -9301,6 +9301,150 @@ export type Database = {
           },
         ]
       }
+      permission_changes: {
+        Row: {
+          actor_id: string | null
+          after: Json | null
+          at: string
+          before: Json | null
+          id: number
+          org_id: string | null
+          perm: string | null
+          reason: string | null
+          subject: string
+          subject_id: string | null
+        }
+        Insert: {
+          actor_id?: string | null
+          after?: Json | null
+          at?: string
+          before?: Json | null
+          id?: number
+          org_id?: string | null
+          perm?: string | null
+          reason?: string | null
+          subject: string
+          subject_id?: string | null
+        }
+        Update: {
+          actor_id?: string | null
+          after?: Json | null
+          at?: string
+          before?: Json | null
+          id?: number
+          org_id?: string | null
+          perm?: string | null
+          reason?: string | null
+          subject?: string
+          subject_id?: string | null
+        }
+        Relationships: []
+      }
+      permissions: {
+        Row: {
+          description: string | null
+          grp: string
+          key: string
+          label: string
+          platform_only: boolean
+          position: number
+          requires: string[]
+          risk: string
+        }
+        Insert: {
+          description?: string | null
+          grp?: string
+          key: string
+          label: string
+          platform_only?: boolean
+          position?: number
+          requires?: string[]
+          risk?: string
+        }
+        Update: {
+          description?: string | null
+          grp?: string
+          key?: string
+          label?: string
+          platform_only?: boolean
+          position?: number
+          requires?: string[]
+          risk?: string
+        }
+        Relationships: []
+      }
+      company_admin_limits: {
+        Row: {
+          note: string | null
+          org_id: string
+          permissions: string[] | null
+          set_by: string | null
+          template: string
+          updated_at: string
+        }
+        Insert: {
+          note?: string | null
+          org_id: string
+          permissions?: string[] | null
+          set_by?: string | null
+          template?: string
+          updated_at?: string
+        }
+        Update: {
+          note?: string | null
+          org_id?: string
+          permissions?: string[] | null
+          set_by?: string | null
+          template?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      system_role_versions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          denied_screens: string[]
+          description: string | null
+          id: string
+          name: string | null
+          note: string | null
+          org_id: string | null
+          permissions: string[]
+          screens: string[]
+          system_role_id: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          denied_screens?: string[]
+          description?: string | null
+          id?: string
+          name?: string | null
+          note?: string | null
+          org_id?: string | null
+          permissions?: string[]
+          screens?: string[]
+          system_role_id: string
+          version: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          denied_screens?: string[]
+          description?: string | null
+          id?: string
+          name?: string | null
+          note?: string | null
+          org_id?: string | null
+          permissions?: string[]
+          screens?: string[]
+          system_role_id?: string
+          version?: number
+        }
+        Relationships: []
+      }
       permission_overrides: {
         Row: {
           allowed: boolean
@@ -13150,6 +13294,18 @@ export type Database = {
         Returns: string
       }
       cancel_meeting: { Args: { p_meeting: string; p_reason?: string }; Returns: Json }
+      access_review_board: { Args: { p_org?: string }; Returns: Json }
+      admin_ceiling: { Args: { p_org?: string }; Returns: string[] }
+      can_manage_permission: { Args: { p_perm: string; p_org?: string }; Returns: boolean }
+      can_review_access: { Args: { p_user: string }; Returns: boolean }
+      effective_permissions: { Args: { p_user?: string }; Returns: Json }
+      explain_permission: { Args: { p_user: string; p_perm: string }; Returns: Json }
+      is_platform_owner_user: { Args: { p_user: string }; Returns: boolean }
+      permission_holders: { Args: { p_perm: string }; Returns: Json }
+      preview_role_access: { Args: { p_role: string }; Returns: Json }
+      preview_user_access: { Args: { p_user: string }; Returns: Json }
+      restore_system_role: { Args: { p_role: string; p_version: number; p_reason?: string }; Returns: Json }
+      role_change_impact: { Args: { p_role: string; p_permissions: string[] }; Returns: Json }
       can_assign: {
         Args: { p_assignee: string; p_assigner?: string }
         Returns: boolean

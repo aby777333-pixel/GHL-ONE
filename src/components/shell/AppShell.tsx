@@ -73,7 +73,7 @@ function useSidebarCollapsed() {
 }
 
 export function AppShell({ children, initialCounts }: { children: React.ReactNode; initialCounts: Counts }) {
-  const { profile, departments, screens, platformAdmin } = useSession();
+  const { profile, departments, screens, platformAdmin, permissions } = useSession();
   const pathname = usePathname();
   const router = useRouter();
   const { dark, toggle } = useTheme();
@@ -86,7 +86,7 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
   const closeAsk = React.useCallback(() => setAskOpen(false), []);
   const { open: buddyOpen } = useBuddy();
   const [counts, setCounts] = React.useState<Counts>(initialCounts);
-  const sections = React.useMemo(() => filterNav(navFor(profile.role, { platformAdmin }), screens), [profile.role, screens, platformAdmin]);
+  const sections = React.useMemo(() => filterNav(navFor(profile.role, { platformAdmin, permissions }), screens), [profile.role, screens, platformAdmin, permissions]);
   const dept = departments.find((d) => d.id === profile.department_id);
 
   // Do not disturb (notification_prefs.dnd_until) — read once, refreshed every minute so the moon disappears on expiry.

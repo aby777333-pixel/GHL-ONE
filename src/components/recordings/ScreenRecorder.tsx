@@ -6,7 +6,7 @@
  */
 
 import * as React from "react";
-import { AlertTriangle, Camera, Circle, Monitor, Pause, Play, RotateCcw, Send, ShieldCheck, Square, Video, Mic, Sparkles } from "lucide-react";
+import { AlertTriangle, Camera, Circle, Maximize2, Minimize2, Monitor, Pause, Play, RotateCcw, Send, ShieldCheck, Square, Video, Mic, Sparkles } from "lucide-react";
 import { Button, Field, Input, Modal, Pill, Select, Textarea, useToast } from "@/components/ui";
 import { useSession } from "@/components/providers/SessionProvider";
 import { createClient } from "@/lib/supabase/client";
@@ -59,6 +59,8 @@ export function ScreenRecorder({
   const [progressText, setProgressText] = React.useState("");
   const [postToChat, setPostToChat] = React.useState(kind === "async_update");
   const isAsync = kind === "async_update";
+  /* Whether the full panel is showing while a capture runs — see the floating bar below. */
+  const [detailsOpen, setDetailsOpen] = React.useState(false);
 
   const rec = useRecorder({ lang, speakerName: profile.full_name });
   const nameOf = React.useCallback((ids: string[]) => ids.map((id) => people.find((p) => p.id === id)?.full_name || "someone").join(", "), [people]);
@@ -161,6 +163,36 @@ export function ScreenRecorder({
   }
 
   const audience = audienceLabel(share, nameOf);
+
+  /*
+    While the capture is actually running the controls must get out of the way. A 720px modal with
+    a dimmed backdrop sat in the middle of the very tab being recorded, so the finished video was
+    mostly a picture of the recorder — reported three separate times. Once recording starts the
+    panel collapses to a small bar in the corner; "Details" brings the full panel back (for the live
+    transcript) and it collapses again on its own.
+  */
+  const capturing = step === "live" && (rec.phase === "recording" || rec.phase === "paused");
+  if (open && capturing && !detailsOpen) {
+    return (
+      <div
+        className="fixed z-[120] right-3 flex items-center gap-1.5 rounded-full border bg-[var(--bg-elev)] pl-3 pr-1.5 py-1.5 max-w-[calc(100vw-24px)]"
+        style={{ bottom: "calc(12px + env(safe-area-inset-bottom))", boxShadow: "var(--shadow-lg)" }}
+        role="region"
+        aria-label="Recording controls"
+      >
+        <span className={cn("w-2.5 h-2.5 rounded-full shrink-0", rec.phase === "recording" ? "bg-[var(--danger)] animate-pulse" : "bg-[var(--warn)]")} />
+        <span className="num text-sm shrink-0">{fmtDuration(rec.elapsed)}</span>
+        {rec.phase === "recording" ? (
+          <Button size="xs" variant="ghost" icon onClick={rec.pause} aria-label="Pause recording" title="Pause"><Pause size={14} /></Button>
+        ) : (
+          <Button size="xs" variant="ghost" icon onClick={rec.resume} aria-label="Resume recording" title="Resume"><Play size={14} /></Button>
+        )}
+        <Button size="xs" variant="ghost" icon onClick={() => rec.restart()} aria-label="Restart recording" title="Restart"><RotateCcw size={14} /></Button>
+        <Button size="xs" variant="ghost" icon onClick={() => setDetailsOpen(true)} aria-label="Show recording details" title="Details & live transcript"><Maximize2 size={14} /></Button>
+        <Button size="xs" variant="primary" onClick={rec.stop}><Square size={12} /> Stop</Button>
+      </div>
+    );
+  }
 
   return (
     <Modal
@@ -298,7 +330,12 @@ export function ScreenRecorder({
                 ))}
                 {rec.interim && <p className="text-muted italic">{rec.interim}</p>}
               </div>
-              <p className="text-xs text-muted">You can switch to another window — come back to this tab to stop, or use the browser’s “Stop sharing” bar.</p>
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <p className="text-xs text-muted min-w-0">You can switch to another window — come back to this tab to stop, or use the browser’s “Stop sharing” bar.</p>
+                <Button size="xs" variant="secondary" className="shrink-0" onClick={() => setDetailsOpen(false)}>
+                  <Minimize2 size={13} /> Get out of the way
+                </Button>
+              </div>
             </>
           )}
         </div>

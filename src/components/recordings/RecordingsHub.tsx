@@ -7,8 +7,9 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Clock, Film, Lock, Play, Radio, Users, Video } from "lucide-react";
-import { Avatar, Button, Card, EmptyState, PageHeader, Pill, SearchInput, Select, Tabs } from "@/components/ui";
+import { useRouter } from "next/navigation";
+import { Clock, Film, Lock, Play, Radio, Trash2, Users, Video } from "lucide-react";
+import { Avatar, Button, Card, EmptyState, Modal, PageHeader, Pill, SearchInput, Select, Tabs, useToast } from "@/components/ui";
 import { useSession } from "@/components/providers/SessionProvider";
 import { createClient } from "@/lib/supabase/client";
 import { cn, fmtDate, bytes, type Tables } from "@/lib/utils";
@@ -46,6 +47,26 @@ export function RecordingsHub({ recordings, now }: { recordings: Row[]; now: str
   const [kind, setKind] = React.useState<"" | RecordingKind>("");
   const [thumbs, setThumbs] = React.useState<Record<string, string>>({});
   const [asyncOpen, setAsyncOpen] = React.useState(false);
+  const router = useRouter();
+  const toast = useToast();
+  const [confirmDelete, setConfirmDelete] = React.useState<Row | null>(null);
+  const [deleting, setDeleting] = React.useState(false);
+  const [removed, setRemoved] = React.useState<string[]>([]);
+
+  async function removeRecording(r: Row) {
+    setDeleting(true);
+    // The video object first — a `protect_delete` trigger blocks removing storage rows through SQL,
+    // so it has to go through the Storage API — then the row that lists it.
+    const paths = [r.storage_path, r.thumbnail_path].filter((x): x is string => !!x);
+    if (paths.length) await supabase.storage.from(RECORDING_BUCKET).remove(paths);
+    const { error } = await supabase.from("live_recordings").delete().eq("id", r.id);
+    setDeleting(false);
+    if (error) { toast.push(error.message, "danger"); return; }
+    setRemoved((s) => [...s, r.id]);
+    setConfirmDelete(null);
+    toast.push("Recording deleted", "success");
+    router.refresh();
+  }
 
   React.useEffect(() => {
     const paths = recordings.map((r) => r.thumbnail_path).filter((p): p is string => !!p).slice(0, 200);
@@ -68,12 +89,13 @@ export function RecordingsHub({ recordings, now }: { recordings: Row[]; now: str
   // "expiring soon" is measured from the server render time so the render stays pure.
   const soon = new Date(now).getTime() + 14 * 86400000;
   const buckets = React.useMemo(() => {
-    const mine = recordings.filter((r) => r.owner_id === profile.id);
-    const shared = recordings.filter((r) => r.owner_id !== profile.id && (r.access === "selected" || r.access === "team" || r.access === "company"));
-    const work = recordings.filter((r) => r.project_id || r.department_id || r.help_request_id || r.access === "project" || r.access === "department");
-    const expiring = recordings.filter((r) => r.expires_at && new Date(r.expires_at).getTime() < soon).sort((a, b) => (a.expires_at || "").localeCompare(b.expires_at || ""));
+    const visible = removed.length ? recordings.filter((r) => !removed.includes(r.id)) : recordings;
+    const mine = visible.filter((r) => r.owner_id === profile.id);
+    const shared = visible.filter((r) => r.owner_id !== profile.id && (r.access === "selected" || r.access === "team" || r.access === "company"));
+    const work = visible.filter((r) => r.project_id || r.department_id || r.help_request_id || r.access === "project" || r.access === "department");
+    const expiring = visible.filter((r) => r.expires_at && new Date(r.expires_at).getTime() < soon).sort((a, b) => (a.expires_at || "").localeCompare(b.expires_at || ""));
     return { mine, shared, work, expiring };
-  }, [recordings, profile.id, soon]);
+  }, [recordings, removed, profile.id, soon]);
 
   const list = React.useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -150,6 +172,19 @@ export function RecordingsHub({ recordings, now }: { recordings: Row[]; now: str
                       <span className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity bg-black/25">
                         <Play size={26} className="text-white" />
                       </span>
+                      {/* Owners could record but never remove — the only way to delete was to open the
+                          recording first, which is exactly what people could not do. */}
+                      {r.owner_id === profile.id && (
+                        <button
+                          type="button"
+                          aria-label={`Delete ${r.title}`}
+                          title="Delete this recording"
+                          className="absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-[var(--danger)] transition-colors"
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setConfirmDelete(r); }}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
                     </div>
                     <div className="p-[var(--s3)] flex flex-col gap-1.5 min-w-0 flex-1">
                       <div className="font-medium text-sm truncate">{r.title}</div>
@@ -180,6 +215,21 @@ export function RecordingsHub({ recordings, now }: { recordings: Row[]; now: str
           </div>
         )}
       </div>
+
+      <Modal
+        open={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        title="Delete this recording?"
+        width={420}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setConfirmDelete(null)} disabled={deleting}>Keep it</Button>
+            <Button variant="danger" loading={deleting} onClick={() => confirmDelete && removeRecording(confirmDelete)}><Trash2 size={15} /> Delete</Button>
+          </>
+        }
+      >
+        <p className="text-sm text-muted">“{confirmDelete?.title}”, its transcript and any replies go for good. Anyone you shared it with loses access.</p>
+      </Modal>
 
       {asyncOpen && <ScreenRecorder open onClose={() => setAsyncOpen(false)} kind="async_update" />}
     </div>

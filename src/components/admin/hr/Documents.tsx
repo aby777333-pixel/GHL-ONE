@@ -72,7 +72,12 @@ export function DocumentsView({ data, initialUser }: { data: HrData; initialUser
   );
 }
 
-export function DocumentList({ docs, canManage, onToggle, onDelete, emptyAction, emptyHint }: { docs: EmployeeDocument[]; canManage?: boolean; onToggle?: (d: EmployeeDocument) => void; onDelete?: (d: EmployeeDocument) => void; emptyAction?: React.ReactNode; emptyHint?: string }) {
+/**
+ * `canDelete` is a per-row predicate used by the employee's own view: HR manages everything on the
+ * file, but a person may also remove a document they uploaded about themselves — before this there
+ * was no way to take back a wrong upload.
+ */
+export function DocumentList({ docs, canManage, canDelete, onToggle, onDelete, emptyAction, emptyHint }: { docs: EmployeeDocument[]; canManage?: boolean; canDelete?: (d: EmployeeDocument) => boolean; onToggle?: (d: EmployeeDocument) => void; onDelete?: (d: EmployeeDocument) => void; emptyAction?: React.ReactNode; emptyHint?: string }) {
   const toast = useToast();
   const [busy, setBusy] = React.useState<string | null>(null);
   async function open(d: EmployeeDocument) {
@@ -96,7 +101,7 @@ export function DocumentList({ docs, canManage, onToggle, onDelete, emptyAction,
           ) : (
             <Pill tone={d.visible_to_employee ? "tone-success" : "tone-muted"}>{d.visible_to_employee ? "Visible to you" : "HR only"}</Pill>
           )}
-          {canManage && onDelete && <Button size="xs" variant="ghost" icon className="text-danger" onClick={() => onDelete(d)} aria-label="Delete"><Trash2 size={13} /></Button>}
+          {onDelete && (canManage || canDelete?.(d)) && <Button size="xs" variant="ghost" icon className="text-danger" onClick={() => onDelete(d)} aria-label={`Delete ${d.name}`} title="Delete this document"><Trash2 size={13} /></Button>}
         </div>
       ))}
     </div>

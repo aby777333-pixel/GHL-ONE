@@ -3,22 +3,26 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowUpRight, Trash2, Clock, FolderKanban } from "lucide-react";
+import { ArrowUpRight, Pencil, Trash2, Clock, FolderKanban } from "lucide-react";
 import { Button, Modal, Pill, useToast } from "@/components/ui";
 import { PersonChip } from "@/components/tasks/TaskBits";
 import { useSession } from "@/components/providers/SessionProvider";
 import { createClient } from "@/lib/supabase/client";
 import { fmtDate, isLeadPlus } from "@/lib/utils";
 import { entityLink, KIND_COLOR, KIND_SINGULAR, timeLabel, type CalItem } from "./calendarUtils";
+import { AddEventModal } from "./AddEventModal";
 
 export function EventModal({ item, onClose, projectName, onDeleted }: { item: CalItem | null; onClose: () => void; projectName: (id?: string | null) => string | undefined; onDeleted: (id: string) => void }) {
   const { profile } = useSession();
   const router = useRouter();
   const toast = useToast();
   const [busy, setBusy] = React.useState(false);
+  const [editing, setEditing] = React.useState(false);
   if (!item) return null;
   const link = entityLink(item);
-  const canDelete = item.source === "event" && !item.meeting_id && !item.task_id && (item.created_by === profile.id || isLeadPlus(profile.role));
+  /* Own the row (or lead+) and it is a plain calendar entry rather than a mirrored meeting/task
+     → you may edit it as well as delete it. Deleting and re-adding was the only way before. */
+  const canManage = item.source === "event" && !item.meeting_id && !item.task_id && (item.created_by === profile.id || isLeadPlus(profile.role));
 
   async function remove() {
     if (!item) return;
@@ -36,7 +40,12 @@ export function EventModal({ item, onClose, projectName, onDeleted }: { item: Ca
     <Modal open onClose={onClose} title={<span className="inline-flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full" style={{ background: KIND_COLOR[item.kind] }} /> {KIND_SINGULAR[item.kind]}</span>} width={480}
       footer={
         <>
-          {canDelete && <Button variant="ghost" className="mr-auto text-danger" loading={busy} onClick={remove}><Trash2 size={14} /> Delete</Button>}
+          {canManage && (
+            <>
+              <Button variant="ghost" className="mr-auto text-danger" loading={busy} onClick={remove}><Trash2 size={14} /> Delete</Button>
+              <Button variant="secondary" onClick={() => setEditing(true)}><Pencil size={14} /> Edit</Button>
+            </>
+          )}
           <Button variant="ghost" onClick={onClose}>Close</Button>
           {link && <Link href={link.href} className="btn btn-primary" onClick={onClose}>{link.label} <ArrowUpRight size={14} /></Link>}
         </>
@@ -52,6 +61,7 @@ export function EventModal({ item, onClose, projectName, onDeleted }: { item: Ca
         {item.source === "task" && <Pill tone="tone-danger" className="self-start">Your task deadline</Pill>}
       </div>
       {item.description && <p className="text-sm text-[var(--fg-2)] mt-4 whitespace-pre-wrap leading-relaxed">{item.description}</p>}
+      {editing && <AddEventModal open event={item} onClose={() => { setEditing(false); onClose(); }} />}
     </Modal>
   );
 }

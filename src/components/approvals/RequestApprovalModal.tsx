@@ -39,6 +39,8 @@ export function RequestApprovalModal({ open, onClose, defaults = {}, onCreated }
     e.preventDefault();
     if (!title.trim()) return;
     if (!approver) return toast.push("Choose an approver", "danger");
+    // Belt and braces — the picker already excludes you, and a DB trigger rejects it as well.
+    if (approver === profile.id) return toast.push("You cannot assign an approval to yourself.", "danger");
     setLoading(true);
     const { data, error } = await createClient()
       .from("approvals")
@@ -89,7 +91,7 @@ export function RequestApprovalModal({ open, onClose, defaults = {}, onCreated }
         </Field>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Approver" hint={profile.manager_id ? "Defaults to your manager." : undefined}>
-            <PersonPicker value={approver} onChange={setApprover} placeholder="Choose approver" />
+            <PersonPicker value={approver} onChange={setApprover} placeholder="Choose approver" excludeIds={[profile.id]} />
           </Field>
           <Field label="Needed by">
             <Input type="datetime-local" value={due} onChange={(e) => setDue(e.target.value)} />

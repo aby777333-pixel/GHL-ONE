@@ -3,8 +3,8 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Video, MapPin, Link2, FolderKanban, Users, FileText, StickyNote, Mic, Gavel, FileCheck2, Plus, X, ExternalLink, Wand2, ClipboardList, Clock3 } from "lucide-react";
-import { Avatar, Button, Card, CardHeader, Modal, useToast } from "@/components/ui";
+import { ArrowLeft, Video, MapPin, Link2, FolderKanban, Users, FileText, StickyNote, Mic, Gavel, FileCheck2, Plus, X, ExternalLink, Wand2, ClipboardList, Clock3, CalendarX2 } from "lucide-react";
+import { Avatar, Button, Card, CardHeader, Field, Modal, Pill, Textarea, useToast } from "@/components/ui";
 import { PersonChip } from "@/components/tasks/TaskBits";
 import { useSession } from "@/components/providers/SessionProvider";
 import { createClient } from "@/lib/supabase/client";
@@ -42,6 +42,23 @@ export function MeetingRoom({ meeting: m, participantIds, actions, tasks, decisi
   const [addPeople, setAddPeople] = React.useState(false);
   const [newPeople, setNewPeople] = React.useState<string[]>([]);
   const [recordDecision, setRecordDecision] = React.useState(false);
+  /* Calling a meeting off. There was no way to do it: an unwanted meeting simply stayed on
+     everyone's calendar. `cancel_meeting` keeps the room and its notes and tells the participants. */
+  const [cancelOpen, setCancelOpen] = React.useState(false);
+  const [cancelReason, setCancelReason] = React.useState("");
+  const [cancelling, setCancelling] = React.useState(false);
+  const cancelled = !!m.cancelled_at;
+  const [nowMs] = React.useState(() => Date.now());
+  const upcoming = Date.parse(m.ends_at || m.starts_at) > nowMs;
+  async function cancelMeeting() {
+    setCancelling(true);
+    const { error } = await createClient().rpc("cancel_meeting", { p_meeting: m.id, p_reason: cancelReason.trim() || undefined });
+    setCancelling(false);
+    if (error) { toast.push(error.message, "danger"); return; }
+    toast.push("Meeting cancelled — participants have been told", "success");
+    setCancelOpen(false);
+    router.refresh();
+  }
   const [summary, setSummary] = React.useState(m.summary || "");
   const [busy, setBusy] = React.useState(false);
   const ai = useAIStatus();
@@ -105,7 +122,15 @@ export function MeetingRoom({ meeting: m, participantIds, actions, tasks, decisi
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="eyebrow mb-1">Meeting room</div>
-            <h1 className="h1">{m.title}</h1>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="h1 break-words min-w-0">{m.title}</h1>
+              {cancelled && <Pill tone="tone-danger" size="lg">Cancelled</Pill>}
+            </div>
+            {cancelled && (
+              <div className="text-sm text-danger mt-1">
+                Cancelled{m.cancelled_at ? ` on ${fmtDate(m.cancelled_at, true)}` : ""}{m.cancel_reason ? ` — ${m.cancel_reason}` : ""}
+              </div>
+            )}
             <div className="flex items-center gap-x-4 gap-y-1 flex-wrap mt-2 text-sm text-[var(--fg-2)]">
               <span className="num">{fmtDate(m.starts_at, true)}{mins ? ` · ${durationLabel(mins)}` : ""} <span className="text-muted">IST</span></span>
               {project && <Link href={`/projects/${project.id}`} className="inline-flex items-center gap-1 hover:underline"><FolderKanban size={14} /> {project.name}</Link>}
@@ -132,8 +157,13 @@ export function MeetingRoom({ meeting: m, participantIds, actions, tasks, decisi
               <Clock3 size={14} /> Running late
             </Button>
             <BuddyQuickActions scope={{ meetingId: m.id, projectId: m.project_id || undefined, path: `/meetings/${m.id}` }} />
-            {m.meeting_link && (
+            {m.meeting_link && !cancelled && (
               <a href={m.meeting_link} target="_blank" rel="noreferrer" className="btn btn-primary"><Video size={15} /> Join meeting</a>
+            )}
+            {canEdit && upcoming && !cancelled && (
+              <Button size="sm" variant="ghost" className="text-danger" onClick={() => setCancelOpen(true)}>
+                <CalendarX2 size={14} /> Cancel meeting
+              </Button>
             )}
           </div>
         </div>
@@ -244,6 +274,26 @@ export function MeetingRoom({ meeting: m, participantIds, actions, tasks, decisi
           <PrepareMe data={prepare} hasProject={!!m.project_id} />
         </div>
       </div>
+
+      <Modal
+        open={cancelOpen}
+        onClose={() => setCancelOpen(false)}
+        title="Cancel this meeting?"
+        width={460}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setCancelOpen(false)} disabled={cancelling}>Keep it</Button>
+            <Button variant="danger" loading={cancelling} onClick={cancelMeeting}><CalendarX2 size={15} /> Cancel meeting</Button>
+          </>
+        }
+      >
+        <p className="text-sm text-muted mb-3">
+          Everyone invited is notified straight away. The room, its notes, decisions and action items are kept.
+        </p>
+        <Field label="Reason" hint="Optional — it goes out with the notification.">
+          <Textarea autoFocus value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} placeholder="Why this is not going ahead…" style={{ minHeight: 72 }} />
+        </Field>
+      </Modal>
 
       <Modal open={addPeople} onClose={() => setAddPeople(false)} title="Add participants" width={520} footer={<><Button variant="ghost" onClick={() => setAddPeople(false)}>Cancel</Button><Button variant="primary" loading={busy} onClick={addParticipants}>Add {newPeople.length || ""}</Button></>}>
         <PeopleMultiSelect value={newPeople} onChange={setNewPeople} exclude={participantIds} maxHeight={320} />

@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { format, isSameDay, isSameMonth } from "date-fns";
 import { cn } from "@/lib/utils";
 import { itemsForDay, monthGrid, timeLabel, type CalItem } from "./calendarUtils";
@@ -10,6 +11,19 @@ const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 export function MonthView({ cursor, items, today, selected, onSelect, onOpen }: { cursor: Date; items: CalItem[]; today: Date; selected: Date | null; onSelect: (d: Date) => void; onOpen: (i: CalItem) => void }) {
   const days = monthGrid(cursor);
   const selectedItems = selected ? itemsForDay(items, selected) : [];
+
+  /*
+    The day's detail panel sits under a six-row month grid, so picking a date near the top of the
+    month put its events below the fold and people reported that clicking a date "did nothing".
+    Bring the panel into view whenever the selection changes. `block: "nearest"` means an already
+    visible panel does not jump.
+  */
+  const detailRef = React.useRef<HTMLDivElement>(null);
+  const selectedKey = selected ? selected.toDateString() : null;
+  React.useEffect(() => {
+    if (!selectedKey) return;
+    detailRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [selectedKey]);
 
   return (
     <div>
@@ -67,7 +81,7 @@ export function MonthView({ cursor, items, today, selected, onSelect, onOpen }: 
       </div>
 
       {selected && (
-        <div className="card mt-[var(--s3)] anim-fade-up">
+        <div ref={detailRef} className="card mt-[var(--s3)] anim-fade-up scroll-mt-[var(--topbar-h)]">
           <div className="flex items-center justify-between px-[var(--s4)] pt-[var(--s3)] pb-[var(--s2)]">
             <div className="h3">{format(selected, "EEEE, d MMMM")}</div>
             <span className="text-xs text-muted num">{selectedItems.length} item{selectedItems.length === 1 ? "" : "s"}</span>

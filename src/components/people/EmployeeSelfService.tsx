@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Briefcase, FileUp, Laptop, PackagePlus, Send } from "lucide-react";
+import { Briefcase, FileUp, Laptop, PackagePlus, Pencil, Send, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button, Card, CardHeader, EmptyState, Field, Input, Modal, Pill, Select, Spinner, Textarea, useToast } from "@/components/ui";
 import { useSession } from "@/components/providers/SessionProvider";
@@ -69,6 +69,11 @@ export function MyAssetsCard({ userId, self }: { userId: string; self: boolean }
   const [items, setItems] = React.useState<Assignment[] | null>(null);
   const [requests, setRequests] = React.useState<AssetRequest[]>([]);
   const [asking, setAsking] = React.useState(false);
+  /* A submitted request sat at "Pending" with nothing you could do about it — no way to fix a typo
+     and no way to take it back. Both are available until somebody decides on it. */
+  const [editRequest, setEditRequest] = React.useState<AssetRequest | null>(null);
+  const [cancelRequest, setCancelRequest] = React.useState<AssetRequest | null>(null);
+  const [cancelling, setCancelling] = React.useState(false);
 
   const load = React.useCallback(() => fetchAssets(userId).then((x) => { setItems(x.items); setRequests(x.requests); }), [userId]);
 
@@ -104,34 +109,82 @@ export function MyAssetsCard({ userId, self }: { userId: string; self: boolean }
                 <div className="text-[11px] text-muted truncate">{fmtDate(r.created_at)}{r.decision_note ? ` · ${r.decision_note}` : ""}</div>
               </div>
               <Pill tone={ASSET_REQUEST_TONE[r.status] || "tone-neutral"}>{humanize(r.status)}</Pill>
+              {self && r.status === "pending" && (
+                <span className="flex items-center gap-1 shrink-0">
+                  <Button size="xs" variant="ghost" onClick={() => setEditRequest(r)} title="Edit this request"><Pencil size={11} /> Edit</Button>
+                  <Button size="xs" variant="ghost" className="text-danger" onClick={() => setCancelRequest(r)} title="Cancel this request"><X size={11} /> Cancel</Button>
+                </span>
+              )}
             </div>
           ))}
         </div>
       )}
       {self && <RequestEquipmentModal open={asking} onClose={() => setAsking(false)} onDone={() => { void load(); toast.push("Request sent to your manager", "success"); }} />}
+      {self && editRequest && (
+        <RequestEquipmentModal
+          open
+          request={editRequest}
+          onClose={() => setEditRequest(null)}
+          onDone={() => { setEditRequest(null); void load(); toast.push("Request updated", "success"); }}
+        />
+      )}
+      <Modal
+        open={!!cancelRequest}
+        onClose={() => setCancelRequest(null)}
+        title="Cancel this request?"
+        width={420}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setCancelRequest(null)} disabled={cancelling}>Keep it</Button>
+            <Button
+              variant="danger"
+              loading={cancelling}
+              onClick={async () => {
+                if (!cancelRequest) return;
+                setCancelling(true);
+                const { error } = await createClient().from("asset_requests").update({ status: "cancelled" }).eq("id", cancelRequest.id);
+                setCancelling(false);
+                if (error) { toast.push(error.message, "danger"); return; }
+                setCancelRequest(null);
+                void load();
+                toast.push("Request cancelled", "info");
+              }}
+            >
+              Cancel request
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-muted">Your manager will no longer see it waiting. You can raise a new request any time.</p>
+      </Modal>
     </Card>
   );
 }
 
-function RequestEquipmentModal({ open, onClose, onDone }: { open: boolean; onClose: () => void; onDone: () => void }) {
+/** Raise a request — or, with `request`, correct one that is still pending. */
+function RequestEquipmentModal({ open, request, onClose, onDone }: { open: boolean; request?: AssetRequest; onClose: () => void; onDone: () => void }) {
   const toast = useToast();
   const { profile } = useSession();
-  const [kind, setKind] = React.useState("laptop");
-  const [details, setDetails] = React.useState("");
-  const [why, setWhy] = React.useState("");
+  const editing = !!request;
+  const [kind, setKind] = React.useState(request?.kind || "laptop");
+  const [details, setDetails] = React.useState(request?.details || "");
+  const [why, setWhy] = React.useState(request?.justification || "");
   const [busy, setBusy] = React.useState(false);
   async function send() {
     if (!profile.org_id || !details.trim()) return;
     setBusy(true);
-    const { error } = await createClient().from("asset_requests").insert({ org_id: profile.org_id, user_id: profile.id, kind, details: details.trim(), justification: why.trim() || null });
+    const supabase = createClient();
+    const { error } = editing
+      ? await supabase.from("asset_requests").update({ kind, details: details.trim(), justification: why.trim() || null }).eq("id", request!.id)
+      : await supabase.from("asset_requests").insert({ org_id: profile.org_id, user_id: profile.id, kind, details: details.trim(), justification: why.trim() || null });
     setBusy(false);
     if (error) { toast.push(error.message, "danger"); return; }
-    setDetails(""); setWhy("");
+    if (!editing) { setDetails(""); setWhy(""); }
     onClose();
     onDone();
   }
   return (
-    <Modal open={open} onClose={onClose} title="Request equipment" width={460} footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button variant="primary" loading={busy} disabled={!details.trim()} onClick={send}><Send size={15} /> Send request</Button></>}>
+    <Modal open={open} onClose={onClose} title={editing ? "Edit request" : "Request equipment"} width={460} footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button variant="primary" loading={busy} disabled={!details.trim()} onClick={send}><Send size={15} /> {editing ? "Save changes" : "Send request"}</Button></>}>
       <div className="space-y-3">
         <Field label="What do you need?"><Select value={kind} onChange={(e) => setKind(e.target.value)}>{ASSET_KINDS.map((k) => <option key={k} value={k}>{ASSET_KIND_LABEL[k]}</option>)}</Select></Field>
         <Field label="Details"><Input value={details} onChange={(e) => setDetails(e.target.value)} placeholder="e.g. Second monitor, 24 inch" autoFocus /></Field>
@@ -145,8 +198,34 @@ function RequestEquipmentModal({ open, onClose, onDone }: { open: boolean; onClo
 /* ------------------------------------------------------------- Documents */
 export function MyDocumentsCard({ userId, self, name }: { userId: string; self: boolean; name: string }) {
   const router = useRouter();
+  const toast = useToast();
+  const { profile } = useSession();
   const [docs, setDocs] = React.useState<EmployeeDocument[] | null>(null);
   const [upload, setUpload] = React.useState(false);
+  const [confirmDoc, setConfirmDoc] = React.useState<EmployeeDocument | null>(null);
+  const [removing, setRemoving] = React.useState(false);
+
+  /* You may remove a document you uploaded about yourself. Anything HR put on your file stays
+     HR's to remove — the same rule the `ed_self_delete` policy enforces in the database. */
+  const mineToDelete = React.useCallback(
+    (d: EmployeeDocument) => d.user_id === profile.id && d.uploaded_by === profile.id,
+    [profile.id]
+  );
+
+  async function removeDoc(d: EmployeeDocument) {
+    setRemoving(true);
+    const supabase = createClient();
+    // The storage object first: a `protect_delete` trigger blocks removing it through SQL, so it
+    // has to go through the Storage API. A failure here is not fatal — the row is what is listed.
+    await supabase.storage.from("hr").remove([d.storage_path]);
+    const { error } = await supabase.from("employee_documents").delete().eq("id", d.id);
+    setRemoving(false);
+    if (error) { toast.push(error.message, "danger"); return; }
+    setDocs((s) => (s || []).filter((x) => x.id !== d.id));
+    setConfirmDoc(null);
+    toast.push("Document removed", "success");
+    router.refresh();
+  }
   const load = React.useCallback(async () => {
     const { data } = await createClient().from("employee_documents").select("*").eq("user_id", userId).order("created_at", { ascending: false });
     setDocs(data || []);
@@ -159,8 +238,22 @@ export function MyDocumentsCard({ userId, self, name }: { userId: string; self: 
   return (
     <Card id="documents" className="scroll-mt-24">
       <CardHeader title={self ? "My documents" : "Documents"} subtitle={self ? "Letters, contracts and certificates HR has shared with you. You can add your own." : "Documents on file."} action={<Button size="sm" onClick={() => setUpload(true)}><FileUp size={14} /> Upload</Button>} />
-      {docs === null ? <div className="flex justify-center py-6"><Spinner /></div> : <DocumentList docs={docs} emptyHint={self ? "Nothing shared yet. Upload a certificate or ID proof for HR here." : "No documents visible to you."} emptyAction={<Button size="sm" variant="primary" onClick={() => setUpload(true)}><FileUp size={14} /> Upload</Button>} />}
+      {docs === null ? <div className="flex justify-center py-6"><Spinner /></div> : <DocumentList docs={docs} canDelete={mineToDelete} onDelete={setConfirmDoc} emptyHint={self ? "Nothing shared yet. Upload a certificate or ID proof for HR here." : "No documents visible to you."} emptyAction={<Button size="sm" variant="primary" onClick={() => setUpload(true)}><FileUp size={14} /> Upload</Button>} />}
       <UploadDocumentModal open={upload} userId={userId} userName={name} selfService={self} onClose={() => setUpload(false)} onUploaded={() => { void load(); router.refresh(); }} />
+      <Modal
+        open={!!confirmDoc}
+        onClose={() => setConfirmDoc(null)}
+        title="Remove this document?"
+        width={420}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setConfirmDoc(null)} disabled={removing}>Keep it</Button>
+            <Button variant="danger" loading={removing} onClick={() => confirmDoc && removeDoc(confirmDoc)}>Remove</Button>
+          </>
+        }
+      >
+        <p className="text-sm text-muted">“{confirmDoc?.name}” will be deleted for good. HR will no longer see it either.</p>
+      </Modal>
     </Card>
   );
 }

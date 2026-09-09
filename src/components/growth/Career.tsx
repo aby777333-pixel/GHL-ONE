@@ -63,13 +63,23 @@ export function CareerCard({ person, self, canRequestMentor }: { person: Person;
     if (error) { toast.push(error.message, "danger"); return; }
     setInterests((s) => (s || []).filter((i) => i.id !== id));
   }
-  async function setMentorship(m: MentorshipRow, status: "active" | "declined" | "ended") {
+  /** `as` only changes the wording — a mentee taking their own request back is not a decline. */
+  async function setMentorship(m: MentorshipRow, status: "active" | "declined" | "ended", as?: "withdrawn") {
     setBusy(m.id);
     const { data, error } = await createClient().from("mentorships").update({ status, ended_at: status === "ended" ? new Date().toISOString() : null }).eq("id", m.id).select("*").single();
     setBusy(null);
     if (error || !data) { toast.push(error?.message || "Could not update", "danger"); return; }
     setMentorships((s) => (s || []).map((x) => (x.id === m.id ? data : x)));
-    toast.push(status === "active" ? "You are now mentoring. A good first step: schedule a 30-minute intro." : status === "declined" ? "Declined — they have been told." : "Mentorship ended.", status === "active" ? "success" : "info");
+    toast.push(
+      status === "active"
+        ? "You are now mentoring. A good first step: schedule a 30-minute intro."
+        : as === "withdrawn"
+          ? "Request withdrawn."
+          : status === "declined"
+            ? "Declined — they have been told."
+            : "Mentorship ended.",
+      status === "active" ? "success" : "info"
+    );
   }
 
   const completed = (enrollments || []).filter((e) => e.status === "completed");
@@ -196,6 +206,14 @@ export function CareerCard({ person, self, canRequestMentor }: { person: Person;
                         <PersonChip id={isMentor ? m.mentee_id : m.mentor_id} size={18} />
                         <span className="text-xs text-muted truncate">· {m.topic}</span>
                         {party && m.status === "active" && <button className="text-[11px] text-muted hover:text-danger ml-auto" onClick={() => setMentorship(m, "ended")}>End</button>}
+                        {/* A pending request could previously only be waited on — neither side could
+                            take it back. Withdraw is the mentee's, Decline the mentor's. */}
+                        {m.status === "requested" && m.mentee_id === profile.id && (
+                          <button className="text-[11px] text-muted hover:text-danger ml-auto" onClick={() => setMentorship(m, "declined", "withdrawn")}>Withdraw request</button>
+                        )}
+                        {m.status === "requested" && m.mentor_id === profile.id && (
+                          <button className="text-[11px] text-muted hover:text-danger ml-auto" onClick={() => setMentorship(m, "declined")}>Decline</button>
+                        )}
                       </li>
                     );
                   })}
@@ -219,7 +237,7 @@ function RequestMentorModal({ menteeId, menteeName, self, onClose, onDone }: { m
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!mentorId || !topic.trim()) return;
-    if (mentorId === menteeId) { toast.push("Pick someone else as the mentor.", "danger"); return; }
+    if (mentorId === menteeId) { toast.push("You cannot select yourself as a mentor.", "danger"); return; }
     setLoading(true);
     const { error } = await createClient().from("mentorships").insert({ org_id: profile.org_id!, mentor_id: mentorId, mentee_id: menteeId, topic: topic.trim(), requested_by: profile.id });
     setLoading(false);
@@ -230,7 +248,7 @@ function RequestMentorModal({ menteeId, menteeName, self, onClose, onDone }: { m
   return (
     <Modal open onClose={onClose} title={self ? "Request a mentor" : `Request a mentor for ${menteeName}`} width={460}>
       <form onSubmit={submit} className="space-y-3">
-        <Field label="Mentor" hint="Someone with experience in what you want to grow into."><PersonPicker value={mentorId} onChange={setMentorId} placeholder="Pick a mentor" /></Field>
+        <Field label="Mentor" hint="Someone with experience in what you want to grow into."><PersonPicker value={mentorId} onChange={setMentorId} placeholder="Pick a mentor" excludeIds={[menteeId]} /></Field>
         <Field label="Topic" hint="What do you want help with? One line is enough."><Textarea autoFocus value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="e.g. Running client discovery calls with confidence" style={{ minHeight: 80 }} required /></Field>
         <div className="flex justify-end gap-2 pt-1">
           <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>

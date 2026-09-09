@@ -31,6 +31,7 @@ export function JobBoard({ data }: { data: JobBoardData }) {
   const closed = data.jobs.filter((j) => j.status !== "open");
   const mine = data.applications.filter((a) => a.user_id === data.userId);
   const canReview = (j: JobRow) => data.isHr || j.hiring_manager_id === profile.id || j.created_by === profile.id;
+  const ownOpening = (j: JobRow) => j.hiring_manager_id === profile.id || j.created_by === profile.id;
   const applicantsFor = (j: JobRow) => data.applications.filter((a) => a.job_id === j.id && (a.user_id !== data.userId || canReview(j)));
   const myApp = (j: JobRow) => mine.find((a) => a.job_id === j.id);
 
@@ -77,7 +78,15 @@ export function JobBoard({ data }: { data: JobBoardData }) {
                             {canReview(j) && <span className="inline-flex items-center gap-1"><Users size={11} /> {applicants.length} applicant{applicants.length === 1 ? "" : "s"}</span>}
                           </div>
                         </div>
-                        {app ? <Pill tone={APPLICATION_TONE[app.status] || "tone-neutral"}>{humanize(app.status)}</Pill> : <Button size="sm" variant="primary" onClick={() => setApplying(j)}><Send size={13} /> Apply</Button>}
+                        {/* You do not apply to the role you posted or are hiring for — the board offered Apply to
+                            the person who created the opening. A DB trigger refuses it as well. */}
+                        {app ? (
+                          <Pill tone={APPLICATION_TONE[app.status] || "tone-neutral"}>{humanize(app.status)}</Pill>
+                        ) : ownOpening(j) ? (
+                          <Pill tone="tone-neutral">Your opening</Pill>
+                        ) : (
+                          <Button size="sm" variant="primary" onClick={() => setApplying(j)}><Send size={13} /> Apply</Button>
+                        )}
                         <Button size="sm" variant="ghost" icon onClick={() => setExpanded(isOpen ? null : j.id)} aria-label={isOpen ? "Collapse" : "Expand"}>{isOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</Button>
                       </div>
                       {isOpen && (

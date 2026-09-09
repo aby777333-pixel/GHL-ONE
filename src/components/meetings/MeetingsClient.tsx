@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Video, Plus, MapPin, Link2, FolderKanban, ListChecks, CalendarDays, Radio } from "lucide-react";
+import { Video, Plus, MapPin, Link2, FolderKanban, ListChecks, CalendarDays, Radio, CheckCircle2, CalendarX2 } from "lucide-react";
 import { AvatarStack, Button, Card, EmptyState, PageHeader, Tabs } from "@/components/ui";
 import { PersonChip } from "@/components/tasks/TaskBits";
 import { useSession } from "@/components/providers/SessionProvider";
@@ -70,19 +70,28 @@ export function MeetingsClient({ meetings, projects, openNew, defaults, initialT
                   const mins = durationMinutes(m);
                   const past = isPastMeeting(m, now);
                   return (
-                    <Card key={m.id} hover className={cn("px-[var(--s4)] py-[var(--s3)]", past && "opacity-90")}>
+                    <Card key={m.id} hover className={cn("px-[var(--s4)] py-[var(--s3)]", (past || m.cancelled_at) && "opacity-90")}>
                       <div className="flex items-start gap-3">
                         <div className="text-center shrink-0 w-12">
                           <div className="text-lg font-semibold num leading-none">{fmtDate(m.starts_at, true).split(", ")[1]}</div>
                           {mins ? <div className="text-[11px] text-muted mt-1">{durationLabel(mins)}</div> : null}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <Link href={`/meetings/${m.id}`} className="block font-medium leading-snug hover:underline">{m.title}</Link>
+                          <Link href={`/meetings/${m.id}`} className={cn("block font-medium leading-snug hover:underline", m.cancelled_at && "line-through text-muted")}>{m.title}</Link>
                           <div className="flex items-center gap-x-3 gap-y-1 flex-wrap mt-1.5 text-xs text-muted">
                             <PersonChip id={m.organizer_id} size={16} />
                             {m.project_id && projectName.get(m.project_id) && <Link href={`/projects/${m.project_id}`} className="inline-flex items-center gap-1 hover:underline truncate max-w-[160px]"><FolderKanban size={12} /> {projectName.get(m.project_id)}</Link>}
                             {m.location && <span className="inline-flex items-center gap-1 truncate max-w-[160px]"><MapPin size={12} /> {m.location}</span>}
-                            {m.meeting_link && <a href={m.meeting_link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 link"><Link2 size={12} /> Join</a>}
+                            {/* A live Join on a meeting that already ended — or one the organiser
+                                called off — sent people into an empty room. Say what happened
+                                instead of offering a door that leads nowhere. */}
+                            {m.cancelled_at ? (
+                              <span className="inline-flex items-center gap-1 text-danger"><CalendarX2 size={12} /> Cancelled</span>
+                            ) : past ? (
+                              <span className="inline-flex items-center gap-1"><CheckCircle2 size={12} /> Ended</span>
+                            ) : (
+                              m.meeting_link && <a href={m.meeting_link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 link"><Link2 size={12} /> Join</a>
+                            )}
                           </div>
                           <div className="flex items-center justify-between gap-2 mt-3">
                             {ppl.length ? <AvatarStack people={ppl} size={22} max={5} /> : <span className="text-xs text-muted">No participants</span>}

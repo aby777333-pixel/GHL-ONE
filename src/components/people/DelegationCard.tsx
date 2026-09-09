@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Check, LifeBuoy, Plus, Square } from "lucide-react";
+import { Check, LifeBuoy, Pencil, Plus, Square } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button, Card, CardHeader, EmptyState, Field, Input, Modal, Pill, Spinner, useToast } from "@/components/ui";
 import { PersonPicker } from "@/components/pickers";
@@ -23,6 +23,10 @@ export function DelegationCard({ userId, self, canManage }: { userId: string; se
   const { profile } = useSession();
   const [rows, setRows] = React.useState<DelegationRow[] | null>(null);
   const [open, setOpen] = React.useState(false);
+  /* A delegation used to be write-once: the list showed a one-line summary and the only action was
+     End. Opening a row now shows everything it holds — delegate, what is covered, dates, reason —
+     and saves changes in place. */
+  const [editRow, setEditRow] = React.useState<DelegationRow | null>(null);
   const [now] = React.useState(() => Date.now());
   const [tick, setTick] = React.useState(0);
 
@@ -60,42 +64,89 @@ export function DelegationCard({ userId, self, canManage }: { userId: string; se
                 <PersonChip id={outgoing ? d.to_user_id : d.from_user_id} size={22} />
                 <span className="flex flex-wrap gap-1">{d.kinds.map((k) => <Pill key={k} tone={isLive ? "tone-brand" : "tone-neutral"}>{DELEGATION_KINDS.find((x) => x.key === k)?.label || k}</Pill>)}</span>
                 <span className="text-[11px] text-muted ml-auto">{isLive ? (d.ends_at ? `until ${fmtDate(d.ends_at)}` : "until ended") : d.active ? `starts ${fmtDate(d.starts_at)}` : `ended · ${ago(d.created_at)}`}{d.reason ? ` · ${d.reason}` : ""}</span>
-                {isLive && outgoing && (self || canManage) && <Button size="xs" variant="ghost" onClick={() => end(d)}><Square size={11} /> End</Button>}
+                {outgoing && editable && (
+                  <Button size="xs" variant="ghost" onClick={() => setEditRow(d)} title="View and edit this delegation"><Pencil size={11} /> {isLive ? "View / edit" : "View"}</Button>
+                )}
+                {isLive && outgoing && editable && <Button size="xs" variant="ghost" onClick={() => end(d)}><Square size={11} /> End</Button>}
               </div>
             );
           })}
         </div>
       )}
-      <NewDelegationModal open={open} fromUserId={userId} onClose={() => setOpen(false)} onDone={() => { setTick((t) => t + 1); router.refresh(); }} orgId={profile.org_id || ""} />
+      <DelegationModal open={open} fromUserId={userId} onClose={() => setOpen(false)} onDone={() => { setTick((t) => t + 1); router.refresh(); }} orgId={profile.org_id || ""} />
+      {editRow && (
+        <DelegationModal
+          open
+          row={editRow}
+          fromUserId={userId}
+          orgId={profile.org_id || ""}
+          onClose={() => setEditRow(null)}
+          onDone={() => { setEditRow(null); setTick((t) => t + 1); router.refresh(); }}
+          onEnd={async () => { await end(editRow); setEditRow(null); }}
+        />
+      )}
     </Card>
   );
 }
 
-function NewDelegationModal({ open, fromUserId, orgId, onClose, onDone }: { open: boolean; fromUserId: string; orgId: string; onClose: () => void; onDone: () => void }) {
+/** Local yyyy-mm-dd for a stored timestamp, so editing shows the date the user picked. */
+function dateInput(iso?: string | null) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/**
+ * Create a delegation — or open an existing one and change it. Pass `row` to edit; `onEnd` adds the
+ * End action inside the same dialog so a live delegation can be reviewed and stopped in one place.
+ */
+function DelegationModal({ open, row, fromUserId, orgId, onClose, onDone, onEnd }: { open: boolean; row?: DelegationRow; fromUserId: string; orgId: string; onClose: () => void; onDone: () => void; onEnd?: () => void | Promise<void> }) {
   const toast = useToast();
-  const [to, setTo] = React.useState("");
-  const [kinds, setKinds] = React.useState<string[]>(["approvals"]);
-  const [from, setFrom] = React.useState("");
-  const [until, setUntil] = React.useState("");
-  const [reason, setReason] = React.useState("");
+  const editing = !!row;
+  const [to, setTo] = React.useState(row?.to_user_id || "");
+  const [kinds, setKinds] = React.useState<string[]>(row?.kinds || ["approvals"]);
+  const [from, setFrom] = React.useState(row ? dateInput(row.starts_at) : "");
+  const [until, setUntil] = React.useState(row ? dateInput(row.ends_at) : "");
+  const [reason, setReason] = React.useState(row?.reason || "");
   const [busy, setBusy] = React.useState(false);
   const toggle = (k: string) => setKinds((s) => (s.includes(k) ? s.filter((x) => x !== k) : [...s, k]));
 
   async function save() {
     if (!orgId || !to || to === fromUserId || !kinds.length) return;
     setBusy(true);
-    const { error } = await createClient().from("delegations").insert({ org_id: orgId, from_user_id: fromUserId, to_user_id: to, kinds, starts_at: from ? new Date(`${from}T00:00:00`).toISOString() : undefined, ends_at: endOfDayIso(until), reason: reason.trim() || null });
+    const supabase = createClient();
+    const starts_at = from ? new Date(`${from}T00:00:00`).toISOString() : undefined;
+    const { error } = editing
+      ? await supabase
+          .from("delegations")
+          .update({ to_user_id: to, kinds, starts_at: starts_at ?? row!.starts_at, ends_at: endOfDayIso(until), reason: reason.trim() || null })
+          .eq("id", row!.id)
+      : await supabase
+          .from("delegations")
+          .insert({ org_id: orgId, from_user_id: fromUserId, to_user_id: to, kinds, starts_at, ends_at: endOfDayIso(until), reason: reason.trim() || null });
     setBusy(false);
     if (error) { toast.push(error.message, "danger"); return; }
-    toast.push("Delegation created — the delegate has been notified", "success");
-    setTo(""); setKinds(["approvals"]); setFrom(""); setUntil(""); setReason("");
+    toast.push(editing ? "Delegation updated — the delegate has been notified" : "Delegation created — the delegate has been notified", "success");
+    if (!editing) { setTo(""); setKinds(["approvals"]); setFrom(""); setUntil(""); setReason(""); }
     onClose(); onDone();
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Delegate" width={500} footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button variant="primary" loading={busy} disabled={!to || to === fromUserId || !kinds.length} onClick={save}><Check size={14} /> Delegate</Button></>}>
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={editing ? "Delegation" : "Delegate"}
+      width={500}
+      footer={
+        <>
+          {editing && onEnd && row?.active && <Button variant="ghost" className="mr-auto text-danger" onClick={onEnd}><Square size={13} /> End now</Button>}
+          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button variant="primary" loading={busy} disabled={!to || to === fromUserId || !kinds.length} onClick={save}><Check size={14} /> {editing ? "Save changes" : "Delegate"}</Button>
+        </>
+      }
+    >
       <div className="space-y-3">
-        <Field label="Delegate to"><PersonPicker value={to} onChange={setTo} placeholder="Choose a colleague…" /></Field>
+        <Field label="Delegate to"><PersonPicker value={to} onChange={setTo} placeholder="Choose a colleague…" excludeIds={[fromUserId]} /></Field>
         <div><span className="label">What</span><div className="flex flex-wrap gap-1.5">{DELEGATION_KINDS.map((k) => <button type="button" key={k.key} title={k.hint} onClick={() => toggle(k.key)} className={cn("pill pill-lg", kinds.includes(k.key) ? "tone-brand" : "tone-neutral")}>{k.label}</button>)}</div></div>
         <div className="grid grid-cols-2 gap-3"><Field label="From" hint="Empty = now"><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></Field><Field label="Until" hint="Empty = until you end it"><Input type="date" value={until} onChange={(e) => setUntil(e.target.value)} /></Field></div>
         <Field label="Reason"><Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Annual leave 12–20 Oct" /></Field>

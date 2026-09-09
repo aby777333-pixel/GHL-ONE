@@ -13,9 +13,16 @@ type SelProps = Omit<React.SelectHTMLAttributes<HTMLSelectElement>, "value" | "o
 };
 
 /** Pick a person from the directory. */
-export function PersonPicker({ value, onChange, placeholder = "Unassigned", allowEmpty = true, departmentId, ...rest }: SelProps & { departmentId?: string | null }) {
+/**
+ * `excludeIds` removes people who must not be choosable at all — an approver cannot be the
+ * requester, a mentor cannot be the mentee. Leaving an invalid name in the list and rejecting it
+ * on submit only teaches people that the form is broken; the option should not be there.
+ */
+export function PersonPicker({ value, onChange, placeholder = "Unassigned", allowEmpty = true, departmentId, excludeIds, ...rest }: SelProps & { departmentId?: string | null; excludeIds?: string[] }) {
   const { people, departments } = useSession();
-  const list = departmentId ? people.filter((p) => p.department_id === departmentId) : people;
+  const base = departmentId ? people.filter((p) => p.department_id === departmentId) : people;
+  // Never hide the value already selected, or the Select would silently show a blank row.
+  const list = excludeIds?.length ? base.filter((p) => p.id === value || !excludeIds.includes(p.id)) : base;
   const grouped = React.useMemo(() => {
     const byDept = new Map<string, typeof list>();
     for (const p of list) {

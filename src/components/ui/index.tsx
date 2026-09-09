@@ -29,8 +29,8 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function 
 });
 
 /* ------------------------------------------------------------------- Pill */
-export function Pill({ tone = "tone-neutral", className, children, size }: { tone?: string; className?: string; children: React.ReactNode; size?: "lg" }) {
-  return <span className={cn("pill", size === "lg" && "pill-lg", tone, className)}>{children}</span>;
+export function Pill({ tone = "tone-neutral", className, children, size, title }: { tone?: string; className?: string; children: React.ReactNode; size?: "lg"; title?: string }) {
+  return <span className={cn("pill", size === "lg" && "pill-lg", tone, className)} title={title}>{children}</span>;
 }
 
 /* ----------------------------------------------------------------- Avatar */

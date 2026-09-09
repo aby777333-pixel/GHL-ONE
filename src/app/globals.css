@@ -165,9 +165,29 @@ body {
 .tone-muted { color: var(--fg-muted); background: var(--neutral-bg); }
 .tone-brand { color: var(--brand-fg); background: var(--brand); }
 
+/*
+  DISPLAY belongs in @layer components — the same unlayered-beats-@layer trap as the input
+  paddings below, but for `display`. `.btn { display: inline-flex }` written unlayered beat
+  Tailwind's `hidden` / `sm:hidden` / `lg:hidden` (which live in @layer utilities), so every
+  responsive pair in the shell rendered BOTH halves at once — "New" next to "+", "Buddy" next
+  to the Buddy icon — and the phone-only hamburger stayed on desktop where its drawer is
+  `lg:hidden`, which is why the sidebar toggle looked dead.
+  Layered rules always lose to unlayered ones, so declaring `display` inside @layer components
+  (which Tailwind orders *before* utilities) lets `hidden`/`sm:hidden`/`lg:flex` work as written.
+  Keep `display` for these classes in this block — never back in the unlayered rules below.
+*/
+@layer components {
+  .btn { display: inline-flex; }
+  .pill { display: inline-flex; }
+  .kbd { display: inline-flex; }
+  .navlink { display: flex; }
+  .label { display: block; }
+  .blink-dot { display: inline-block; }
+}
+
 /* Controls */
 .btn {
-  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  align-items: center; justify-content: center; gap: 6px;
   height: 34px; padding: 0 13px; border-radius: var(--radius-sm);
   font-size: 0.875rem; font-weight: 500; line-height: 1; white-space: nowrap;
   border: 1px solid transparent; cursor: pointer; user-select: none;
@@ -218,13 +238,13 @@ body {
 .input.pr-10 { padding-right: 2.5rem; }
 .input.pr-24 { padding-right: 6rem; }
 .select { appearance: none; padding-right: 30px; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>"); background-repeat: no-repeat; background-position: right 10px center; }
-.label { display: block; font-size: 0.75rem; font-weight: 500; color: var(--fg-2); margin-bottom: 5px; }
+.label { font-size: 0.75rem; font-weight: 500; color: var(--fg-2); margin-bottom: 5px; }
 
-.pill { display: inline-flex; align-items: center; gap: 4px; height: 21px; padding: 0 8px; border-radius: 999px; font-size: 0.6875rem; font-weight: 600; letter-spacing: .01em; white-space: nowrap; }
+.pill { align-items: center; gap: 4px; height: 21px; padding: 0 8px; border-radius: 999px; font-size: 0.6875rem; font-weight: 600; letter-spacing: .01em; white-space: nowrap; }
 .pill-lg { height: 26px; padding: 0 10px; font-size: 0.75rem; }
-.kbd { display: inline-flex; align-items: center; height: 18px; padding: 0 5px; border-radius: 5px; border: 1px solid var(--line-strong); background: var(--bg-sunken); font-size: 0.6875rem; color: var(--fg-muted); font-family: var(--font-sans); }
+.kbd { align-items: center; height: 18px; padding: 0 5px; border-radius: 5px; border: 1px solid var(--line-strong); background: var(--bg-sunken); font-size: 0.6875rem; color: var(--fg-muted); font-family: var(--font-sans); }
 
-.navlink { display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 10px; border-radius: var(--radius-sm); font-size: 0.875rem; color: var(--fg-2); transition: background-color .12s ease, color .12s ease; }
+.navlink { align-items: center; gap: 10px; height: 34px; padding: 0 10px; border-radius: var(--radius-sm); font-size: 0.875rem; color: var(--fg-2); transition: background-color .12s ease, color .12s ease; }
 .navlink:hover { background: var(--neutral-bg); color: var(--fg); }
 .navlink[data-active="true"] { background: color-mix(in oklab, var(--brand) 12%, transparent); color: var(--brand); font-weight: 500; }
 .dark .navlink[data-active="true"] { background: color-mix(in oklab, var(--brand) 22%, transparent); color: var(--brand-2); }
@@ -274,6 +294,6 @@ body {
 
 /* Activity lights — a dot that blinks wherever something just happened (see components/providers/ActivityProvider) */
 @keyframes blink-pulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--blink) 55%, transparent); opacity: 1; } 50% { box-shadow: 0 0 0 5px color-mix(in oklab, var(--blink) 0%, transparent); opacity: .55; } }
-.blink-dot { --blink: var(--brand-2); display: inline-block; flex-shrink: 0; border-radius: 9999px; background: var(--blink); animation: blink-pulse 1.4s ease-in-out infinite; vertical-align: middle; }
+.blink-dot { --blink: var(--brand-2); flex-shrink: 0; border-radius: 9999px; background: var(--blink); animation: blink-pulse 1.4s ease-in-out infinite; vertical-align: middle; }
 .blink-muted { animation: none; opacity: .8; }
 @media (prefers-reduced-motion: reduce) { .blink-dot { animation: none; } }

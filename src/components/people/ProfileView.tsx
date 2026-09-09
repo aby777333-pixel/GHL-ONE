@@ -37,7 +37,7 @@ type ProjectItem = { role: string; id: string; name: string; status: string; pro
 type Report = { id: string; full_name: string; avatar_url: string | null; designation: string | null; presence: Profile["presence"]; department_id: string | null };
 type Leave = { id: string; starts_on: string; ends_on: string; kind: string; note: string | null; status: string };
 
-export function ProfileView({ person, tasks, projects, reports, leaves, edit, focus }: { person: ProfileData; tasks: TaskRowData[]; projects: ProjectItem[]; reports: Report[]; leaves: Leave[]; edit?: boolean; focus?: string | null }) {
+export function ProfileView({ person, tasks, projects, reports, leaves, edit, focus, fromNav }: { person: ProfileData; tasks: TaskRowData[]; projects: ProjectItem[]; reports: Report[]; leaves: Leave[]; edit?: boolean; focus?: string | null; fromNav?: boolean }) {
   const router = useRouter();
   /**
    * Notifications deep-link into a section of this page (a mentorship request arrives as
@@ -67,7 +67,18 @@ export function ProfileView({ person, tasks, projects, reports, leaves, edit, fo
 
   return (
     <div className="page">
-      <Link href="/people" className="inline-flex items-center gap-1 text-sm text-muted hover:text-[var(--fg)] mb-[var(--s3)]"><ArrowLeft size={14} /> People</Link>
+      {/*
+          "← People" is only true when you actually came from the directory. Opened from the avatar
+          menu in the header it claimed a path the user never took, so the label follows the entry
+          point: the shell appends `?from=nav`, and that renders a plain Back instead.
+      */}
+      {fromNav ? (
+        <button type="button" onClick={() => router.back()} className="inline-flex items-center gap-1 text-sm text-muted hover:text-[var(--fg)] mb-[var(--s3)]">
+          <ArrowLeft size={14} /> Back
+        </button>
+      ) : (
+        <Link href="/people" className="inline-flex items-center gap-1 text-sm text-muted hover:text-[var(--fg)] mb-[var(--s3)]"><ArrowLeft size={14} /> People</Link>
+      )}
 
       {/* Header */}
       <Card className="p-[var(--s4)] mb-[var(--s4)] overflow-hidden relative">
@@ -82,10 +93,17 @@ export function ProfileView({ person, tasks, projects, reports, leaves, edit, fo
         <div className="relative pt-[34px]">
           <span className="rounded-full ring-4 ring-[var(--bg-elev)] w-fit inline-block"><Avatar name={person.full_name} src={person.avatar_url} size={89} presence={person.presence} /></span>
         </div>
-        <div className="relative flex flex-col sm:flex-row sm:items-end gap-[var(--s3)] mt-[var(--s3)]">
-          <div className="min-w-0 flex-1 sm:pb-1">
+        {/*
+          The action cluster (Chat · Call · Video · Schedule · Assign · Recognise · Feedback) is wide.
+          Side by side from `sm` it took the row and squeezed this column, so the name arrived
+          cropped ("Test …") and the designation sat under the buttons at laptop widths. The two
+          columns now stack until `lg`, both can shrink (`min-w-0` on each, or the buttons' own
+          min-content width becomes a floor), and the name wraps instead of truncating.
+        */}
+        <div className="relative flex flex-col lg:flex-row lg:items-end gap-[var(--s3)] mt-[var(--s3)]">
+          <div className="min-w-0 lg:flex-1 lg:pb-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="h1 truncate">{person.full_name}</h1>
+              <h1 className="h1 break-words min-w-0">{person.full_name}</h1>
               <RolePill role={person.role} />
               {person.is_external && <Pill tone="tone-muted">External</Pill>}
               {!person.is_active && <Pill tone="tone-warn">Inactive</Pill>}
@@ -101,7 +119,7 @@ export function ProfileView({ person, tasks, projects, reports, leaves, edit, fo
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-wrap sm:pb-1">
+          <div className="flex items-center gap-2 flex-wrap min-w-0 lg:justify-end lg:pb-1">
             {!self && <ChatButton userId={person.id} variant="primary" size="md" />}
             {!self && <EntityLive ctx={{ personId: person.id, title: `Call with ${person.full_name}` }} include={["knock"]} label="Call · Video · Knock" />}
             {!self && (

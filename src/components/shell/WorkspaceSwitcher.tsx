@@ -137,7 +137,12 @@ export function WorkspaceSwitcher({ className }: { className?: string }) {
           {administrative ? (
             <span className="block text-[10px] font-semibold uppercase tracking-wide text-orange">Administrative mode</span>
           ) : current?.tenant_code ? (
-            <span className="block text-[10px] text-muted truncate">{current.tenant_code}</span>
+            /* Label it. A bare "GHL-001" under your own name reads as *your* employee code, and
+               testers reported it as a mismatch against the (different, per-person) code on the
+               profile. It is the company's tenant code and nothing else. */
+            <span className="block text-[10px] text-muted truncate" title={`Company code ${current.tenant_code}`}>
+              Company · {current.tenant_code}
+            </span>
           ) : null}
         </span>
         {administrative && <ShieldAlert size={14} className="text-orange sm:hidden" />}

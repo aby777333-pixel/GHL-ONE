@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Activity, ArrowLeftRight, Building2, CheckCircle2, Clock, History, LifeBuoy, RefreshCw, ShieldAlert, Sparkles, Users } from "lucide-react";
+import { Activity, ArrowLeftRight, Building2, CheckCircle2, ChevronRight, Clock, History, LifeBuoy, RefreshCw, ShieldAlert, Sparkles, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button, Card, CardHeader, EmptyState, Pill, Spinner } from "@/components/ui";
 import { useSession } from "@/components/providers/SessionProvider";
@@ -94,7 +94,14 @@ export function CompanyNow({ initial, initialCollab }: { initial: CompanyNowData
 
       {dept && <DepartmentFocus departmentId={dept} />}
 
-      <Section title={<span className="inline-flex items-center gap-1.5"><Users size={12} /> People</span>} hint={`${p.total ?? 0} active employees · ${p.available ?? 0} available right now`}>
+      {/* Every tile below is an attendance/leave/meeting cut, so the whole "People" block used to
+          lead only to Attendance — testers read that as People redirecting to the wrong page.
+          The section title now carries the way into the directory itself. */}
+      <Section
+        title={<Link href="/people" className="inline-flex items-center gap-1.5 hover:text-[var(--fg)]"><Users size={12} /> People</Link>}
+        hint={`${p.total ?? 0} active employees · ${p.available ?? 0} available right now`}
+        action={<Link href="/people" className="text-xs text-muted hover:text-[var(--fg)] inline-flex items-center gap-1">People directory <ChevronRight size={12} /></Link>}
+      >
         <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-[var(--s2)]">
           <Metric label="Present" value={p.present ?? 0} tone="text-success" href="/attendance" sub="in office today" />
           <Metric label="Remote / field" value={p.remote ?? 0} href="/attendance" />

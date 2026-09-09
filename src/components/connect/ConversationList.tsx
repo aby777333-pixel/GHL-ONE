@@ -101,7 +101,9 @@ export function ConversationList({
             {activeFilters > 0 && <button className="text-left link inline-flex items-center gap-1" onClick={() => onFilters(EMPTY_FILTERS)}><X size={11} /> Clear</button>}
           </div>
         )}
-        <div className="flex gap-1 overflow-x-auto no-scrollbar -mx-1 px-1">
+        {/* Wrap, do not scroll. In the narrow list pane the five chips overflowed, and
+            `no-scrollbar` removed the only hint that "Resolved" was still there off the edge. */}
+        <div className="flex flex-wrap gap-1 -mx-1 px-1">
           {VIEWS.map((v) => (
             <button key={v.key} onClick={() => onView(v.key)} className={cn("pill pill-lg whitespace-nowrap", view === v.key ? "tone-brand" : "tone-neutral")}>
               {v.label}{counts?.[v.key] != null && <span className="opacity-75 num">{counts[v.key]}</span>}

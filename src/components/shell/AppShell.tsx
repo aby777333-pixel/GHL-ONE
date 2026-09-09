@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, Menu as MenuIcon, Moon, MoonStar, Plus, Search, Sun, LogOut, User, Settings, X, ChevronDown, Sparkles } from "lucide-react";
+import { Bell, Menu as MenuIcon, Moon, MoonStar, PanelLeftClose, PanelLeftOpen, Plus, Search, Sun, LogOut, User, Settings, X, ChevronDown, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useSession } from "@/components/providers/SessionProvider";
 import { Avatar, Button, Kbd, Menu, MenuItem, ToastProvider } from "@/components/ui";
@@ -42,12 +42,43 @@ function useTheme() {
   return { dark, toggle };
 }
 
+/**
+ * Desktop sidebar collapse. The header hamburger used to be phone-only, so on a desktop it opened
+ * a drawer that is itself `lg:hidden` — testers reported it as a button with no function. It now
+ * genuinely collapses the rail, and the choice survives a reload.
+ * Read through `useSyncExternalStore` (same shape as the theme above) so the server snapshot is
+ * "open" and the client reads localStorage without a setState-in-effect cascade.
+ */
+const sidebarListeners = new Set<() => void>();
+function subscribeSidebar(cb: () => void) {
+  sidebarListeners.add(cb);
+  return () => { sidebarListeners.delete(cb); };
+}
+function readSidebar() {
+  try {
+    return localStorage.getItem("ghl-sidebar") === "collapsed";
+  } catch {
+    return false;
+  }
+}
+function useSidebarCollapsed() {
+  const collapsed = React.useSyncExternalStore(subscribeSidebar, readSidebar, () => false);
+  const toggle = React.useCallback(() => {
+    try {
+      localStorage.setItem("ghl-sidebar", readSidebar() ? "open" : "collapsed");
+    } catch {}
+    sidebarListeners.forEach((cb) => cb());
+  }, []);
+  return { collapsed, toggle };
+}
+
 export function AppShell({ children, initialCounts }: { children: React.ReactNode; initialCounts: Counts }) {
   const { profile, departments, screens, platformAdmin } = useSession();
   const pathname = usePathname();
   const router = useRouter();
   const { dark, toggle } = useTheme();
   const [mobileOpen, setMobileOpen] = React.useState(false);
+  const { collapsed, toggle: toggleCollapsed } = useSidebarCollapsed();
   const [paletteOpen, setPaletteOpen] = React.useState(false);
   const [notifOpen, setNotifOpen] = React.useState(false);
   const [captureOpen, setCaptureOpen] = React.useState(false);
@@ -190,7 +221,9 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
     <ToastProvider>
       <div className="flex min-h-dvh">
         {/* Desktop sidebar */}
-        <aside className="hidden lg:flex flex-col fixed inset-y-0 left-0 w-[var(--sidebar-w)] border-r bg-[var(--bg-elev)] z-40">{Sidebar}</aside>
+        <aside className="hidden lg:flex flex-col fixed inset-y-0 left-0 w-[var(--sidebar-w)] border-r bg-[var(--bg-elev)] z-40" style={collapsed ? { display: "none" } : undefined}>
+          {Sidebar}
+        </aside>
         {/* Mobile drawer */}
         {mobileOpen && (
           <div className="fixed inset-0 z-[90] lg:hidden">
@@ -199,20 +232,30 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
           </div>
         )}
 
-        <div className="flex-1 min-w-0 flex flex-col lg:pl-[var(--sidebar-w)]">
+        {/* Collapsing the rail is just `--sidebar-w: 0` here — `lg:pl-[var(--sidebar-w)]` reads it. */}
+        <div className="flex-1 min-w-0 flex flex-col lg:pl-[var(--sidebar-w)]" style={collapsed ? ({ ["--sidebar-w" as string]: "0px" } as React.CSSProperties) : undefined}>
           {/* Topbar */}
           <header className="sticky top-0 z-30 glass border-b h-[var(--topbar-h)] flex items-center gap-2 px-3 sm:px-4">
-            <button className="lg:hidden btn btn-ghost btn-sm btn-icon" onClick={() => setMobileOpen(true)} aria-label="Menu">
+            <button className="lg:hidden btn btn-ghost btn-sm btn-icon shrink-0" onClick={() => setMobileOpen(true)} aria-label="Open menu">
               <MenuIcon size={18} />
+            </button>
+            <button
+              className="hidden lg:inline-flex btn btn-ghost btn-sm btn-icon shrink-0"
+              onClick={toggleCollapsed}
+              aria-label={collapsed ? "Show sidebar" : "Hide sidebar"}
+              aria-expanded={!collapsed}
+              title={collapsed ? "Show sidebar" : "Hide sidebar"}
+            >
+              {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
             </button>
             {/* Which company am I in? Always visible, and coloured when you are here as platform staff. */}
             <WorkspaceSwitcher />
             <button onClick={() => setPaletteOpen(true)} className="flex-1 min-w-0 max-w-xl flex items-center gap-2 h-9 px-3 rounded-[var(--radius-sm)] border bg-[var(--bg)] text-sm text-muted hover:border-[var(--line-strong)] transition-colors">
-              <Search size={15} />
+              <Search size={15} className="shrink-0" />
               <span className="truncate"><span className="sm:hidden">Search…</span><span className="hidden sm:inline">Search people, tasks, projects, messages, files…</span></span>
               <span className="ml-auto hidden sm:inline-flex gap-1"><Kbd>Ctrl</Kbd><Kbd>K</Kbd></span>
             </button>
-            <div className="ml-auto flex items-center gap-1 shrink-0">
+            <div className="ml-auto flex items-center gap-1.5 shrink-0">
               <ClockWidget className="mr-1" />
               <Button variant="primary" size="sm" onClick={() => setCaptureOpen(true)} className="hidden sm:inline-flex">
                 <Plus size={15} /> New
@@ -250,8 +293,8 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
                   <div className="text-sm font-medium truncate">{profile.full_name}</div>
                   <div className="text-[11px] text-muted truncate">{profile.email}</div>
                 </div>
-                <MenuItem icon={<User size={14} />} onClick={() => router.push(`/people/${profile.id}`)}>My profile</MenuItem>
-                <MenuItem icon={<Settings size={14} />} onClick={() => router.push(`/people/${profile.id}?edit=1`)}>Settings & status</MenuItem>
+                <MenuItem icon={<User size={14} />} onClick={() => router.push(`/people/${profile.id}?from=nav`)}>My profile</MenuItem>
+                <MenuItem icon={<Settings size={14} />} onClick={() => router.push(`/people/${profile.id}?edit=1&from=nav`)}>Settings & status</MenuItem>
                 <div className="px-2.5 pt-2 pb-1.5 border-t mt-1">
                   <div className={cn("flex items-center gap-1.5 text-[11px] mb-1.5", dndActive ? "text-violet font-medium" : "text-muted")}>
                     <MoonStar size={12} /> Do not disturb{dndActive && dndUntil ? ` · until ${fmtTime(dndUntil)}` : ""}

@@ -8416,6 +8416,9 @@ export type Database = {
         Row: {
           agenda: string | null
           async_suggested: boolean
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
           created_at: string
           department_id: string | null
           ends_at: string | null
@@ -8439,6 +8442,9 @@ export type Database = {
         Insert: {
           agenda?: string | null
           async_suggested?: boolean
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           created_at?: string
           department_id?: string | null
           ends_at?: string | null
@@ -8462,6 +8468,9 @@ export type Database = {
         Update: {
           agenda?: string | null
           async_suggested?: boolean
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           created_at?: string
           department_id?: string | null
           ends_at?: string | null
@@ -13140,6 +13149,7 @@ export type Database = {
         Args: { p_user: string; p_video?: boolean }
         Returns: string
       }
+      cancel_meeting: { Args: { p_meeting: string; p_reason?: string }; Returns: Json }
       can_assign: {
         Args: { p_assignee: string; p_assigner?: string }
         Returns: boolean

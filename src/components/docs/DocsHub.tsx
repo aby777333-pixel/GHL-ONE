@@ -8,9 +8,10 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Building2, CalendarDays, FileText, FolderKanban, Plus, Search, Users } from "lucide-react";
+import { Building2, CalendarDays, FileText, FolderKanban, Globe2, Lock, Plus, Search, Trash2, Users } from "lucide-react";
 import { Button, Card, EmptyState, Field, Input, Modal, PageHeader, Pill, Select, Tabs, useToast } from "@/components/ui";
 import { useSession } from "@/components/providers/SessionProvider";
+import { createClient } from "@/lib/supabase/client";
 import { createDoc } from "@/lib/live/client";
 import type { LiveDocKind } from "@/lib/live/types";
 import { ago, cn, humanize } from "@/lib/utils";
@@ -39,6 +40,24 @@ const KINDS: { key: LiveDocKind; label: string; hint: string }[] = [
 
 type TabKey = "all" | "mine" | "notes";
 
+/**
+ * How a document is shared, said out loud on every card. Keys match `live_docs.visibility`.
+ */
+const VISIBILITY_LABEL: Record<string, string> = { private: "only me", members: "members", department: "department", company: "everyone" };
+const VISIBILITY_TONE: Record<string, string> = { private: "tone-neutral", members: "tone-info", department: "tone-warn", company: "tone-violet" };
+const VISIBILITY_HINT: Record<string, string> = {
+  private: "Only you can open this document.",
+  members: "You and the people you added.",
+  department: "Everyone in the department.",
+  company: "Everyone in the company.",
+};
+const VISIBILITY_ICON: Record<string, React.ReactNode> = {
+  private: <Lock size={10} />,
+  members: <Users size={10} />,
+  department: <Building2 size={10} />,
+  company: <Globe2 size={10} />,
+};
+
 export function DocsHub({ docs }: { docs: DocListItem[] }) {
   const router = useRouter();
   const toast = useToast();
@@ -49,6 +68,20 @@ export function DocsHub({ docs }: { docs: DocListItem[] }) {
   const [title, setTitle] = React.useState("");
   const [kind, setKind] = React.useState<LiveDocKind>("doc");
   const [visibility, setVisibility] = React.useState<"private" | "members" | "department" | "company">("members");
+  /* The person who created a document had no way to remove it — the list was append-only.
+     `ld_delete` already allows the owner (and admins); this is the missing affordance. */
+  const [confirmDelete, setConfirmDelete] = React.useState<DocListItem | null>(null);
+  const [deleting, setDeleting] = React.useState(false);
+  const isOwner = React.useCallback((d: DocListItem) => d.owner_id === profile.id, [profile.id]);
+  async function removeDoc(d: DocListItem) {
+    setDeleting(true);
+    const { error } = await createClient().from("live_docs").delete().eq("id", d.id);
+    setDeleting(false);
+    if (error) { toast.push(error.message, "danger"); return; }
+    setConfirmDelete(null);
+    toast.push("Document deleted", "success");
+    router.refresh();
+  }
   const [busy, setBusy] = React.useState(false);
 
   const filtered = React.useMemo(() => {
@@ -135,13 +168,42 @@ export function DocsHub({ docs }: { docs: DocListItem[] }) {
                   {dept && <Pill tone="tone-neutral"><Building2 size={10} /> {dept.name}</Pill>}
                   {d.project_id && <Pill tone="tone-info"><FolderKanban size={10} /> project</Pill>}
                   {d.meeting_id && <Pill tone="tone-info"><CalendarDays size={10} /> meeting</Pill>}
-                  {d.visibility === "company" && <Pill tone="tone-violet"><Users size={10} /> everyone</Pill>}
+                  {/* Only "company" used to be labelled, so a doc set to Private, Members or
+                      Department looked like it had no sharing setting at all. */}
+                  <Pill tone={VISIBILITY_TONE[d.visibility] || "tone-neutral"} title={VISIBILITY_HINT[d.visibility]}>
+                    {VISIBILITY_ICON[d.visibility]} {VISIBILITY_LABEL[d.visibility] || humanize(d.visibility)}
+                  </Pill>
+                  {isOwner(d) && (
+                    <button
+                      type="button"
+                      className="ml-auto text-[11px] text-muted hover:text-danger inline-flex items-center gap-1"
+                      onClick={() => setConfirmDelete(d)}
+                      title="Delete this document"
+                    >
+                      <Trash2 size={11} /> Delete
+                    </button>
+                  )}
                 </div>
               </Card>
             );
           })}
         </div>
       )}
+
+      <Modal
+        open={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        title="Delete this document?"
+        width={420}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setConfirmDelete(null)} disabled={deleting}>Keep it</Button>
+            <Button variant="danger" loading={deleting} onClick={() => confirmDelete && removeDoc(confirmDelete)}><Trash2 size={15} /> Delete</Button>
+          </>
+        }
+      >
+        <p className="text-sm text-muted">“{confirmDelete?.title}” and its version history go for good. Anyone you shared it with loses access.</p>
+      </Modal>
 
       <Modal
         open={newOpen}

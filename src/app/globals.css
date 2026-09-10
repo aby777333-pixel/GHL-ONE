@@ -184,20 +184,6 @@ body {
 .tone-brand { color: var(--brand-fg); background: var(--brand); }
 
 /*
-  Tailwind v4's preflight no longer gives <button> the browser's pointer cursor (a documented
-  change from v3). `.btn` sets `cursor: pointer` back, so every Button looked right — but every
-  plain <button> did not: the Inbox rows under Action required and Approvals navigate when you
-  click them and gave no hint they were clickable. Restore it in @layer base so a deliberate
-  `cursor-default` / `cursor-not-allowed` utility still wins.
-*/
-@layer base {
-  button:not(:disabled),
-  [role="button"]:not([aria-disabled="true"]) {
-    cursor: pointer;
-  }
-}
-
-/*
   DISPLAY belongs in @layer components — the same unlayered-beats-@layer trap as the input
   paddings below, but for `display`. `.btn { display: inline-flex }` written unlayered beat
   Tailwind's `hidden` / `sm:hidden` / `lg:hidden` (which live in @layer utilities), so every
@@ -345,4 +331,14 @@ body {
 @keyframes blink-pulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--blink) 55%, transparent); opacity: 1; } 50% { box-shadow: 0 0 0 5px color-mix(in oklab, var(--blink) 0%, transparent); opacity: .55; } }
 .blink-dot { --blink: var(--brand-2); flex-shrink: 0; border-radius: 9999px; background: var(--blink); animation: blink-pulse 1.4s ease-in-out infinite; vertical-align: middle; }
 .blink-muted { animation: none; opacity: .8; }
+
+/*
+  The lamp beside the menu: one light for "something, somewhere, has happened". It pulses rather
+  than flashes, and it glows in the tone of whatever is most urgent — the per-zone dots say where.
+*/
+@keyframes lamp-pulse {
+  0%, 100% { opacity: 1; filter: drop-shadow(0 0 3px currentColor); }
+  50%      { opacity: .55; filter: drop-shadow(0 0 0 currentColor); }
+}
+.activity-lamp-on { animation: lamp-pulse 1.6s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .blink-dot { animation: none; } }

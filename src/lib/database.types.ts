@@ -1855,6 +1855,7 @@ export type Database = {
         Row: {
           action: string
           actor_id: string | null
+          actor_label: string | null
           created_at: string
           entity_id: string | null
           entity_type: string
@@ -1869,6 +1870,7 @@ export type Database = {
         Insert: {
           action: string
           actor_id?: string | null
+          actor_label?: string | null
           created_at?: string
           entity_id?: string | null
           entity_type: string
@@ -1883,6 +1885,7 @@ export type Database = {
         Update: {
           action?: string
           actor_id?: string | null
+          actor_label?: string | null
           created_at?: string
           entity_id?: string | null
           entity_type?: string
@@ -1895,13 +1898,6 @@ export type Database = {
           task_id?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "audit_logs_actor_id_fkey"
-            columns: ["actor_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "audit_logs_org_id_fkey"
             columns: ["org_id"]
@@ -9465,6 +9461,70 @@ export type Database = {
           },
         ]
       }
+      permission_scopes: {
+        Row: {
+          created_at: string
+          department_ids: string[]
+          expires_at: string | null
+          id: string
+          org_id: string
+          perm: string
+          reason: string | null
+          scope: string
+          set_by: string | null
+          subject: string
+          subject_id: string
+        }
+        Insert: {
+          created_at?: string
+          department_ids?: string[]
+          expires_at?: string | null
+          id?: string
+          org_id: string
+          perm: string
+          reason?: string | null
+          scope: string
+          set_by?: string | null
+          subject: string
+          subject_id: string
+        }
+        Update: {
+          created_at?: string
+          department_ids?: string[]
+          expires_at?: string | null
+          id?: string
+          org_id?: string
+          perm?: string
+          reason?: string | null
+          scope?: string
+          set_by?: string | null
+          subject?: string
+          subject_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "permission_scopes_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "permission_scopes_perm_fkey"
+            columns: ["perm"]
+            isOneToOne: false
+            referencedRelation: "permissions"
+            referencedColumns: ["key"]
+          },
+          {
+            foreignKeyName: "permission_scopes_set_by_fkey"
+            columns: ["set_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       permissions: {
         Row: {
           action: string | null
@@ -13817,6 +13877,14 @@ export type Database = {
         Returns: boolean
       }
       in_quiet_hours: { Args: { uid: string }; Returns: boolean }
+      in_scope_department: {
+        Args: { p_dept: string; p_perm: string; p_user?: string }
+        Returns: boolean
+      }
+      in_scope_user: {
+        Args: { p_perm: string; p_target: string; p_user?: string }
+        Returns: boolean
+      }
       ingest_email: {
         Args: { p_payload: Json; p_token: string }
         Returns: Json
@@ -14124,6 +14192,10 @@ export type Database = {
       org_health: { Args: never; Returns: Json }
       people_intelligence: { Args: { p_days?: number }; Returns: Json }
       permission_holders: { Args: { p_perm: string }; Returns: Json }
+      permission_scope: {
+        Args: { p_perm: string; p_user?: string }
+        Returns: Json
+      }
       person_name: { Args: { uid: string }; Returns: string }
       pick_agent: { Args: { p_inbox: string }; Returns: string }
       platform_can_touch: {
@@ -14308,6 +14380,7 @@ export type Database = {
         Args: { cfg: Json; from_ts: string }
         Returns: string
       }
+      scope_rank: { Args: { p_scope: string }; Returns: number }
       search_all: {
         Args: { lim?: number; q: string }
         Returns: {
@@ -14511,6 +14584,7 @@ export type Database = {
       tenant_isolation_probe: { Args: { p_other_org: string }; Returns: Json }
       tenant_isolation_report: { Args: never; Returns: Json }
       tenant_usage_snapshot: { Args: never; Returns: number }
+      test_access_control: { Args: never; Returns: Json }
       test_automation: { Args: { p_id: string; p_task: string }; Returns: Json }
       test_enum_casts: { Args: never; Returns: Json }
       test_function_volatility: { Args: never; Returns: Json }

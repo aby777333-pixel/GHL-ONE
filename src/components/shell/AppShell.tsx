@@ -16,7 +16,7 @@ import { BuddyPanel, useBuddy } from "@/components/ai";
 import { LiveProvider } from "@/components/live/LiveProvider";
 import { CollaborateMenu } from "@/components/live/CollaborateMenu";
 import { CollaborateButton } from "@/components/live/CollaborateButton";
-import { Blink } from "@/components/providers/ActivityProvider";
+import { ActivityLamp, Blink } from "@/components/providers/ActivityProvider";
 import { ClockWidget } from "@/components/attendance";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 import { BreakGlassBanner } from "@/components/platform/BreakGlassDialog";
@@ -259,6 +259,8 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
             >
               {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
             </button>
+            {/* One light for "anything, anywhere". The per-item dots in the rail say where. */}
+            <ActivityLamp />
             {/* Which company am I in? Always visible, and coloured when you are here as platform staff. */}
             <WorkspaceSwitcher />
             <button onClick={() => setPaletteOpen(true)} className="flex-1 min-w-0 max-w-xl flex items-center gap-2 h-9 px-3 rounded-[var(--radius-sm)] border bg-[var(--bg)] text-sm text-muted hover:border-[var(--line-strong)] transition-colors">

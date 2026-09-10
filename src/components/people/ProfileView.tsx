@@ -11,6 +11,7 @@ import { ago, fmtDate, isAdminRole, isManagerPlus, PROJECT_STATUS_LABEL, PROJECT
 import { PRESENCE_LABEL, PRESENCE_TONE } from "./types";
 import { ChatButton, RolePill } from "./PeopleBits";
 import { EntityLive } from "@/components/live/EntityLive";
+import { openCollaborate } from "@/components/live/liveStore";
 import { ProfileEditor } from "./ProfileEditor";
 import { NotificationSettings } from "./NotificationSettings";
 import { PushOptIn } from "@/components/notifications/PushOptIn";
@@ -64,6 +65,9 @@ export function ProfileView({ person, tasks, projects, reports, leaves, edit, fo
   const hrView = self || !!isHr || managerOf;
 
   const meetHref = `/meetings?new=1&with=${person.id}`;
+  // One context object for every live action on this person, so Call, Video and Knock all land in
+  // the same room rather than three subtly different ones.
+  const liveCtx = { personId: person.id, title: `Call with ${person.full_name}` };
 
   return (
     <div className="page">
@@ -128,11 +132,17 @@ export function ProfileView({ person, tasks, projects, reports, leaves, edit, fo
           </div>
           <div className="flex items-center gap-2 flex-wrap min-w-0 lg:justify-end lg:pb-1 lg:max-w-full">
             {!self && <ChatButton userId={person.id} variant="primary" size="md" />}
-            {!self && <EntityLive ctx={{ personId: person.id, title: `Call with ${person.full_name}` }} include={["knock"]} label="Call · Video · Knock" />}
+            {/*
+              Call and Video used to be links to `/meetings?new=1&with=…` — the same href as
+              Schedule — so clicking "Call" opened the meeting scheduler instead of calling anybody.
+              They now do what they say, through the same live layer the Collaborate menu uses.
+              That menu drops voice/video in turn, so the row offers each action once.
+            */}
+            {!self && <EntityLive ctx={liveCtx} include={["knock"]} exclude={["voice", "video"]} label="Knock" />}
             {!self && (
               <>
-                <Link href={meetHref} className="btn btn-secondary" title="Call"><PhoneCall size={15} /><span className="hidden sm:inline">Call</span></Link>
-                <Link href={meetHref} className="btn btn-secondary" title="Video"><Video size={15} /><span className="hidden sm:inline">Video</span></Link>
+                <Button variant="secondary" onClick={() => openCollaborate(liveCtx, "voice")} title={`Call ${person.full_name} now`}><PhoneCall size={15} /><span className="hidden sm:inline">Call</span></Button>
+                <Button variant="secondary" onClick={() => openCollaborate(liveCtx, "video")} title={`Start a video call with ${person.full_name}`}><Video size={15} /><span className="hidden sm:inline">Video</span></Button>
                 <Link href={meetHref} className="btn btn-secondary"><CalendarPlus size={15} /><span className="hidden sm:inline">Schedule</span></Link>
                 <Link href={`/tasks?new=1&assignee=${person.id}`} className="btn btn-secondary"><ListPlus size={15} /><span className="hidden sm:inline">Assign task</span></Link>
                 <Button variant="secondary" onClick={() => setKudosOpen(true)} title="Recognise"><Trophy size={15} /><span className="hidden sm:inline">Recognise</span></Button>

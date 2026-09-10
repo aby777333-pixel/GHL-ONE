@@ -17,7 +17,8 @@ import * as React from "react";
 import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useSession } from "@/components/providers/SessionProvider";
-import { isManagerPlus, isLeadPlus, isAdminRole } from "@/lib/utils";
+import { Lightbulb } from "lucide-react";
+import { cn, isManagerPlus, isLeadPlus, isAdminRole } from "@/lib/utils";
 
 export type ActivityTone = "brand" | "warn" | "danger" | "success" | "violet";
 export type ActivityRecord = { at: number; count: number; tone: ActivityTone; label?: string };
@@ -303,6 +304,64 @@ export function useSeen(zone: string | string[] | undefined | null) {
 
 export function useActivityMuted() {
   return React.useContext(ActivityContext)?.muted ?? false;
+}
+
+/**
+ * Everything at once: the strongest live record across every zone, plus how many zones are lit and
+ * a readable list of the areas involved. For a single global indicator, where the per-zone dots
+ * answer "where" and this answers "is anything happening at all".
+ */
+export function useActivityAll(): { rec: ActivityRecord | null; count: number; areas: string[] } {
+  const ctx = React.useContext(ActivityContext);
+  const zones = ctx?.zones;
+  return React.useMemo(() => {
+    if (!zones || zones.size === 0) return { rec: null, count: 0, areas: [] };
+    let best: ActivityRecord | null = null;
+    const areas = new Set<string>();
+    for (const [zone, r] of zones) {
+      if (!best || rank(r.tone) > rank(best.tone) || r.at > best.at) best = r;
+      // `nav:/tasks` is the only zone kind that names a place a person can read off a menu.
+      if (zone.startsWith("nav:/")) areas.add(zone.slice(5));
+      else if (r.label) areas.add(r.label);
+    }
+    return { rec: best, count: zones.size, areas: [...areas].slice(0, 6) };
+  }, [zones]);
+}
+
+const TONE_COLOR: Record<ActivityTone, string> = {
+  brand: "var(--brand-2)", warn: "var(--warn)", danger: "var(--danger)",
+  success: "var(--success)", violet: "var(--violet)",
+};
+
+/**
+ * The lamp. One light beside the menu that comes on whenever anything anywhere has happened that
+ * this person is allowed to see — the per-zone dots then say where. Dark and quiet when there is
+ * nothing, so its absence is as readable as its presence. Honours quiet hours / DND like every
+ * other light: it stays lit, it stops pulsing.
+ */
+export function ActivityLamp({ className }: { className?: string }) {
+  const { rec, count, areas } = useActivityAll();
+  const muted = useActivityMuted();
+  const on = !!rec;
+  const title = on
+    ? `${count} ${count === 1 ? "area has" : "areas have"} new activity${areas.length ? ` · ${areas.join(", ")}` : ""}${muted ? " · quiet hours" : ""}`
+    : "No new activity";
+  return (
+    <span
+      className={cn("relative inline-flex items-center justify-center w-8 h-8 shrink-0", className)}
+      title={title}
+      aria-label={title}
+      aria-live="polite"
+      data-active={on}
+    >
+      <Lightbulb
+        size={17}
+        className={cn("transition-colors", on && !muted && "activity-lamp-on")}
+        style={{ color: on ? TONE_COLOR[rec.tone] : "var(--fg-muted)", opacity: on ? 1 : 0.45 }}
+        aria-hidden
+      />
+    </span>
+  );
 }
 
 /** The light. Renders nothing when the zone is quiet. */

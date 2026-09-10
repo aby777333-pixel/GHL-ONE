@@ -3,17 +3,18 @@
 import * as React from "react";
 import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
-import { History, ImagePlus, LifeBuoy, Plus, Sparkles, X } from "lucide-react";
+import { ImagePlus, LifeBuoy, Plus, Sparkles, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useSession } from "@/components/providers/SessionProvider";
-import { Button, Menu, MenuItem, Pill, Spinner } from "@/components/ui";
+import { Button, Pill, Spinner } from "@/components/ui";
 import { callAI, type BuddyAssistantKey, type BuddyMode, type BuddyProposal, type BuddyRequest, type BuddyResponse, type BuddyScope, type BuddyContextItem } from "@/lib/ai/types";
-import { ago, cn, isManagerPlus } from "@/lib/utils";
+import { cn, isManagerPlus } from "@/lib/utils";
 import { AIDisabledNote } from "./AIDisabledNote";
 import { useAIStatus } from "./useAIStatus";
 import { BuddyMessage, type BuddyMsg } from "./BuddyMessage";
 import { BuddyComposer, fileToAttachment, uid, type PendingAttachment } from "./BuddyComposer";
-import { BAR_MODES, LANGUAGES, MODE_META, plainText, scopeEntity, scopeFor, scopeKey, type ScopeEntity } from "./buddyModes";
+import { BAR_MODES, LANGUAGES, MODE_META, detectSpeechLang, pickVoice, plainText, scopeEntity, scopeFor, scopeKey, type ScopeEntity } from "./buddyModes";
+import { ConversationHistory } from "./ConversationHistory";
 import { closeBuddy, consumeBuddyRequest, useBuddy, type BuddyOpenOptions } from "./buddyStore";
 
 export { useBuddy, openBuddy, closeBuddy, toggleBuddy } from "./buddyStore";
@@ -71,7 +72,7 @@ function scopePrompts(scope: BuddyScope): string[] {
 }
 
 async function fetchHistory(): Promise<Conv[]> {
-  const { data } = await createClient().from("ai_conversations").select("id,title,updated_at,mode,assistant_key").order("updated_at", { ascending: false }).limit(20);
+  const { data } = await createClient().from("ai_conversations").select("id,title,updated_at,mode,assistant_key").order("updated_at", { ascending: false }).limit(200);
   return (data as Conv[]) || [];
 }
 async function fetchMessages(id: string): Promise<{ msgs: BuddyMsg[]; error?: string }> {
@@ -241,13 +242,38 @@ export function BuddyPanel({ open, onClose, initial }: { open: boolean; onClose:
       setSpeaking(false);
       return;
     }
-    const u = new SpeechSynthesisUtterance(plainText(text).slice(0, 2500));
-    u.lang = LANGUAGES.find((l) => l.key === prefs.language)?.speech || "en-IN";
+    const spoken = plainText(text).slice(0, 2500);
+    const u = new SpeechSynthesisUtterance(spoken);
+    /*
+      The language of the ANSWER, not of the preference. Buddy replies in whichever language it was
+      asked in, so a Telugu reply was being handed to an English voice and read as nonsense. The
+      script the characters are written in settles it; Latin text has no script tell, so the
+      preference still decides there.
+    */
+    u.lang = detectSpeechLang(spoken) || LANGUAGES.find((l) => l.key === prefs.language)?.speech || "en-IN";
+    /*
+      And `lang` alone does not choose a voice: with no matching voice installed the browser uses
+      its default one and pronounces the text with that, whatever `lang` says. Voices also load
+      asynchronously, so an empty list here is normal on the first call and simply means "use the
+      default" rather than "none exists".
+    */
+    const voice = pickVoice(synth.getVoices(), u.lang);
+    if (voice) u.voice = voice;
     u.onend = () => setSpeaking(false);
     u.onerror = () => setSpeaking(false);
     setSpeaking(true);
     synth.speak(u);
   }, [prefs.language]);
+
+  /* Voices arrive asynchronously in Chrome; touching the list once primes it so the first
+     read-aloud already has them. */
+  React.useEffect(() => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    const prime = () => window.speechSynthesis.getVoices();
+    prime();
+    window.speechSynthesis.addEventListener?.("voiceschanged", prime);
+    return () => window.speechSynthesis.removeEventListener?.("voiceschanged", prime);
+  }, []);
   React.useEffect(() => {
     if (isOpen) return;
     try {
@@ -452,22 +478,18 @@ export function BuddyPanel({ open, onClose, initial }: { open: boolean; onClose:
             </div>
           </div>
           <div className="flex items-center gap-0.5 shrink-0">
-            <Menu
-              width={300}
-              trigger={<button type="button" className="btn btn-ghost btn-sm btn-icon" aria-label="Conversation history" title="History"><History size={16} /></button>}
-            >
-              <div className="eyebrow px-2.5 pt-1.5 pb-1">Recent conversations</div>
-              {history.length === 0 ? (
-                <div className="px-2.5 py-2 text-xs text-muted">No conversations yet</div>
-              ) : (
-                history.map((c) => (
-                  <MenuItem key={c.id} onClick={() => selectConversation(c.id)}>
-                    <span className={cn("truncate flex-1", c.id === conversationId && "font-medium")}>{c.title || "Untitled"}</span>
-                    <span className="text-[10px] text-muted shrink-0 num">{ago(c.updated_at)}</span>
-                  </MenuItem>
-                ))
-              )}
-            </Menu>
+            <ConversationHistory
+              history={history}
+              conversationId={conversationId}
+              onSelect={selectConversation}
+              onChanged={(deletedId) => {
+                fetchHistory().then(setHistory);
+                /* Deleting the conversation you are reading would leave the panel showing messages
+                   that no longer exist, so start a fresh one. Checking the refreshed list instead
+                   would race the fetch and read the stale one. */
+                if (deletedId && deletedId === conversationId) newConversation();
+              }}
+            />
             <Button variant="ghost" size="sm" icon onClick={newConversation} aria-label="New conversation" title="New conversation"><Plus size={16} /></Button>
             <Button variant="ghost" size="sm" icon onClick={close} aria-label="Close"><X size={16} /></Button>
           </div>

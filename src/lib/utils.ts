@@ -77,6 +77,19 @@ export const PROJECT_STATUS_TONE: Record<ProjectStatus, string> = {
 };
 
 export const APPROVAL_TYPES: ApprovalType[] = ["design", "content", "budget", "purchase", "hiring", "leave", "vendor", "marketing", "campaign", "deployment", "contract", "expense", "investor_material", "other"];
+
+/**
+ * The types a person may RAISE from the generic "Request approval" form.
+ *
+ * `leave` is deliberately absent. Leave has its own module — balances, coverage collisions, the
+ * "what breaks?" impact check and the approver chain — and raising it as a plain approval bypasses
+ * all of that, so the same request could exist in two places with two different sets of rules.
+ *
+ * It stays in `APPROVAL_TYPES` above, which is what filters and labels existing rows: approvals
+ * already raised as `leave` must keep working and stay findable. This list only governs what can
+ * be created from here on.
+ */
+export const APPROVAL_TYPES_REQUESTABLE: ApprovalType[] = APPROVAL_TYPES.filter((t) => t !== "leave");
 export const APPROVAL_STATUS_LABEL: Record<ApprovalStatus, string> = {
   pending: "Pending", approved: "Approved", rejected: "Rejected", changes_requested: "Changes requested",
 };

@@ -12,7 +12,7 @@ import { PersonChip, PriorityPill } from "@/components/tasks/TaskBits";
 import { AttachmentList, AttachmentUploader, type FileWithVersions } from "@/components/tasks/AttachmentUploader";
 import type { TaskLite } from "@/components/tasks/TaskListView";
 import { humaniseAudit } from "@/components/projects/humanise";
-import { ago, cn, fmtDate, humanize, isLeadPlus, isManagerPlus, relDate, APPROVAL_STATUS_LABEL, APPROVAL_STATUS_TONE, APPROVAL_TYPES, type ApprovalType, type Project, type Tables, type TaskPriority } from "@/lib/utils";
+import { ago, cn, fmtDate, humanize, isLeadPlus, isManagerPlus, relDate, APPROVAL_STATUS_LABEL, APPROVAL_STATUS_TONE, APPROVAL_TYPES_REQUESTABLE, type ApprovalType, type Project, type Tables, type TaskPriority } from "@/lib/utils";
 
 /* ------------------------------------------------------------------ Team */
 export function TeamPanel({ project, members, tasks }: { project: Project; members: { user_id: string; role: string; added_at: string }[]; tasks: TaskLite[] }) {
@@ -332,7 +332,7 @@ export function ApprovalsPanel({ project, approvals }: { project: Project; appro
         <form onSubmit={save} className="card p-[var(--s4)] space-y-3 anim-fade-up">
           <Field label="What needs approval?"><Input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} required /></Field>
           <div className="grid sm:grid-cols-2 gap-3">
-            <Field label="Type"><Select value={type} onChange={(e) => setType(e.target.value as ApprovalType)}>{APPROVAL_TYPES.map((t) => <option key={t} value={t}>{humanize(t)}</option>)}</Select></Field>
+            <Field label="Type"><Select value={type} onChange={(e) => setType(e.target.value as ApprovalType)}>{APPROVAL_TYPES_REQUESTABLE.map((t) => <option key={t} value={t}>{humanize(t)}</option>)}</Select></Field>
             <Field label="Approver"><PersonPicker value={approver} onChange={setApprover} placeholder="Choose approver" allowEmpty={false} /></Field>
             <Field label="Amount (optional)"><Input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="₹" /></Field>
             <Field label="Needed by"><Input type="datetime-local" value={due} onChange={(e) => setDue(e.target.value)} /></Field>

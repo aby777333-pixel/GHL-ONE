@@ -107,7 +107,12 @@
   --shadow-pop: var(--shadow-lg);
 }
 
-html, body { height: 100%; }
+/*
+  `height: 100%` on body is deliberately NOT set. With `overflow-x` creating a scroll container it
+  made body a viewport-height scrolling box, and the sticky topbar then stuck to a box that never
+  scrolls while the page itself scrolled on `html` — the header slid away with the content.
+*/
+html { height: 100%; }
 /*
   Reserve the scrollbar track even when the page is short. Without this the bar appears and
   disappears as content grows — switching a department between Overview and Tasks, or expanding a
@@ -121,7 +126,17 @@ body {
   font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01";
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  overflow-x: hidden;
+  /*
+    NOTHING here sets `overflow`, deliberately.
+
+    `overflow-x: hidden` used to sit on body and it broke `position: sticky` across the whole
+    application: per spec a non-visible `overflow-x` computes `overflow-y` to `auto`, which makes
+    body a scroll container. A sticky descendant then sticks to BODY's scrollport — but body is not
+    what scrolls, `html` is — so the topbar slid away on every long page.
+
+    The rule it was protecting (mobile: never scroll sideways) now lives on `main` instead, which is
+    a sibling of the topbar rather than an ancestor of it, and an ancestor of no fixed chrome.
+  */
 }
 * { border-color: var(--line); }
 ::selection { background: color-mix(in oklab, var(--brand) 22%, transparent); }

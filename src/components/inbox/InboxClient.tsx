@@ -125,7 +125,28 @@ export function InboxClient({ initial, dueTasks }: { initial: Notification[]; du
         subtitle={totalUnread ? `${totalUnread} unread — ranked by what matters most.` : "You're up to date."}
         actions={
           <>
-            <Button size="sm" variant={onlyUnread ? "primary" : "secondary"} onClick={() => setOnlyUnread((s) => !s)}>{onlyUnread ? "Unread" : "All"}</Button>
+            {/*
+              Both options, always visible. This was one button whose label was whichever state it
+              was in, so it read as a status rather than a choice — you could not tell it was a
+              filter, let alone which way it was set.
+            */}
+            <div className="inline-flex rounded-[var(--radius-sm)] border overflow-hidden" role="group" aria-label="Filter notifications">
+              {([false, true] as const).map((v) => (
+                <button
+                  key={String(v)}
+                  type="button"
+                  onClick={() => setOnlyUnread(v)}
+                  aria-pressed={onlyUnread === v}
+                  className={cn(
+                    "px-2.5 h-8 text-[13px] transition-colors",
+                    onlyUnread === v ? "bg-[var(--brand)] text-white font-medium" : "bg-[var(--bg)] hover:bg-[var(--neutral-bg)]"
+                  )}
+                >
+                  {v ? "Unread" : "All"}
+                  {v && totalUnread > 0 ? <span className="ml-1.5 opacity-80">{totalUnread}</span> : null}
+                </button>
+              ))}
+            </div>
             <Button size="sm" variant="secondary" onClick={markAll} disabled={!totalUnread}><CheckCheck size={14} /> Mark all read</Button>
           </>
         }
@@ -156,7 +177,13 @@ export function InboxClient({ initial, dueTasks }: { initial: Notification[]; du
         {SECTIONS.map((s) => {
           const list = rows.get(s.key) || [];
           const isDeadline = s.key === "deadline";
-          const taskRows = isDeadline ? dueTasks : [];
+          /*
+            Deadlines mixes notifications with due tasks. A task has no read state, so under the
+            Unread filter it is not an unread item and must not be listed — otherwise "Unread"
+            showed the whole deadline pile and looked broken. Unread now means the same thing in
+            every section: only things you have not read.
+          */
+          const taskRows = isDeadline && !onlyUnread ? dueTasks : [];
           if (list.length === 0 && taskRows.length === 0) return null;
           const unreadIds = list.flatMap((r) => r.items.filter((x) => !x.read_at).map((x) => x.id));
           return (

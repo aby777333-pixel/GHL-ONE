@@ -65,6 +65,25 @@ export function MyAttendance({ initialDays, initialMonth }: { initialDays: Atten
   const list = (days || []).slice().sort((a, b) => b.day.localeCompare(a.day));
   const sel = selected ? byDay.get(selected) : undefined;
 
+  /*
+    The day detail sits in the right-hand column, pinned to the top of the grid. Once you have
+    scrolled down to the calendar to pick a date, the panel that answers you is above the fold — the
+    page appeared to do nothing. Bring it into view when it is not already there.
+
+    `block: "nearest"` scrolls the least amount that works, so a panel already half in view is not
+    yanked to the middle of the screen.
+  */
+  const detailRef = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    if (!selected) return;
+    const el = detailRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    if (r.top >= 0 && r.bottom <= window.innerHeight) return;
+    const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.scrollIntoView({ behavior: still ? "auto" : "smooth", block: "nearest" });
+  }, [selected]);
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] gap-[var(--s3)] items-start">
       <div className="space-y-[var(--s3)] min-w-0">
@@ -151,6 +170,9 @@ export function MyAttendance({ initialDays, initialMonth }: { initialDays: Atten
       </div>
 
       <div className="space-y-[var(--s3)] min-w-0">
+        {/* Wrapper rather than a ref on Card: Card is a shared primitive used on every screen and
+            is not typed to take one, and this needs no change there. */}
+        <div ref={detailRef} className="scroll-mt-[calc(var(--topbar-h)+12px)]">
         <Card>
           <CardHeader title={selected ? dayLabel(selected, { weekday: "long", day: "numeric", month: "long" }) : "Day detail"} subtitle={selected ? undefined : "Select a day on the calendar"} />
           <div className="px-[var(--s4)] pb-[var(--s4)] text-sm">
@@ -173,6 +195,7 @@ export function MyAttendance({ initialDays, initialMonth }: { initialDays: Atten
             )}
           </div>
         </Card>
+        </div>
 
         <MyExceptions from={bounds.from} to={bounds.to > today ? today : bounds.to} />
 

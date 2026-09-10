@@ -23,6 +23,13 @@ export function ProjectsList({ projects, initial }: { projects: ProjectSummary[]
   const [department, setDepartment] = React.useState(initial.department || "");
   const [owner, setOwner] = React.useState(initial.owner || "");
   const [q, setQ] = React.useState(initial.q || "");
+  /*
+    Archived is state here, not something read straight off the props on every URL rebuild.
+    It used to be written back from `initial.archived`, so "Clear filters" — which resets the other
+    four — could never shift it: the effect immediately put `?archived=1` back and the page stayed
+    on the archived view. Holding it with the rest means one place decides what the URL says.
+  */
+  const [archived, setArchived] = React.useState(!!initial.archived);
 
   React.useEffect(() => {
     const p = new URLSearchParams();
@@ -31,10 +38,19 @@ export function ProjectsList({ projects, initial }: { projects: ProjectSummary[]
     if (department) p.set("department", department);
     if (owner) p.set("owner", owner);
     if (q) p.set("q", q);
-    if (initial.archived) p.set("archived", "1");
+    if (archived) p.set("archived", "1");
     const qs = p.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-  }, [view, status, department, owner, q, initial.archived, pathname, router]);
+  }, [view, status, department, owner, q, archived, pathname, router]);
+
+  /** Everything the page is filtered by, archived included — so "Clear filters" can clear it. */
+  function clearFilters() {
+    setStatus("");
+    setDepartment("");
+    setOwner("");
+    setQ("");
+    setArchived(false);
+  }
 
   const filtered = React.useMemo(() => {
     const qq = q.trim().toLowerCase();
@@ -64,16 +80,23 @@ export function ProjectsList({ projects, initial }: { projects: ProjectSummary[]
           <button className={cn("btn btn-sm rounded-none border-0", view === "cards" ? "btn-primary" : "btn-ghost")} onClick={() => setView("cards")} aria-label="Cards"><LayoutGrid size={14} /></button>
           <button className={cn("btn btn-sm rounded-none border-0", view === "table" ? "btn-primary" : "btn-ghost")} onClick={() => setView("table")} aria-label="Table"><Table2 size={14} /></button>
         </div>
-        <Link href={initial.archived ? "/projects" : "/projects?archived=1"} className="btn btn-ghost btn-sm" title={initial.archived ? "Show active projects" : "Show archived projects"}><Archive size={14} /><span className="hidden sm:inline">{initial.archived ? "Active" : "Archived"}</span></Link>
+        <Button
+          size="sm"
+          variant={archived ? "secondary" : "ghost"}
+          onClick={() => setArchived((a) => !a)}
+          title={archived ? "Show active projects" : "Show archived projects"}
+        >
+          <Archive size={14} /><span className="hidden sm:inline">{archived ? "Active" : "Archived"}</span>
+        </Button>
       </div>
 
       {filtered.length === 0 ? (
         <div className="card">
           <EmptyState
             icon={<FolderKanban size={18} />}
-            title={projects.length === 0 ? (initial.archived ? "No archived projects" : "No projects yet") : "No projects match"}
+            title={projects.length === 0 ? (archived ? "No archived projects" : "No projects yet") : "No projects match"}
             hint={projects.length === 0 ? "Start from a template — website, investor deck, campaign, recruitment — and the tasks, dependencies and milestones are created for you." : "Try another status, department or search term."}
-            action={projects.length === 0 && !initial.archived ? <Link href="/projects/new" className="btn btn-primary btn-sm"><Plus size={14} /> New project</Link> : <Button size="sm" onClick={() => { setStatus(""); setDepartment(""); setOwner(""); setQ(""); }}>Clear filters</Button>}
+            action={projects.length === 0 && !archived ? <Link href="/projects/new" className="btn btn-primary btn-sm"><Plus size={14} /> New project</Link> : <Button size="sm" onClick={clearFilters}>Clear filters</Button>}
           />
         </div>
       ) : view === "cards" ? (

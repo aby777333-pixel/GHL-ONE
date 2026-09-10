@@ -110,17 +110,26 @@ export function TaskListView<T extends TaskLite>({ tasks, projects, defaults, sh
     const t = merged.find((x) => x.id === taskId);
     if (!t) return;
     const leavingWait = (t.status === "waiting" || t.status === "blocked") && status !== "waiting" && status !== "blocked";
-    setOverrides((o) => ({ ...o, [taskId]: { ...(o[taskId] || {}), status, ...(leavingWait ? { waiting_on: "none", waiting_on_user_id: null } : {}) } as Partial<T> }));
+    /*
+      Same rule as TaskDetail.update(): RLS refuses an UPDATE by matching zero rows, not by
+      raising, so `error` alone cannot tell a refusal from a success. `.select("id")` makes the
+      database report what it actually changed, and the card is only moved once it has.
+    */
     const supabase = createClient();
-    const { error } = await supabase
+    const { data: changed, error } = await supabase
       .from("tasks")
       .update({ status, ...(leavingWait ? { waiting_on: "none", waiting_on_user_id: null, waiting_note: null } : {}) })
-      .eq("id", taskId);
+      .eq("id", taskId)
+      .select("id");
     if (error) {
       toast.push(error.message, "danger");
-      setOverrides((o) => { const n = { ...o }; delete n[taskId]; return n; });
       return;
     }
+    if (!changed || changed.length === 0) {
+      toast.push("You are not authorized to change the status of this task.", "danger");
+      return;
+    }
+    setOverrides((o) => ({ ...o, [taskId]: { ...(o[taskId] || {}), status, ...(leavingWait ? { waiting_on: "none", waiting_on_user_id: null } : {}) } as Partial<T> }));
     toast.push(`Moved to ${STATUS_LABEL[status]}`, "success");
     router.refresh();
   }

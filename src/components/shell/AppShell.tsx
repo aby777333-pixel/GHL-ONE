@@ -214,15 +214,11 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
           </div>
         ))}
       </div>
-      <div className="border-t p-2 shrink-0">
-        <Link href={`/people/${profile.id}`} onClick={() => setMobileOpen(false)} className="flex items-center gap-2.5 px-2 py-2 rounded-[var(--radius-sm)] hover:bg-[var(--neutral-bg)]">
-          <Avatar name={profile.full_name} src={profile.avatar_url} size={30} presence={profile.presence} />
-          <div className="min-w-0">
-            <div className="text-sm font-medium truncate">{profile.full_name}</div>
-            <div className="text-[11px] text-muted truncate">{profile.designation || ROLE_LABEL[profile.role]}{dept ? ` · ${dept.name}` : ""}</div>
-          </div>
-        </Link>
-      </div>
+      {/*
+        The signed-in person used to be shown here as well as in the topbar menu — the same avatar,
+        name and role in two persistent places. One identity, one place: the topbar menu keeps it,
+        because that is where the actions on it live (profile, settings, do-not-disturb, sign out).
+      */}
     </nav>
   );
 
@@ -307,9 +303,28 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
                 }
                 width={230}
               >
+                {/*
+                  Everything the sidebar block used to say, in the one place identity now lives.
+                  The employee code matters here: the topbar's other code belongs to the COMPANY,
+                  and testers read the two as one thing. Showing the person's own code next to
+                  their own name is what tells them apart.
+                */}
                 <div className="px-2.5 py-2 border-b mb-1">
-                  <div className="text-sm font-medium truncate">{profile.full_name}</div>
-                  <div className="text-[11px] text-muted truncate">{profile.email}</div>
+                  <div className="flex items-center gap-2">
+                    <Avatar name={profile.full_name} src={profile.avatar_url} size={28} presence={profile.presence} />
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium truncate">{profile.full_name}</div>
+                      <div className="text-[11px] text-muted truncate">
+                        {profile.designation || ROLE_LABEL[profile.role]}{dept ? ` · ${dept.name}` : ""}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-[11px] text-muted truncate mt-1.5">{profile.email}</div>
+                  {profile.employee_code && (
+                    <div className="text-[10px] text-muted truncate" title="Your employee code">
+                      Employee · {profile.employee_code}
+                    </div>
+                  )}
                 </div>
                 <MenuItem icon={<User size={14} />} onClick={() => router.push(`/people/${profile.id}?from=nav`)}>My profile</MenuItem>
                 <MenuItem icon={<Settings size={14} />} onClick={() => router.push(`/people/${profile.id}?edit=1&from=nav`)}>Settings & status</MenuItem>
@@ -333,7 +348,13 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
             </div>
           </header>
 
-          <main className="flex-1 min-w-0 pb-16 lg:pb-0">
+          {/*
+            The horizontal-overflow guard lives here, not on body — body owning it made body a
+            scroll container and stopped the topbar above from sticking. `clip` rather than `hidden`
+            because clip does NOT create a scroll container, so sticky sub-bars inside pages keep
+            working.
+          */}
+          <main className="flex-1 min-w-0 pb-16 lg:pb-0 overflow-x-clip">
             {platformAdmin && <BreakGlassBanner className="mx-[var(--s3)] mt-[var(--s3)]" />}
             {children}
           </main>

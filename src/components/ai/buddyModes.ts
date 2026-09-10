@@ -124,6 +124,54 @@ export const CONFIDENCE_META: Record<"high" | "needs_confirmation" | "insufficie
   insufficient: { label: "Insufficient information", tone: "tone-danger", hint: "No approved answer — don't guess; ask a person." },
 };
 
+/**
+ * What language is this text actually written in?
+ *
+ * Read-aloud used to take its language from the user's *preference*, but Buddy answers in whatever
+ * language the question came in — so a Telugu reply was handed to an English voice, which reads
+ * Telugu script as nonsense. The script the characters are written in is the reliable answer, and
+ * it needs no library: each of these languages has its own Unicode block.
+ *
+ * Latin text falls through to `null`, meaning "no opinion" — the caller then keeps the preference,
+ * because English, French and Indonesian all share a script and only the preference can separate
+ * them.
+ */
+const SCRIPTS: { re: RegExp; speech: string }[] = [
+  { re: /[ఀ-౿]/, speech: "te-IN" }, // Telugu
+  { re: /[஀-௿]/, speech: "ta-IN" }, // Tamil
+  { re: /[ഀ-ൿ]/, speech: "ml-IN" }, // Malayalam
+  { re: /[ಀ-೿]/, speech: "kn-IN" }, // Kannada
+  { re: /[ऀ-ॿ]/, speech: "hi-IN" }, // Devanagari (Hindi/Marathi)
+  { re: /[ঀ-৿]/, speech: "bn-IN" }, // Bengali
+  { re: /[઀-૿]/, speech: "gu-IN" }, // Gujarati
+  { re: /[਀-੿]/, speech: "pa-IN" }, // Gurmukhi
+  { re: /[଀-୿]/, speech: "or-IN" }, // Odia
+  { re: /[؀-ۿ]/, speech: "ur-IN" }, // Arabic script (Urdu)
+];
+
+export function detectSpeechLang(text: string): string | null {
+  for (const s of SCRIPTS) if (s.re.test(text)) return s.speech;
+  return null;
+}
+
+/**
+ * The voice actually installed for a language.
+ *
+ * Setting `utterance.lang` alone is not enough: if no voice matches, the browser falls back to its
+ * default (usually English) and pronounces the text with that voice regardless of `lang`. That is
+ * what "the speech is not in Telugu" looks like from the outside.
+ */
+export function pickVoice(voices: SpeechSynthesisVoice[], lang: string): SpeechSynthesisVoice | null {
+  const want = lang.toLowerCase();
+  const base = want.split("-")[0];
+  return (
+    voices.find((v) => v.lang.toLowerCase().replace("_", "-") === want) ||
+    voices.find((v) => v.lang.toLowerCase().replace("_", "-").startsWith(base + "-")) ||
+    voices.find((v) => v.lang.toLowerCase().startsWith(base)) ||
+    null
+  );
+}
+
 /** Markdown → plain speech text (for read-aloud). */
 export function plainText(md: string) {
   return (md || "")

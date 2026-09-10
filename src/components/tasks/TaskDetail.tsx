@@ -24,7 +24,7 @@ import { stagesFor, stageOf, withStage } from "@/components/departments/stages";
 import { AckBar, AssigneeLoadPill, DefinitionOfDone, fetchLoad, ReopenModal } from "@/components/tasks/TaskGovernance";
 import { WhoHasBall } from "@/components/mywork/WhoHasBall";
 import {
-  ago, cn, fmtDate, isManagerPlus, relDate, APPROVAL_STATUS_LABEL, APPROVAL_STATUS_TONE, APPROVAL_TYPES, STATUS_LABEL, STATUS_TONE, WAITING_LABEL, humanize,
+  ago, cn, fmtDate, isManagerPlus, relDate, APPROVAL_STATUS_LABEL, APPROVAL_STATUS_TONE, APPROVAL_TYPES_REQUESTABLE, STATUS_LABEL, STATUS_TONE, WAITING_LABEL, humanize,
   type ApprovalType, type Task, type Tables, type TaskStatus, type WaitingOn,
 } from "@/lib/utils";
 
@@ -102,14 +102,29 @@ export function TaskDetail({ data }: { data: TaskDetailData }) {
   const done = task.status === "done";
 
   // ------------------------------------------------------------ mutations
-  async function update(patch: Partial<Task>, msg?: string) {
-    setTask((t) => ({ ...t, ...patch }));
-    const { error } = await supabase.from("tasks").update(patch).eq("id", task.id);
+  /**
+   * Write first, then show it — never the other way round.
+   *
+   * This used to apply the change locally, fire the update, and revert only if Supabase returned an
+   * `error`. But **RLS refuses an UPDATE by matching zero rows, not by raising**: PostgREST reports
+   * success, nothing is written, and the optimistic value stays on screen until the next refresh
+   * quietly puts it back. That is precisely the reported bug — a status that changes, sits there
+   * for a few seconds, then reverts with no explanation.
+   *
+   * `.select("id")` makes the database say what it actually changed. No rows back means the write
+   * was refused, and the person is told so instead of being shown a change that did not happen.
+   */
+  async function update(patch: Partial<Task>, msg?: string, denial?: string) {
+    const { data: changed, error } = await supabase.from("tasks").update(patch).eq("id", task.id).select("id");
     if (error) {
       toast.push(error.message, "danger");
-      setTask(data.task);
       return false;
     }
+    if (!changed || changed.length === 0) {
+      toast.push(denial || "You are not allowed to change this task.", "danger");
+      return false;
+    }
+    setTask((t) => ({ ...t, ...patch }));
     if (msg) toast.push(msg, "success");
     router.refresh();
     return true;
@@ -148,7 +163,7 @@ export function TaskDetail({ data }: { data: TaskDetailData }) {
     }
     if (s === "blocked" && task.waiting_on === "none") patch.waiting_on = "blocked";
     if (s === "waiting" && task.waiting_on === "none") patch.waiting_on = "employee";
-    await update(patch, `Moved to ${STATUS_LABEL[s]}`);
+    await update(patch, `Moved to ${STATUS_LABEL[s]}`, "You are not authorized to change the status of this task.");
   }
 
   // Tags
@@ -654,7 +669,7 @@ export function TaskDetail({ data }: { data: TaskDetailData }) {
           <div className="grid grid-cols-2 gap-3">
             <Field label="Type">
               <Select value={apType} onChange={(e) => setApType(e.target.value as ApprovalType)}>
-                {APPROVAL_TYPES.map((t) => <option key={t} value={t}>{humanize(t)}</option>)}
+                {APPROVAL_TYPES_REQUESTABLE.map((t) => <option key={t} value={t}>{humanize(t)}</option>)}
               </Select>
             </Field>
             <Field label="Approver"><PersonPicker value={apApprover} onChange={setApApprover} placeholder="Choose approver" allowEmpty={false} /></Field>

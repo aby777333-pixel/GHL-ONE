@@ -6,7 +6,7 @@ import { Button, Field, Input, Modal, Select, Textarea, useToast } from "@/compo
 import { PersonPicker, PriorityPicker, ProjectPicker } from "@/components/pickers";
 import { useSession } from "@/components/providers/SessionProvider";
 import { createClient } from "@/lib/supabase/client";
-import { APPROVAL_TYPES, humanize, type ApprovalType, type TaskPriority } from "@/lib/utils";
+import { APPROVAL_TYPES_REQUESTABLE, humanize, type ApprovalType, type TaskPriority } from "@/lib/utils";
 import { AMOUNT_TYPES } from "./ApprovalBits";
 
 export type RequestApprovalDefaults = {
@@ -74,7 +74,7 @@ export function RequestApprovalModal({ open, onClose, defaults = {}, onCreated }
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Type">
             <Select value={type} onChange={(e) => setType(e.target.value as ApprovalType)}>
-              {APPROVAL_TYPES.map((t) => (
+              {APPROVAL_TYPES_REQUESTABLE.map((t) => (
                 <option key={t} value={t}>{humanize(t)}</option>
               ))}
             </Select>

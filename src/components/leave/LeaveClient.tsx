@@ -86,7 +86,22 @@ export function LeaveClient({ data, initialTab }: { data: LeaveData; initialTab?
 
   const pendingTeam = data.team.filter((l) => l.status === "pending" && l.user_id !== profile.id).sort((a, b) => a.starts_on.localeCompare(b.starts_on));
   const actionable = pendingTeam.filter(canDecide);
-  const decidedTeam = data.team.filter((l) => l.status !== "pending" && l.user_id !== profile.id).sort((a, b) => b.starts_on.localeCompare(a.starts_on)).slice(0, 15);
+  /*
+    "Recently decided" showed the latest fifteen decisions and nothing else, so an approved request
+    became unreachable as soon as fifteen more were decided — there was no way to answer "what have
+    we approved?". The same list now filters by outcome and can be shown in full.
+  */
+  const [decidedFilter, setDecidedFilter] = React.useState<"all" | "approved" | "rejected">("all");
+  const [showAllDecided, setShowAllDecided] = React.useState(false);
+  const decidedAll = React.useMemo(
+    () =>
+      data.team
+        .filter((l) => l.status !== "pending" && l.user_id !== profile.id)
+        .filter((l) => decidedFilter === "all" || l.status === decidedFilter)
+        .sort((a, b) => b.starts_on.localeCompare(a.starts_on)),
+    [data.team, profile.id, decidedFilter]
+  );
+  const decidedTeam = showAllDecided ? decidedAll : decidedAll.slice(0, 15);
   const upcomingHolidays = data.holidays.filter((h) => h.starts_at.slice(0, 10) >= today).slice(0, 8);
   const pastHolidays = data.holidays.filter((h) => h.starts_at.slice(0, 10) < today).length;
 
@@ -192,7 +207,28 @@ export function LeaveClient({ data, initialTab }: { data: LeaveData; initialTab?
                 )}
               </Card>
               <Card>
-                <CardHeader title="Recently decided" />
+                <CardHeader
+                  title={decidedFilter === "approved" ? "Approved leave" : decidedFilter === "rejected" ? "Declined leave" : "Decided leave"}
+                  subtitle={`${decidedAll.length} request${decidedAll.length === 1 ? "" : "s"}`}
+                  action={
+                    <div className="inline-flex rounded-[var(--radius-sm)] border overflow-hidden" role="group" aria-label="Filter decided leave">
+                      {(["all", "approved", "rejected"] as const).map((f) => (
+                        <button
+                          key={f}
+                          type="button"
+                          onClick={() => { setDecidedFilter(f); setShowAllDecided(false); }}
+                          aria-pressed={decidedFilter === f}
+                          className={cn(
+                            "px-2.5 h-7 text-[12px] transition-colors",
+                            decidedFilter === f ? "bg-[var(--brand)] text-white font-medium" : "bg-[var(--bg)] hover:bg-[var(--neutral-bg)]"
+                          )}
+                        >
+                          {f === "all" ? "All" : f === "approved" ? "Approved" : "Declined"}
+                        </button>
+                      ))}
+                    </div>
+                  }
+                />
                 {decidedTeam.length === 0 ? <EmptyState title="Nothing yet" className="py-[var(--s4)]" /> : (
                   <div className="px-[var(--s3)] pb-[var(--s3)] space-y-1">
                     {decidedTeam.map((l) => (
@@ -204,6 +240,15 @@ export function LeaveClient({ data, initialTab }: { data: LeaveData; initialTab?
                         {l.decision_note && <span className="text-xs text-muted truncate w-full sm:w-auto sm:flex-1">{l.decision_note}</span>}
                       </div>
                     ))}
+                    {decidedAll.length > decidedTeam.length && (
+                      <button
+                        type="button"
+                        onClick={() => setShowAllDecided(true)}
+                        className="w-full text-center text-xs text-muted hover:text-[var(--fg)] py-1.5"
+                      >
+                        Show all {decidedAll.length}
+                      </button>
+                    )}
                   </div>
                 )}
               </Card>

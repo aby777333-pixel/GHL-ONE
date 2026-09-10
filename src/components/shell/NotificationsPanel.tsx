@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { AlertOctagon, AtSign, Bell, CheckCheck, CheckSquare, Clock, Info, Zap } from "lucide-react";
+import { AlertOctagon, AtSign, Bell, CheckCheck, CheckSquare, Clock, Info, LifeBuoy, ShieldAlert, Zap } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useSession } from "@/components/providers/SessionProvider";
 import { Button, EmptyState, Modal } from "@/components/ui";
@@ -16,6 +16,10 @@ export const KIND_ICON: Record<string, React.ReactNode> = {
   approval: <CheckSquare size={15} className="text-violet" />,
   deadline: <Clock size={15} className="text-orange" />,
   information: <Info size={15} className="text-muted" />,
+  /* `security` and `help_request` are in the notification_kind enum and were missing here, so those
+     notifications rendered with an empty icon slot. Authority changes (0052) are all `security`. */
+  security: <ShieldAlert size={15} className="text-danger" />,
+  help_request: <LifeBuoy size={15} className="text-info" />,
 };
 
 export function NotificationsPanel({ open, onClose }: { open: boolean; onClose: () => void }) {

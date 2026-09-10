@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ArrowRightLeft, Check, ClipboardCopy, FileSpreadsheet, Play, Search, ShieldCheck, Upload, UserCog, Users, X } from "lucide-react";
+import { AlertTriangle, ArrowRightLeft, Check, ClipboardCopy, FileSpreadsheet, Play, Search, ShieldCheck, ShieldOff, Upload, UserCog, Users, UserX, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Avatar, Button, Card, CardHeader, EmptyState, Field, Input, Modal, Pill, Select, Spinner, Textarea, useToast } from "@/components/ui";
 import { DepartmentPicker, PersonPicker } from "@/components/pickers";
@@ -159,7 +159,10 @@ function CsvImport() {
 }
 
 /* -------------------------------------------------------- Bulk actions */
-type Action = "role" | "department" | "manager";
+type Action = "role" | "revoke" | "department" | "manager" | "deactivate";
+
+/** The actions that take authority or access away. They get a typed confirmation, not just a preview. */
+const DESTRUCTIVE: Action[] = ["revoke", "deactivate"];
 
 function BulkActions({ people, systemRoles }: { people: StructurePerson[]; systemRoles: SystemRoleRow[] }) {
   const router = useRouter();
@@ -176,22 +179,58 @@ function BulkActions({ people, systemRoles }: { people: StructurePerson[]; syste
   const [toManager, setToManager] = React.useState("");
   const [effective, setEffective] = React.useState(() => todayIso());
   const [reason, setReason] = React.useState("");
+  const [confirmText, setConfirmText] = React.useState("");
+  const [holders, setHolders] = React.useState<Set<string> | null>(null);
   const [preview, setPreview] = React.useState<{ rows: { id: string; name: string; impact: Record<string, Json | undefined> }[] } | null>(null);
   const [loadingPreview, setLoadingPreview] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
 
   const needle = q.trim().toLowerCase();
   const list = people.filter((p) => p.is_active && (!dept || p.department_id === dept) && (!needle || p.full_name.toLowerCase().includes(needle) || p.email.toLowerCase().includes(needle) || (p.designation || "").toLowerCase().includes(needle)));
-  const chosen = people.filter((p) => selected.has(p.id));
+  /*
+    You cannot give yourself a security role, take one off yourself, or deactivate your own
+    account — the database refuses all three, and a single refusal would fail the whole batch with
+    a message about the wrong thing. Filter yourself out here and say so, rather than letting an
+    admin who ticked "select visible" wonder why nothing applied.
+  */
+  const chosenRaw = people.filter((p) => selected.has(p.id));
+  const excludesSelf = (["role", "revoke", "deactivate"] as Action[]).includes(action) && selected.has(profile.id);
+  const chosen = excludesSelf ? chosenRaw.filter((p) => p.id !== profile.id) : chosenRaw;
   const toggle = (id: string) => setSelected((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const allVisible = list.length > 0 && list.every((p) => selected.has(p.id));
 
-  const ready = chosen.length > 0 && (action === "role" ? !!roleId : action === "department" ? !!toDept : !!toManager);
+  const ready =
+    chosen.length > 0 &&
+    (action === "role" || action === "revoke" ? !!roleId
+      : action === "department" ? !!toDept
+      : action === "manager" ? !!toManager
+      : true);
+  // A destructive batch needs the word typed out, not just a second click on a familiar dialog.
+  const confirmed = !DESTRUCTIVE.includes(action) || confirmText.trim().toUpperCase() === "CONFIRM";
 
   async function openPreview() {
     if (!ready) return;
     setLoadingPreview(true);
+    setConfirmText("");
     const sb = createClient();
+
+    // Revoking needs a different question: of the people ticked, who actually holds this role?
+    // Revoking from somebody who never had it is a no-op, and saying so up front stops the count
+    // in the confirmation from overstating what is about to happen.
+    if (action === "revoke") {
+      const { data } = await sb
+        .from("user_roles")
+        .select("user_id")
+        .eq("system_role_id", roleId)
+        .in("user_id", chosen.map((p) => p.id));
+      setHolders(new Set((data || []).map((r) => r.user_id)));
+      setLoadingPreview(false);
+      setPreview({ rows: chosen.slice(0, 60).map((p) => ({ id: p.id, name: p.full_name, impact: {} })) });
+      return;
+    }
+
+    // Everything else asks the database what the change would disturb. For deactivation that is
+    // exactly the right question — reports left without a manager, approvals left unanswered.
     const rows = await Promise.all(chosen.slice(0, 40).map(async (p) => {
       const { data } = await sb.rpc("change_impact", { p_user: p.id, p_new_manager: action === "manager" ? toManager : undefined, p_new_department: action === "department" ? toDept : undefined });
       return { id: p.id, name: p.full_name, impact: jsonObj(data) };
@@ -209,6 +248,19 @@ function BulkActions({ people, systemRoles }: { people: StructurePerson[]; syste
     if (action === "role") {
       const { error } = await sb.from("user_roles").upsert(chosen.map((p) => ({ user_id: p.id, system_role_id: roleId, acting, expires_at: endOfDayIso(expires), granted_by: profile.id, reason: reason.trim() || null })), { onConflict: "user_id,system_role_id" });
       if (error) errs.push(error.message); else okCount = chosen.length;
+    } else if (action === "revoke") {
+      /* One person at a time. The last-Super-Admin guard refuses the final holder of
+         company_super_admin, and a single statement would fail the whole batch without saying
+         which person caused it. */
+      for (const p of chosen) {
+        const { error } = await sb.from("user_roles").delete().eq("user_id", p.id).eq("system_role_id", roleId);
+        if (error) errs.push(`${p.full_name}: ${error.message}`); else okCount++;
+      }
+    } else if (action === "deactivate") {
+      for (const p of chosen) {
+        const { error } = await sb.from("profiles").update({ is_active: false }).eq("id", p.id);
+        if (error) errs.push(`${p.full_name}: ${error.message}`); else okCount++;
+      }
     } else if (action === "department") {
       const { error } = await sb.from("employee_transfers").insert(chosen.filter((p) => p.department_id !== toDept).map((p) => ({ org_id: profile.org_id!, user_id: p.id, from_department_id: p.department_id, to_department_id: toDept, from_manager_id: p.manager_id, to_manager_id: toManager || null, effective_on: effective, reason: reason.trim() || null, requested_by: profile.id })));
       if (error) errs.push(error.message); else okCount = chosen.filter((p) => p.department_id !== toDept).length;
@@ -222,7 +274,14 @@ function BulkActions({ people, systemRoles }: { people: StructurePerson[]; syste
     setBusy(false);
     setPreview(null);
     if (errs.length) toast.push(`${okCount} applied · ${errs.length} failed — ${errs[0]}`, "danger");
-    else toast.push(action === "role" ? `${okCount} people now hold ${systemRoles.find((r) => r.id === roleId)?.name}` : action === "department" ? `${okCount} transfer proposal${okCount === 1 ? "" : "s"} created — apply them in Transfers & roles` : `${okCount} reporting line${okCount === 1 ? "" : "s"} changed`, "success");
+    else toast.push(
+      action === "role" ? `${okCount} people now hold ${systemRoles.find((r) => r.id === roleId)?.name}`
+      : action === "revoke" ? `${systemRoles.find((r) => r.id === roleId)?.name} removed from ${okCount} ${okCount === 1 ? "person" : "people"}`
+      : action === "deactivate" ? `${okCount} account${okCount === 1 ? "" : "s"} deactivated. Their work and history stay; they can be reactivated from People.`
+      : action === "department" ? `${okCount} transfer proposal${okCount === 1 ? "" : "s"} created — apply them in Transfers & roles`
+      : `${okCount} reporting line${okCount === 1 ? "" : "s"} changed`, "success");
+    setConfirmText("");
+    setHolders(null);
     setSelected(new Set());
     router.refresh();
   }
@@ -251,11 +310,32 @@ function BulkActions({ people, systemRoles }: { people: StructurePerson[]; syste
           </div>
         </div>
         <div className="space-y-3">
-          <div className="flex gap-1">
-            {([["role", "System role", <ShieldCheck key="r" size={13} />], ["department", "Department", <ArrowRightLeft key="d" size={13} />], ["manager", "Manager", <UserCog key="m" size={13} />]] as [Action, string, React.ReactNode][]).map(([k, label, icon]) => (
-              <button key={k} type="button" onClick={() => setAction(k)} className={cn("flex-1 inline-flex items-center justify-center gap-1 h-8 rounded-[var(--radius-sm)] text-xs border transition-colors", action === k ? "tone-brand border-transparent font-medium" : "border-[var(--line)] text-muted hover:text-[var(--fg)]")}>{icon}{label}</button>
+          <div className="grid grid-cols-3 gap-1">
+            {([
+              ["role", "Give role", <ShieldCheck key="r" size={13} />],
+              ["revoke", "Take role", <ShieldOff key="v" size={13} />],
+              ["department", "Department", <ArrowRightLeft key="d" size={13} />],
+              ["manager", "Manager", <UserCog key="m" size={13} />],
+              ["deactivate", "Deactivate", <UserX key="x" size={13} />],
+            ] as [Action, string, React.ReactNode][]).map(([k, label, icon]) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => { setAction(k); setConfirmText(""); }}
+                className={cn(
+                  "inline-flex items-center justify-center gap-1 h-8 px-1 rounded-[var(--radius-sm)] text-xs border transition-colors",
+                  action === k && DESTRUCTIVE.includes(k) ? "tone-danger border-transparent font-medium"
+                    : action === k ? "tone-brand border-transparent font-medium"
+                    : "border-[var(--line)] text-muted hover:text-[var(--fg)]"
+                )}
+              >
+                {icon}{label}
+              </button>
             ))}
           </div>
+          {excludesSelf && (
+            <Note tone="info">You are in the selection. You cannot change your own security roles or deactivate your own account, so you are left out of this action — {chosen.length} {chosen.length === 1 ? "person" : "people"} will be affected.</Note>
+          )}
           {action === "role" && (
             <>
               <Field label="System role"><Select value={roleId} onChange={(e) => setRoleId(e.target.value)}>{systemRoles.map((r) => <option key={r.id} value={r.id}>{r.name} · {ROLE_LABEL[r.base_level]}</option>)}</Select></Field>
@@ -273,17 +353,61 @@ function BulkActions({ people, systemRoles }: { people: StructurePerson[]; syste
               <Field label="Effective on"><Input type="date" value={effective} onChange={(e) => setEffective(e.target.value)} /></Field>
             </>
           )}
+          {action === "revoke" && (
+            <>
+              <Field label="Role to remove"><Select value={roleId} onChange={(e) => setRoleId(e.target.value)}>{systemRoles.map((r) => <option key={r.id} value={r.id}>{r.name} · {ROLE_LABEL[r.base_level]}</option>)}</Select></Field>
+              {selectedRole && <div className="flex flex-wrap gap-1">{selectedRole.permissions.map((x) => <Pill key={x} tone="tone-neutral">{x}</Pill>)}</div>}
+              <Note tone="warn">Removing a role does not remove the person&apos;s access outright — they may still hold the same permissions through their department, their level or another role. Check &ldquo;Why?&rdquo; on someone in Access Control if you need certainty.</Note>
+            </>
+          )}
           {action === "manager" && <Field label="New manager"><PersonPicker value={toManager} onChange={setToManager} placeholder="Choose…" /></Field>}
+          {action === "deactivate" && (
+            <Note tone="danger">Deactivating signs people out and removes them from the directory, rooms and assignment lists. Their work, messages and history stay exactly where they are, and the account can be reactivated from People. A company&apos;s last Super Admin cannot be deactivated.</Note>
+          )}
           <Field label="Reason" hint="Shared with the people affected and written to history."><Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder={action === "role" ? "e.g. Q4 review panel" : "e.g. Team restructure"} /></Field>
           <Button variant="primary" className="w-full" disabled={!ready} loading={loadingPreview} onClick={openPreview}><Search size={14} /> Preview impact for {chosen.length}</Button>
         </div>
       </div>
 
-      <Modal open={!!preview} onClose={() => setPreview(null)} title="Impact preview" width={720}
-        footer={<><Button variant="ghost" onClick={() => setPreview(null)}>Cancel</Button><Button variant="primary" loading={busy} onClick={apply}><Play size={14} /> Apply to {chosen.length}</Button></>}>
+      <Modal open={!!preview} onClose={() => { setPreview(null); setConfirmText(""); }} title={DESTRUCTIVE.includes(action) ? "Confirm this change" : "Impact preview"} width={720}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => { setPreview(null); setConfirmText(""); }}>Cancel</Button>
+            <Button
+              variant={DESTRUCTIVE.includes(action) ? "danger" : "primary"}
+              loading={busy}
+              disabled={!confirmed}
+              onClick={apply}
+            >
+              <Play size={14} /> {action === "revoke" ? `Remove from ${chosen.length}` : action === "deactivate" ? `Deactivate ${chosen.length}` : `Apply to ${chosen.length}`}
+            </Button>
+          </>
+        }>
         {preview && (
           <div className="space-y-3">
-            <Note tone="info">{action === "role" ? `Grants “${selectedRole?.name}” to ${chosen.length} people${expires ? ` until ${expires}` : ""}${acting ? " as acting authority" : ""}. Permissions and screens follow immediately; every grant is written to config history and can be undone.` : action === "department" ? `Creates ${chosen.length} transfer proposal${chosen.length === 1 ? "" : "s"} to ${departments.find((d) => d.id === toDept)?.name}. Applying a transfer swaps department rooms, revokes department-scoped grants and starts the transfer workflow.` : `Changes the primary manager of ${chosen.length} people. Pending approvals they raised move to the new manager; everyone is notified; history is kept.`}</Note>
+            <Note tone={DESTRUCTIVE.includes(action) ? "danger" : "info"}>
+              {action === "role" ? `Grants “${selectedRole?.name}” to ${chosen.length} people${expires ? ` until ${expires}` : ""}${acting ? " as acting authority" : ""}. Permissions and screens follow immediately; every grant is written to config history and can be undone.`
+                : action === "revoke" ? `Removes “${selectedRole?.name}” from ${holders ? holders.size : chosen.length} of the ${chosen.length} selected — the rest do not hold it, and are left alone. Every removal is written to config history.`
+                : action === "deactivate" ? `Deactivates ${chosen.length} account${chosen.length === 1 ? "" : "s"}. Anything below that a person is the only owner of will be left without one — read the table before confirming.`
+                : action === "department" ? `Creates ${chosen.length} transfer proposal${chosen.length === 1 ? "" : "s"} to ${departments.find((d) => d.id === toDept)?.name}. Applying a transfer swaps department rooms, revokes department-scoped grants and starts the transfer workflow.`
+                : `Changes the primary manager of ${chosen.length} people. Pending approvals they raised move to the new manager; everyone is notified; history is kept.`}
+            </Note>
+            {action === "revoke" ? (
+              /* No impact query for a revoke — the honest preview is simply who holds it and who does not. */
+              <div className="border rounded-[var(--radius-sm)] divide-y max-h-[320px] overflow-y-auto">
+                {preview.rows.map((r) => {
+                  const has = holders?.has(r.id) ?? true;
+                  return (
+                    <div key={r.id} className="flex items-center gap-2 px-3 py-1.5 text-xs">
+                      <PersonLine id={r.id} size={18} />
+                      <span className={cn("ml-auto", has ? "text-danger" : "text-muted")}>
+                        {has ? "loses this role" : "does not hold it — no change"}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
             <div className="overflow-x-auto border rounded-[var(--radius-sm)]">
               <table className="w-full text-xs min-w-[640px]">
                 <thead><tr className="text-left text-[10px] uppercase tracking-wider text-muted"><th className="px-2 py-1.5 font-medium">Person</th><th className="px-2 py-1.5 font-medium">Reports</th><th className="px-2 py-1.5 font-medium">Pending approvals</th><th className="px-2 py-1.5 font-medium">Rooms</th><th className="px-2 py-1.5 font-medium">Projects</th><th className="px-2 py-1.5 font-medium">Responsibilities</th></tr></thead>
@@ -305,7 +429,13 @@ function BulkActions({ people, systemRoles }: { people: StructurePerson[]; syste
                 </tbody>
               </table>
             </div>
-            {chosen.length > 40 && <div className="text-[11px] text-muted">Showing the first 40 of {chosen.length}.</div>}
+            )}
+            {action !== "revoke" && chosen.length > 40 && <div className="text-[11px] text-muted">Showing the first 40 of {chosen.length}.</div>}
+            {DESTRUCTIVE.includes(action) && (
+              <Field label="Type CONFIRM to continue" hint="Typed out in full, so a batch this size is never one stray click.">
+                <Input value={confirmText} onChange={(e) => setConfirmText(e.target.value)} placeholder="CONFIRM" autoFocus />
+              </Field>
+            )}
           </div>
         )}
       </Modal>

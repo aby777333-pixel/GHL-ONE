@@ -19,6 +19,7 @@ import { cn, fmtDate, ROLE_LABEL, type RoleLevel } from "@/lib/utils";
 import { RoleMatrix, type RoleRow } from "./RoleMatrix";
 import { PersonAccess } from "./PersonAccess";
 import { NewRoleModal } from "./NewRoleModal";
+import { AuditLog } from "./AuditLog";
 import { AccessRoles } from "@/components/people/PeopleBits";
 import { useSecurityRoles } from "@/components/people/useSecurityRoles";
 import { useSession } from "@/components/providers/SessionProvider";
@@ -40,7 +41,7 @@ export type AccessCaps = { create: boolean; edit: boolean; remove: boolean; assi
 
 type Company = { id: string; name: string; tenant_code: string | null; status: string };
 type Person = { id: string; full_name: string; role: string; designation: string | null; department_id: string | null; is_active: boolean };
-type Tab = "roles" | "people" | "permissions" | "companies" | "review";
+type Tab = "roles" | "people" | "permissions" | "companies" | "review" | "audit";
 
 export function AccessStudio({
   isOwner, can, companies, catalogue, initialTab,
@@ -53,7 +54,7 @@ export function AccessStudio({
 }) {
   const router = useRouter();
   const [tab, setTab] = React.useState<Tab>(
-    (["roles", "people", "permissions", "companies", "review"] as const).includes(initialTab as Tab) ? (initialTab as Tab) : "roles"
+    (["roles", "people", "permissions", "companies", "review", "audit"] as const).includes(initialTab as Tab) ? (initialTab as Tab) : "roles"
   );
 
   return (
@@ -72,6 +73,7 @@ export function AccessStudio({
           { key: "permissions", label: "Permissions" },
           ...(isOwner ? [{ key: "companies" as Tab, label: "Company limits" }] : []),
           { key: "review", label: "Access review" },
+          { key: "audit", label: "Audit log" },
         ]}
         value={tab}
         onChange={(t) => { setTab(t); router.replace(`/platform/access?tab=${t}`); }}
@@ -96,6 +98,7 @@ export function AccessStudio({
       {tab === "permissions" && <PermissionsTab catalogue={catalogue} />}
       {tab === "companies" && isOwner && <CompaniesTab companies={companies} catalogue={catalogue} />}
       {tab === "review" && <ReviewTab />}
+      {tab === "audit" && <AuditLog catalogue={catalogue} />}
     </div>
   );
 }

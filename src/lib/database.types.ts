@@ -3750,6 +3750,7 @@ export type Database = {
       config_history: {
         Row: {
           actor_id: string | null
+          actor_label: string | null
           after: Json | null
           at: string
           before: Json | null
@@ -3762,6 +3763,7 @@ export type Database = {
         }
         Insert: {
           actor_id?: string | null
+          actor_label?: string | null
           after?: Json | null
           at?: string
           before?: Json | null
@@ -3774,6 +3776,7 @@ export type Database = {
         }
         Update: {
           actor_id?: string | null
+          actor_label?: string | null
           after?: Json | null
           at?: string
           before?: Json | null
@@ -3785,13 +3788,6 @@ export type Database = {
           undone_at?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "config_history_actor_id_fkey"
-            columns: ["actor_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "config_history_org_id_fkey"
             columns: ["org_id"]
@@ -9369,6 +9365,7 @@ export type Database = {
       permission_changes: {
         Row: {
           actor_id: string | null
+          actor_label: string | null
           after: Json | null
           at: string
           before: Json | null
@@ -9381,6 +9378,7 @@ export type Database = {
         }
         Insert: {
           actor_id?: string | null
+          actor_label?: string | null
           after?: Json | null
           at?: string
           before?: Json | null
@@ -9393,6 +9391,7 @@ export type Database = {
         }
         Update: {
           actor_id?: string | null
+          actor_label?: string | null
           after?: Json | null
           at?: string
           before?: Json | null
@@ -9403,15 +9402,7 @@ export type Database = {
           subject?: string
           subject_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "permission_changes_actor_id_fkey"
-            columns: ["actor_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       permission_overrides: {
         Row: {
@@ -11161,6 +11152,7 @@ export type Database = {
       }
       role_history: {
         Row: {
+          actor_label: string | null
           changed_at: string
           changed_by: string | null
           id: string
@@ -11172,10 +11164,12 @@ export type Database = {
           old_designation: string | null
           old_role: Database["public"]["Enums"]["role_level"] | null
           old_status: string | null
+          org_id: string | null
           reason: string | null
           user_id: string
         }
         Insert: {
+          actor_label?: string | null
           changed_at?: string
           changed_by?: string | null
           id?: string
@@ -11187,10 +11181,12 @@ export type Database = {
           old_designation?: string | null
           old_role?: Database["public"]["Enums"]["role_level"] | null
           old_status?: string | null
+          org_id?: string | null
           reason?: string | null
           user_id: string
         }
         Update: {
+          actor_label?: string | null
           changed_at?: string
           changed_by?: string | null
           id?: string
@@ -11202,15 +11198,16 @@ export type Database = {
           old_designation?: string | null
           old_role?: Database["public"]["Enums"]["role_level"] | null
           old_status?: string | null
+          org_id?: string | null
           reason?: string | null
           user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "role_history_changed_by_fkey"
-            columns: ["changed_by"]
+            foreignKeyName: "role_history_org_id_fkey"
+            columns: ["org_id"]
             isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
           {
@@ -13382,6 +13379,33 @@ export type Database = {
       }
     }
     Functions: {
+      access_audit: {
+        Args: {
+          p_action?: string
+          p_actor?: string
+          p_from?: string
+          p_limit?: number
+          p_offset?: number
+          p_perm?: string
+          p_person?: string
+          p_role?: string
+          p_to?: string
+        }
+        Returns: {
+          action: string
+          actor: string
+          actor_id: string
+          added: string[]
+          at: string
+          person_id: string
+          reason: string
+          removed: string[]
+          role_id: string
+          summary: string
+          target: string
+          target_kind: string
+        }[]
+      }
       access_event_summary: { Args: { p_days?: number }; Returns: Json }
       access_findings: { Args: never; Returns: Json }
       access_review_board: { Args: { p_org?: string }; Returns: Json }

@@ -9467,30 +9467,39 @@ export type Database = {
       }
       permissions: {
         Row: {
+          action: string | null
           description: string | null
           grp: string
           key: string
           label: string
+          legacy_alias: string | null
+          module: string | null
           platform_only: boolean
           position: number
           requires: string[]
           risk: string
         }
         Insert: {
+          action?: string | null
           description?: string | null
           grp?: string
           key: string
           label: string
+          legacy_alias?: string | null
+          module?: string | null
           platform_only?: boolean
           position?: number
           requires?: string[]
           risk?: string
         }
         Update: {
+          action?: string | null
           description?: string | null
           grp?: string
           key?: string
           label?: string
+          legacy_alias?: string | null
+          module?: string | null
           platform_only?: boolean
           position?: number
           requires?: string[]
@@ -13831,6 +13840,7 @@ export type Database = {
         Returns: boolean
       }
       is_channel_member: { Args: { c: string }; Returns: boolean }
+      is_company_super_admin: { Args: { p_user?: string }; Returns: boolean }
       is_hr: { Args: never; Returns: boolean }
       is_inbox_member: {
         Args: { p_inbox: string; p_user?: string }

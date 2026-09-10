@@ -14,7 +14,9 @@ import {
   type RoleDefaultRow, type ScreenRow, type ScreenRuleRow, type SystemRoleRow,
 } from "./lib";
 
-const STEPS = ["Identity", "Organization", "Role", "Access", "Workspace", "Approvals", "Review"] as const;
+// "Security roles", not "Role": step 1 already captured the job title and department, and those
+// are organisational identity. Nothing in step 2 is derived from them.
+const STEPS = ["Identity", "Organization", "Security roles", "Access", "Workspace", "Approvals", "Review"] as const;
 type Tri = "inherit" | "allow" | "deny";
 type RolePick = { id: string; acting: boolean; expires: string };
 

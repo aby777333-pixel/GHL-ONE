@@ -93,10 +93,12 @@ export function PeopleRecords({ data, perms = [], initialUser }: { data: HrData;
                   <th className="px-3 py-2 font-medium">Shift</th>
                   <th className="px-3 py-2 font-medium">Joined</th>
                   <th className="px-3 py-2 font-medium">Probation</th>
-                  {/* The cell leads with the role badge — Super Admin, Manager, Employee — so
-                      "Status" described something the column does not show. The employment-status
-                      pills (Frozen, Probation, External) still ride along and name themselves. */}
-                  <th className="px-3 py-2 font-medium">Role</th>
+                  {/* The cell leads with the hierarchy badge — Super Admin, Manager, Employee — so
+                      "Status" described something the column does not show. "Access level" is what
+                      it is: the job title sits under the person's name, and security roles are a
+                      third, separate thing edited in Access Control. The employment-status pills
+                      (Frozen, Probation, External) still ride along and name themselves. */}
+                  <th className="px-3 py-2 font-medium">Access level</th>
                 </tr>
               </thead>
               <tbody className="divide-y">

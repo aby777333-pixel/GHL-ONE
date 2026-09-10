@@ -17,6 +17,15 @@ export type PermissionRow = {
   requires: string[];
   platform_only: boolean;
   position: number;
+  /** The area the key governs (people, files, wiki…). Informational — authorisation is by key. */
+  module?: string | null;
+  /** view | create | edit | delete | approve | manage | export | publish | … */
+  action?: string | null;
+  /**
+   * The broad key this one refines. `has_perm` accepts either, which is what let the catalogue be
+   * split into module × action without changing what any existing role grants (0040).
+   */
+  legacy_alias?: string | null;
 };
 
 /** One line of `effective_permissions()`. */

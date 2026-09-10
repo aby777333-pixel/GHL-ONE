@@ -60,7 +60,8 @@ into an enum column (`live_invite_notify`, `live_room_decision`).
 | `test_returning_policies()` | Tables whose SELECT policy delegates to a stable per-row helper but has no direct `owner_id`/`created_by`/`user_id = auth.uid()` branch. Bug 3. |
 | `test_function_volatility()` | `STABLE`/`IMMUTABLE` functions whose body contains `insert into`, `update … set` or `delete from`. |
 | `test_enum_casts()` | plpgsql `insert into <table with an enum column>` using a bare `case … end` instead of `(case … end)::<enum>`. |
-| `platform_self_test()` | Runs all six, returns `{ ok, passed, failed, checks, suites, ran_at }`. |
+| `test_access_control()` | Access-control invariants (0042): every company still has a Super Admin; no granular permission key aliases a key that does not exist, or loops; no company role lists a `platform.*` key; both the role-assignment guard and the last-Super-Admin guards are still attached; and **`has_perm` does not read `designation`** — a job title must never grant access. |
+| `platform_self_test()` | Runs all seven, returns `{ ok, passed, failed, checks, suites, ran_at }`. |
 
 `platform_self_test()` is granted to `authenticated` and `service_role` and gates
 itself: platform admin, company admin, the service role, or a direct `postgres`

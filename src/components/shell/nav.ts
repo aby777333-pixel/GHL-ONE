@@ -19,7 +19,10 @@ export function navFor(role: RoleLevel, ctx: NavContext = {}): NavSection[] {
   const manager = isManagerPlus(role);
   const lead = isLeadPlus(role);
   // Access Control is permission-gated, not role-gated: "admin" is a role, authority is a permission.
-  const security = (ctx.permissions || []).includes("security.manage");
+  // Either the broad security key or the one that names the screen — a company may grant the
+  // second on its own so somebody can review access without being able to rewrite it.
+  const perms = ctx.permissions || [];
+  const security = perms.includes("security.manage") || perms.includes("access_control.view");
   return [
     {
       items: [

@@ -96,3 +96,24 @@ export async function requirePermission(perm: PermissionKey): Promise<void> {
     throw new Error(`Not allowed: ${perm}`);
   }
 }
+
+/**
+ * Does this person hold their company's own top security role?
+ *
+ * Deliberately NOT `profile.role === "super_admin"`. That is an organisational hierarchy level —
+ * a fact about where someone sits, like a job title — and organisational identity must never by
+ * itself decide authority. `company_super_admin` (0041) is the role that carries it, given and
+ * taken independently of anybody's title, level or department.
+ *
+ * Fails closed, and cached per request like `can`.
+ */
+export const isCompanySuperAdmin = cache(async (): Promise<boolean> => {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("is_company_super_admin");
+    if (error) return false;
+    return data === true;
+  } catch {
+    return false;
+  }
+});

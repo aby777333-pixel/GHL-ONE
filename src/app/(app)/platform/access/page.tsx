@@ -22,11 +22,17 @@ export default async function AccessControlPage({ searchParams }: { searchParams
   const sp = await searchParams;
   const supabase = await createClient();
 
-  const [{ data: isOwner }, { data: canSecurity }] = await Promise.all([
+  /*
+    `access_control.view` is the key that names this page. It refines `security.manage`, so every
+    existing security administrator still resolves it (0040) — but a company can now hand out the
+    ability to *read* who holds what without handing over the ability to change it.
+  */
+  const [{ data: isOwner }, { data: canSecurity }, { data: canRead }] = await Promise.all([
     supabase.rpc("is_platform_owner"),
     supabase.rpc("has_perm", { p_perm: "security.manage" }),
+    supabase.rpc("has_perm", { p_perm: "access_control.view" }),
   ]);
-  if (!isOwner && !canSecurity) notFound();
+  if (!isOwner && !canSecurity && !canRead) notFound();
 
   const [{ data: catalogue }, { data: companies }] = await Promise.all([
     supabase.from("permissions").select("*").order("position"),

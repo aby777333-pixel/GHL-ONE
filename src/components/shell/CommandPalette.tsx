@@ -5,12 +5,19 @@ import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { Search, Plus, FolderKanban, MessageSquare, Video, CheckSquare, Megaphone, User, ListChecks, FileText, Gavel, Building2, BookOpen, Wand2, Calendar, Gauge, Users, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { useSession } from "@/components/providers/SessionProvider";
+import { useSession, useScreens } from "@/components/providers/SessionProvider";
 import { Kbd, Spinner } from "@/components/ui";
-import { cn, isManagerPlus } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 type Result = { kind: string; id: string; title: string; subtitle: string | null; link: string };
-type Action = { id: string; label: string; icon: React.ReactNode; run: () => void; keywords?: string };
+/**
+ * `path` is the screen the action leads to, and it is what governs whether the action is offered
+ * at all. §5 is explicit that a module the viewer cannot reach must disappear from the command
+ * palette, not merely be blocked on arrival — and since 0053 that includes modules the company's
+ * plan does not contain. An action with no `path` (Ask GHL) does not leave the page and is always
+ * available.
+ */
+type Action = { id: string; label: string; icon: React.ReactNode; run: () => void; keywords?: string; path?: string };
 
 const KIND_ICON: Record<string, React.ReactNode> = {
   person: <User size={15} />, task: <ListChecks size={15} />, project: <FolderKanban size={15} />, message: <MessageSquare size={15} />,
@@ -20,7 +27,8 @@ const KIND_ICON: Record<string, React.ReactNode> = {
 
 export function CommandPalette({ open, onClose, onCapture, onAsk }: { open: boolean; onClose: () => void; onCapture: () => void; onAsk?: () => void }) {
   const router = useRouter();
-  const { profile, people } = useSession();
+  const { people } = useSession();
+  const { canOpen } = useScreens();
   const [q, setQ] = React.useState("");
   const [results, setResults] = React.useState<Result[]>([]);
   const [loading, setLoading] = React.useState(false);
@@ -31,21 +39,30 @@ export function CommandPalette({ open, onClose, onCapture, onAsk }: { open: bool
 
   const actions: Action[] = React.useMemo(() => [
     ...(onAsk ? [{ id: "ask", label: "Ask GHL (AI)", icon: <Sparkles size={15} />, run: onAsk, keywords: "ai assistant question chat brief summarise" }] : []),
-    { id: "task", label: "Create task", icon: <Plus size={15} />, run: onCapture, keywords: "new todo" },
-    { id: "project", label: "New project", icon: <FolderKanban size={15} />, run: () => go("/projects/new") },
-    { id: "delegate", label: "Delegate work (natural language)", icon: <Wand2 size={15} />, run: () => go("/delegate") },
-    { id: "meeting", label: "Schedule meeting", icon: <Video size={15} />, run: () => go("/meetings?new=1") },
-    { id: "approval", label: "Request approval", icon: <CheckSquare size={15} />, run: () => go("/approvals?new=1") },
-    { id: "announce", label: "Create announcement", icon: <Megaphone size={15} />, run: () => go("/announcements?new=1") },
-    { id: "chat", label: "Open chat", icon: <MessageSquare size={15} />, run: () => go("/chat") },
-    { id: "mywork", label: "My Work", icon: <ListChecks size={15} />, run: () => go("/my-work") },
-    { id: "calendar", label: "Calendar", icon: <Calendar size={15} />, run: () => go("/calendar") },
-    { id: "people", label: "People directory", icon: <Users size={15} />, run: () => go("/people") },
-    ...(isManagerPlus(profile.role) ? [{ id: "command", label: "Command Center", icon: <Gauge size={15} />, run: () => go("/command") }] : []),
-  ], [go, onCapture, onAsk, profile.role]);
+    { id: "task", label: "Create task", icon: <Plus size={15} />, run: onCapture, keywords: "new todo", path: "/tasks" },
+    { id: "project", label: "New project", icon: <FolderKanban size={15} />, run: () => go("/projects/new"), path: "/projects" },
+    { id: "delegate", label: "Delegate work (natural language)", icon: <Wand2 size={15} />, run: () => go("/delegate"), path: "/delegate" },
+    { id: "meeting", label: "Schedule meeting", icon: <Video size={15} />, run: () => go("/meetings?new=1"), path: "/meetings" },
+    { id: "approval", label: "Request approval", icon: <CheckSquare size={15} />, run: () => go("/approvals?new=1"), path: "/approvals" },
+    { id: "announce", label: "Create announcement", icon: <Megaphone size={15} />, run: () => go("/announcements?new=1"), path: "/announcements" },
+    { id: "chat", label: "Open chat", icon: <MessageSquare size={15} />, run: () => go("/chat"), path: "/chat" },
+    { id: "mywork", label: "My Work", icon: <ListChecks size={15} />, run: () => go("/my-work"), path: "/my-work" },
+    { id: "calendar", label: "Calendar", icon: <Calendar size={15} />, run: () => go("/calendar"), path: "/calendar" },
+    { id: "people", label: "People directory", icon: <Users size={15} />, run: () => go("/people"), path: "/people" },
+    /* Command Center used to be gated on `isManagerPlus(profile.role)` — a rank test, which §3A
+       rules out and which disagreed with the sidebar the moment a company wrote a screen rule for
+       it. The screen governance is the answer to "may they open this", here as everywhere. */
+    { id: "command", label: "Command Center", icon: <Gauge size={15} />, run: () => go("/command"), path: "/command" },
+  ], [go, onCapture, onAsk]);
 
-  const filteredActions = q.trim() ? actions.filter((a) => (a.label + " " + (a.keywords || "")).toLowerCase().includes(q.toLowerCase())) : actions;
-  const quickPeople = q.trim().length >= 2 ? people.filter((p) => p.full_name.toLowerCase().includes(q.toLowerCase())).slice(0, 3) : [];
+  /* One rule for everything the palette can offer: if you could not open it by typing the address,
+     it does not appear here either. `canOpen` answers from `effective_screens`, so it already
+     accounts for role rules, department defaults and — since 0053 — the company's plan. */
+  const reachable = React.useMemo(() => actions.filter((a) => !a.path || canOpen(a.path)), [actions, canOpen]);
+  const filteredActions = q.trim() ? reachable.filter((a) => (a.label + " " + (a.keywords || "")).toLowerCase().includes(q.toLowerCase())) : reachable;
+  const quickPeople = q.trim().length >= 2 && canOpen("/people")
+    ? people.filter((p) => p.full_name.toLowerCase().includes(q.toLowerCase())).slice(0, 3)
+    : [];
 
   const [prevOpen, setPrevOpen] = React.useState(open);
   if (open !== prevOpen) {
@@ -60,12 +77,15 @@ export function CommandPalette({ open, onClose, onCapture, onAsk }: { open: bool
       setLoading(true);
       const { data } = await createClient().rpc("search_all", { q: q.trim(), lim: 6 });
       if (!alive) return;
-      setResults(((data as Result[]) || []).filter((r) => r.kind !== "person"));
+      /* `search_all` already refuses rows the caller may not see. This is the other half: a row you
+         are allowed to read can still live behind a module that is switched off for you or absent
+         from the company's plan, and offering to navigate there would be the leak §19 warns about. */
+      setResults(((data as Result[]) || []).filter((r) => r.kind !== "person" && canOpen(r.link)));
       setLoading(false);
       setIdx(0);
     }, 180);
     return () => { alive = false; clearTimeout(t); };
-  }, [q]);
+  }, [q, canOpen]);
 
   const items: { key: string; icon: React.ReactNode; title: string; subtitle?: string | null; run: () => void; group: string }[] = [
     ...quickPeople.map((p) => ({ key: "p" + p.id, icon: <User size={15} />, title: p.full_name, subtitle: p.designation, run: () => go(`/people/${p.id}`), group: "People" })),

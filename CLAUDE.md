@@ -165,3 +165,10 @@ Positioning: *One Company. One Workspace. One Source of Truth.*
 - **Duplicate** copies an existing role's grants *and* its denies into a new one, leaving the original untouched.
 - **Two guards on the templates themselves**: `guard_role_template` refuses a template naming a key that is not in the catalogue, and `test_access_control()` re-checks the same invariant every run — the trigger cannot catch a key that leaves the catalogue after the template was written.
 - **UI**: `NewRoleModal` in `src/components/access/NewRoleModal.tsx`, opened from **New** on the Roles list or **Duplicate this role** above the matrix.
+
+## People directory: job title, access level and security roles side by side (§12, §3A)
+- `useSecurityRoles()` (`src/components/people/useSecurityRoles.ts`) returns a `Map<userId, SecurityRole[]>` for the screens that list people, and `<AccessRoles/>` in `PeopleBits.tsx` renders them under an explicit **Access** label. Used by `/people` (the directory cards) and by **Access Control → People**.
+- **The three facts stay separate on screen**, which is the whole point: the **job title** (`designation`) under the name says what someone does, the **access level** (`profiles.role`) beside the department says where they sit, and the **security roles** are the only one of the three that grants anything. Labelling the last "Access" is what stops "Senior Content Writer" reading as authority.
+- **Expired grants are filtered out in the hook** — an expired role is not authority any more and must not read as any.
+- **"No roles shown" means "none *visible to you*", never "none held".** `ur_read` gives a person their own roles and gives managers, HR and security administrators everyone's, so an ordinary employee gets a map containing only themselves (verified: admin and manager see all grants, an employee sees zero). Every consumer renders nothing in that case rather than printing "None", which would state something the viewer cannot actually know.
+- The embed accepts PostgREST returning `system_roles` as an object *or* a single-element array, since which one you get depends on how the relationship is inferred.

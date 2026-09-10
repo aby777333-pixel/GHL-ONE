@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { MessageSquare, ListPlus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button, Pill, useToast } from "@/components/ui";
-import { ROLE_LABEL, type RoleLevel } from "@/lib/utils";
+import { cn, ROLE_LABEL, type RoleLevel } from "@/lib/utils";
+import type { SecurityRole } from "./useSecurityRoles";
 
 /**
  * `profiles.role` — where someone sits in the chain of command. It is not their job title (that is
@@ -44,5 +45,29 @@ export function AssignTaskButton({ userId, size = "sm", variant = "ghost", class
     <Button size={size} variant={variant} className={className} onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/tasks?new=1&assignee=${userId}`); }}>
       <ListPlus size={14} /> Assign task
     </Button>
+  );
+}
+
+/**
+ * The security roles a person holds, labelled so they cannot be misread as a job title.
+ *
+ * Renders nothing when the list is empty — which, thanks to RLS on `user_roles`, means either
+ * "holds none" or "not visible to you". Neither is worth an empty row, and inventing a
+ * "None" label would state the first when it might be the second.
+ */
+export function AccessRoles({ roles, max = 2, className }: { roles: SecurityRole[] | undefined; max?: number; className?: string }) {
+  if (!roles || roles.length === 0) return null;
+  const shown = roles.slice(0, max);
+  const rest = roles.length - shown.length;
+  return (
+    <span className={cn("inline-flex items-center gap-1 flex-wrap min-w-0", className)}>
+      <span className="text-[10px] uppercase tracking-wider text-muted">Access</span>
+      {shown.map((r) => (
+        <Pill key={r.id} tone={r.acting ? "tone-warn" : "tone-violet"} title={r.acting ? `Acting: ${r.name}` : r.name}>
+          {r.name}{r.acting ? " (acting)" : ""}
+        </Pill>
+      ))}
+      {rest > 0 && <Pill tone="tone-muted" title={roles.slice(max).map((r) => r.name).join(", ")}>+{rest}</Pill>}
+    </span>
   );
 }

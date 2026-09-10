@@ -19,10 +19,13 @@ import { cn, fmtDate, ROLE_LABEL, type RoleLevel } from "@/lib/utils";
 import { RoleMatrix, type RoleRow } from "./RoleMatrix";
 import { PersonAccess } from "./PersonAccess";
 import { NewRoleModal } from "./NewRoleModal";
+import { AccessRoles } from "@/components/people/PeopleBits";
+import { useSecurityRoles } from "@/components/people/useSecurityRoles";
+import { useSession } from "@/components/providers/SessionProvider";
 import { ADMIN_TEMPLATES, byGroup, RISK_LABEL, RISK_TONE, type PermissionRow, type ReviewBoard } from "./lib";
 
 type Company = { id: string; name: string; tenant_code: string | null; status: string };
-type Person = { id: string; full_name: string; role: string; designation: string | null; is_active: boolean };
+type Person = { id: string; full_name: string; role: string; designation: string | null; department_id: string | null; is_active: boolean };
 type Tab = "roles" | "people" | "permissions" | "companies" | "review";
 
 export function AccessStudio({
@@ -156,6 +159,8 @@ function RolesTab({ catalogue }: { catalogue: PermissionRow[] }) {
 
 /* ------------------------------------------------------------------ People */
 function PeopleTab({ catalogue }: { catalogue: PermissionRow[] }) {
+  const { departments } = useSession();
+  const { byUser: securityRoles } = useSecurityRoles();
   const [people, setPeople] = React.useState<Person[] | null>(null);
   const [selected, setSelected] = React.useState<string | null>(null);
   const [q, setQ] = React.useState("");
@@ -164,7 +169,7 @@ function PeopleTab({ catalogue }: { catalogue: PermissionRow[] }) {
     let alive = true;
     createClient()
       .from("profiles")
-      .select("id,full_name,role,designation,is_active")
+      .select("id,full_name,role,designation,department_id,is_active")
       .order("full_name")
       .then(({ data }) => { if (alive) setPeople((data || []) as Person[]); });
     return () => { alive = false; };
@@ -192,9 +197,22 @@ function PeopleTab({ catalogue }: { catalogue: PermissionRow[] }) {
                 )}
               >
                 <Avatar name={p.full_name} size={24} />
-                <span className="min-w-0">
-                  <span className="block text-sm truncate">{p.full_name}</span>
-                  <span className="block text-[11px] text-muted truncate">{p.designation || ROLE_LABEL[p.role as RoleLevel] || p.role}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-1.5 min-w-0">
+                    <span className="block text-sm truncate">{p.full_name}</span>
+                    {!p.is_active && <Pill tone="tone-muted">Inactive</Pill>}
+                  </span>
+                  {/*
+                    Job title, then department, then access level — three different facts, in that
+                    order, so the title is never the last word on what somebody may do. The security
+                    roles they hold sit below, because those are the only ones that grant anything.
+                  */}
+                  <span className="block text-[11px] text-muted truncate">
+                    {p.designation || "No job title"}
+                    {departments.find((d) => d.id === p.department_id)?.name ? ` · ${departments.find((d) => d.id === p.department_id)!.name}` : ""}
+                    {` · ${ROLE_LABEL[p.role as RoleLevel] || p.role}`}
+                  </span>
+                  <AccessRoles roles={securityRoles.get(p.id)} max={2} className="mt-1" />
                 </span>
               </button>
             ))}

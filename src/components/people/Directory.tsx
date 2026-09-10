@@ -11,7 +11,8 @@ import { KudosModal } from "@/components/growth/KudosModal";
 import { useSession } from "@/components/providers/SessionProvider";
 import { cn, ROLE_LABEL, type RoleLevel } from "@/lib/utils";
 import type { DirectoryPerson } from "./types";
-import { AssignTaskButton, ChatButton, RolePill } from "./PeopleBits";
+import { AccessRoles, AssignTaskButton, ChatButton, RolePill } from "./PeopleBits";
+import { useSecurityRoles, type SecurityRole } from "./useSecurityRoles";
 import { OrgChart } from "./OrgChart";
 
 const ROLES: RoleLevel[] = ["super_admin", "director", "executive", "department_head", "manager", "team_lead", "employee", "intern", "consultant", "vendor", "guest"];
@@ -22,6 +23,9 @@ export function Directory({ people, initial }: { people: DirectoryPerson[]; init
   const [dept, setDept] = React.useState(initial?.department || "");
   const [role, setRole] = React.useState("");
   const [view, setView] = React.useState<"grid" | "org">(initial?.view || "grid");
+  /* RLS decides how much of this comes back: your own roles always, everybody's if you are a
+     manager, HR or a security administrator. Cards render nothing when there is nothing to show. */
+  const { byUser: securityRoles } = useSecurityRoles();
 
   const visible = React.useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -95,7 +99,7 @@ export function Directory({ people, initial }: { people: DirectoryPerson[]; init
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-[var(--s3)] stagger">
                 {g.people.map((p) => (
-                  <PersonCard key={p.id} p={p} me={p.id === profile.id} />
+                  <PersonCard key={p.id} p={p} me={p.id === profile.id} roles={securityRoles.get(p.id)} />
                 ))}
               </div>
             </section>
@@ -106,7 +110,16 @@ export function Directory({ people, initial }: { people: DirectoryPerson[]; init
   );
 }
 
-function PersonCard({ p, me }: { p: DirectoryPerson; me: boolean }) {
+/*
+  A card carries three separate facts about a person that are easy to read as one: the job title
+  under their name, the access level beside their department, and the security roles that are the
+  only one of the three that actually grants anything. Labelling the last of them "Access" is what
+  keeps "Senior Content Writer" from reading as authority.
+
+  `roles` is undefined for everyone but yourself unless you are a manager, HR or a security
+  administrator — RLS on `user_roles` decides that, and the row simply does not render.
+*/
+function PersonCard({ p, me, roles }: { p: DirectoryPerson; me: boolean; roles?: SecurityRole[] }) {
   const { departments, profile } = useSession();
   const dept = departments.find((d) => d.id === p.department_id);
   const [modal, setModal] = React.useState<"feedback" | "kudos" | null>(null);
@@ -121,6 +134,7 @@ function PersonCard({ p, me }: { p: DirectoryPerson; me: boolean }) {
             {dept && <span className="pill tone-neutral"><span className="w-1.5 h-1.5 rounded-full" style={{ background: dept.color }} />{dept.name}</span>}
             <RolePill role={p.role} />
           </div>
+          <AccessRoles roles={roles} className="mt-1.5" />
         </div>
       </Link>
       {p.status_text && <div className="text-xs text-2 truncate">“{p.status_text}”</div>}

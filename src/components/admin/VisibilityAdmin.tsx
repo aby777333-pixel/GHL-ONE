@@ -233,15 +233,27 @@ function ViewAsTool({ enabled }: { enabled: boolean }) {
   const [user, setUser] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const [out, setOut] = React.useState<{ user: string; data: ViewAs } | null>(null);
+  /*
+    §13 asks the preview to show "what menus/modules the employee would see", which is the first
+    thing an administrator actually wants to know — the counts below answer what they can reach,
+    not what they would find in front of them. `effective_screens` is the same function the sidebar
+    and the route guard use, so this is the real menu rather than a re-derivation of it.
+  */
+  const [screens, setScreens] = React.useState<{ key: string; label: string; grp: string; allowed: boolean; source: string }[] | null>(null);
   const person = people.find((p) => p.id === user);
 
   async function run() {
     if (!user) return;
     setBusy(true);
-    const { data, error } = await createClient().rpc("view_as", { p_user: user });
+    const sb = createClient();
+    const [{ data, error }, { data: eff }] = await Promise.all([
+      sb.rpc("view_as", { p_user: user }),
+      sb.rpc("effective_screens", { p_user: user }),
+    ]);
     setBusy(false);
     if (error) { toast.push(error.message, "danger"); return; }
     setOut({ user, data: data as unknown as ViewAs });
+    setScreens((eff || []) as { key: string; label: string; grp: string; allowed: boolean; source: string }[]);
   }
 
   const d = out?.user === user ? out.data : null;
@@ -264,6 +276,29 @@ function ViewAsTool({ enabled }: { enabled: boolean }) {
               {d.is_manager && <Pill tone="tone-info">Manager-level</Pill>}
               {d.admin_perms.map((n) => <Pill key={n} tone="tone-violet">{n}</Pill>)}
             </div>
+            {screens && screens.length > 0 && (
+              <div>
+                <div className="eyebrow mb-1.5">
+                  Menu they would see · {screens.filter((x) => x.allowed).length} of {screens.length}
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {screens.map((x) => (
+                    <span
+                      key={x.key}
+                      className={cn("pill", x.allowed ? "tone-success" : "tone-neutral opacity-60 line-through")}
+                      title={x.allowed ? `Visible — ${x.source.replace(/_/g, " ")}` : `Hidden — ${x.source.replace(/_/g, " ")}`}
+                    >
+                      {x.label}
+                    </span>
+                  ))}
+                </div>
+                <p className="text-[11px] text-muted mt-1.5">
+                  Struck through means hidden. Hover any of them for the rule that decided it — the same
+                  answer the sidebar and the route guard use, so what is listed here is what they get.
+                </p>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-[var(--s2)]">
               <div className="card px-3 py-2.5"><div className="text-[11px] text-muted">Projects</div><div className="text-xl font-semibold num">{d.projects.length}</div></div>
               <div className="card px-3 py-2.5"><div className="text-[11px] text-muted">Channels</div><div className="text-xl font-semibold num">{d.channels.length}</div></div>

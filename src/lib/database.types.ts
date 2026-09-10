@@ -11212,6 +11212,42 @@ export type Database = {
           },
         ]
       }
+      role_templates: {
+        Row: {
+          base_level: Database["public"]["Enums"]["role_level"]
+          category: string
+          created_at: string
+          description: string
+          is_system: boolean
+          key: string
+          name: string
+          permissions: string[]
+          position: number
+        }
+        Insert: {
+          base_level?: Database["public"]["Enums"]["role_level"]
+          category?: string
+          created_at?: string
+          description: string
+          is_system?: boolean
+          key: string
+          name: string
+          permissions?: string[]
+          position?: number
+        }
+        Update: {
+          base_level?: Database["public"]["Enums"]["role_level"]
+          category?: string
+          created_at?: string
+          description?: string
+          is_system?: boolean
+          key?: string
+          name?: string
+          permissions?: string[]
+          position?: number
+        }
+        Relationships: []
+      }
       screen_rules: {
         Row: {
           allowed: boolean
@@ -14225,6 +14261,10 @@ export type Database = {
       preview_role_access: { Args: { p_role: string }; Returns: Json }
       preview_user_access: { Args: { p_user: string }; Returns: Json }
       probation_reminders: { Args: never; Returns: number }
+      project_in_scope: {
+        Args: { p_project: string; p_user?: string }
+        Returns: boolean
+      }
       publish_platform_announcement: { Args: { p_id: string }; Returns: number }
       purge_access_events: { Args: never; Returns: number }
       push_notification: {
@@ -14386,6 +14426,7 @@ export type Database = {
         Args: { cfg: Json; from_ts: string }
         Returns: string
       }
+      scope_enforced_permissions: { Args: never; Returns: string[] }
       scope_rank: { Args: { p_scope: string }; Returns: number }
       search_all: {
         Args: { lim?: number; q: string }
@@ -14578,6 +14619,10 @@ export type Database = {
           p_title: string
         }
         Returns: string
+      }
+      task_in_scope: {
+        Args: { p_task: string; p_user?: string }
+        Returns: boolean
       }
       task_recurrence_next: {
         Args: { base: string; rec: Json }

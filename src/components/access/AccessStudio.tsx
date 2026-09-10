@@ -11,13 +11,14 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import {
-  Building2, ClipboardCheck, KeyRound, Search, ShieldAlert, ShieldCheck, Users,
+  Building2, ClipboardCheck, Copy, KeyRound, Plus, Search, ShieldAlert, ShieldCheck, Users,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Avatar, Button, Card, CardHeader, EmptyState, PageHeader, Pill, SearchInput, Select, Spinner, Tabs, useToast } from "@/components/ui";
 import { cn, fmtDate, ROLE_LABEL, type RoleLevel } from "@/lib/utils";
 import { RoleMatrix, type RoleRow } from "./RoleMatrix";
 import { PersonAccess } from "./PersonAccess";
+import { NewRoleModal } from "./NewRoleModal";
 import { ADMIN_TEMPLATES, byGroup, RISK_LABEL, RISK_TONE, type PermissionRow, type ReviewBoard } from "./lib";
 
 type Company = { id: string; name: string; tenant_code: string | null; status: string };
@@ -73,6 +74,7 @@ function RolesTab({ catalogue }: { catalogue: PermissionRow[] }) {
   const [roles, setRoles] = React.useState<RoleRow[] | null>(null);
   const [selected, setSelected] = React.useState<string | null>(null);
   const [q, setQ] = React.useState("");
+  const [creating, setCreating] = React.useState<null | { from: "template" | "duplicate"; sourceId?: string }>(null);
 
   // Reload by bumping a counter rather than calling an async loader from the effect body: state is
   // only ever set from the promise callback, which is the pattern the rest of the app uses.
@@ -96,7 +98,11 @@ function RolesTab({ catalogue }: { catalogue: PermissionRow[] }) {
   return (
     <div className="grid lg:grid-cols-[280px_minmax(0,1fr)] gap-[var(--s3)] items-start">
       <Card className="lg:sticky lg:top-[calc(var(--topbar-h)+var(--s3))]">
-        <CardHeader title="Roles" subtitle={`${roles.length} in this company`} />
+        <CardHeader
+          title="Roles"
+          subtitle={`${roles.length} in this company`}
+          action={<Button size="sm" variant="primary" onClick={() => setCreating({ from: "template" })}><Plus size={14} /> New</Button>}
+        />
         <div className="px-[var(--s3)] pb-[var(--s3)]">
           <SearchInput placeholder="Search roles…" value={q} onChange={(e) => setQ(e.target.value)} className="mb-2" />
           <div className="space-y-0.5 max-h-[60vh] overflow-y-auto">
@@ -119,13 +125,30 @@ function RolesTab({ catalogue }: { catalogue: PermissionRow[] }) {
       </Card>
 
       {current ? (
-        /* Keyed on the role: picking another one remounts the grid, so it re-seeds from props
-           instead of resetting its own state in an effect. */
-        <RoleMatrix key={current.id} role={current} catalogue={catalogue} onSaved={load} />
+        <div className="space-y-[var(--s3)]">
+          <div className="flex justify-end">
+            <Button size="sm" variant="secondary" onClick={() => setCreating({ from: "duplicate", sourceId: current.id })}>
+              <Copy size={14} /> Duplicate this role
+            </Button>
+          </div>
+          {/* Keyed on the role: picking another one remounts the grid, so it re-seeds from props
+              instead of resetting its own state in an effect. */}
+          <RoleMatrix key={current.id} role={current} catalogue={catalogue} onSaved={load} />
+        </div>
       ) : (
         <Card>
           <EmptyState icon={<KeyRound size={18} />} title="Pick a role" hint="Choose a role on the left to see and change exactly what it can do — with a diff and an impact count before anything is saved." className="py-[var(--s6)]" />
         </Card>
+      )}
+
+      {creating && (
+        <NewRoleModal
+          mode={creating.from}
+          source={creating.sourceId ? (roles || []).find((r) => r.id === creating.sourceId) || null : null}
+          existingNames={(roles || []).map((r) => r.name.toLowerCase())}
+          onClose={() => setCreating(null)}
+          onCreated={(id) => { setCreating(null); setSelected(id); load(); }}
+        />
       )}
     </div>
   );

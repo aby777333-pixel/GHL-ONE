@@ -74,7 +74,15 @@ export function RiskBriefing({ full, className }: { full?: boolean; className?: 
             <span className="min-w-0 break-words">{state.error}</span>
           </div>
         ) : state?.data ? (
-          <AIMarkdown source={state.data.markdown} className={full ? undefined : "text-sm"} />
+          /*
+            In the Command Center's right-hand column the briefing is as long as the model made it.
+            Left unbounded it stretched the whole row, so the left column ended in a screen of empty
+            space and the page needed several extra scrolls. Compact mode gives the briefing its own
+            scroll instead; the dedicated "AI briefing" tab (`full`) still shows it whole.
+          */
+          <div className={cn(!full && "max-h-[min(56vh,540px)] overflow-y-auto pr-1")}>
+            <AIMarkdown source={state.data.markdown} className={full ? undefined : "text-sm"} />
+          </div>
         ) : null}
         {state?.data && (
           <div className="text-[11px] text-muted num mt-3 pt-2.5 border-t">

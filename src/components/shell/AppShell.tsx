@@ -170,7 +170,18 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
     };
   }, [profile.id, profile.presence]);
 
-  const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(href + "/"));
+  /**
+   * The nav contains nested paths (`/wiki` and `/wiki/questions`, `/platform` and `/platform/access`).
+   * A plain prefix match lit both, so on Q&A the sidebar claimed two current sections. Only the
+   * longest href that matches the current path is the active one.
+   */
+  const matches = (href: string) => (href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(href + "/"));
+  const activeHref = React.useMemo(() => {
+    const hit = sections.flatMap((s) => s.items.map((i) => i.href)).filter(matches);
+    return hit.sort((a, b) => b.length - a.length)[0] ?? null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sections, pathname]);
+  const isActive = (href: string) => href === activeHref;
   const badgeFor = (b?: "inbox" | "approvals" | "chat") => (b ? counts[b] : 0);
 
   const Sidebar = (
@@ -255,8 +266,13 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
               <span className="truncate"><span className="sm:hidden">Search…</span><span className="hidden sm:inline">Search people, tasks, projects, messages, files…</span></span>
               <span className="ml-auto hidden sm:inline-flex gap-1"><Kbd>Ctrl</Kbd><Kbd>K</Kbd></span>
             </button>
+            {/*
+              One gap value for the whole cluster. The clock carried an extra `mr-1`, so the run of
+              buttons had a single wider seam in the middle of it and the header read as unevenly
+              spaced — more so on pages where the clock is a different width (clocked in vs out).
+            */}
             <div className="ml-auto flex items-center gap-1.5 shrink-0">
-              <ClockWidget className="mr-1" />
+              <ClockWidget />
               <Button variant="primary" size="sm" onClick={() => setCaptureOpen(true)} className="hidden sm:inline-flex">
                 <Plus size={15} /> New
               </Button>

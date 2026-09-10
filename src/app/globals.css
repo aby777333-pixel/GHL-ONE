@@ -108,6 +108,12 @@
 }
 
 html, body { height: 100%; }
+/*
+  Reserve the scrollbar track even when the page is short. Without this the bar appears and
+  disappears as content grows — switching a department between Overview and Tasks, or expanding a
+  job's applicant list — and every pixel of the page, topbar included, jumps sideways with it.
+*/
+html { scrollbar-gutter: stable; }
 body {
   background: var(--bg);
   color: var(--fg);
@@ -119,6 +125,18 @@ body {
 }
 * { border-color: var(--line); }
 ::selection { background: color-mix(in oklab, var(--brand) 22%, transparent); }
+
+/*
+  Tailwind v4's preflight dropped the `cursor: pointer` that v3 put on buttons, so every button in
+  the app — admin tabs, inbox rows, filter chips — hovered with a plain arrow and did not read as
+  clickable. Put it back, and leave disabled controls alone.
+
+  Wrapped in `:where()` so it carries zero specificity: this is the *default*, and any element that
+  deliberately says otherwise — the read-only star rating, the company label when there is only one
+  workspace — keeps its own `cursor-default` without needing `!important`.
+*/
+:where(button:not(:disabled), [role="button"]:not([aria-disabled="true"]), summary, label[for]) { cursor: pointer; }
+:where(button:disabled, [aria-disabled="true"]) { cursor: not-allowed; }
 
 /* Scrollbars */
 * { scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
@@ -302,14 +320,15 @@ body {
   visibly *through* the tabs and showed as a moving sliver in the space above them — the bar read
   as floating in the middle of the content rather than as a header. It is opaque now, and paints
   the page's own colour over the gap between itself and the topbar while it is stuck.
+
+  The cover used to be an `::before` box, which never painted: the bar is `overflow-x: auto` (the
+  tabs scroll sideways on a phone), and a non-visible overflow clips a pseudo-element sitting
+  outside the box. An outset box-shadow is painted by the element itself and is *not* clipped by
+  its own overflow, so the strip above the bar is covered for real.
 */
-.sticky-subbar { background: var(--bg); }
-.sticky-subbar::before {
-  content: "";
-  position: absolute;
-  left: 0; right: 0; bottom: 100%;
-  height: var(--s4);
+.sticky-subbar {
   background: var(--bg);
+  box-shadow: 0 calc(var(--s4) * -1) 0 0 var(--bg);
 }
 
 /* Layout helpers */

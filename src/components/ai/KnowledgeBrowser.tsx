@@ -95,7 +95,13 @@ export function KnowledgeBrowser({ rows, ownership, initial }: { rows: Knowledge
         subtitle="What GHL Buddy is allowed to answer from — SOPs, policies, FAQs, scripts and learnings, approved by each department's knowledge owner."
         actions={
           <>
-            <Button variant="secondary" onClick={() => openBuddy({ message: "What approved knowledge do we have for my department?", send: true })}><Sparkles size={14} className="text-[var(--accent)]" /> Ask Buddy</Button>
+            {/*
+              An unqualified "Ask Buddy" used to fire a canned question the moment it was clicked,
+              so the user waited on an answer to something they never asked. It now opens the panel
+              with that question prefilled in the composer — a starting point they can edit, clear
+              or send. (Buttons that name their question, like "What should I do first?", still send.)
+            */}
+            <Button variant="secondary" onClick={() => openBuddy({ message: "What approved knowledge do we have for my department?" })}><Sparkles size={14} className="text-[var(--accent)]" /> Ask Buddy</Button>
             <Button variant="primary" onClick={() => setCreate(true)}><Plus size={15} /> New article</Button>
           </>
         }

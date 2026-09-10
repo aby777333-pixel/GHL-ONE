@@ -100,8 +100,15 @@ export function ProfileView({ person, tasks, projects, reports, leaves, edit, fo
           columns now stack until `lg`, both can shrink (`min-w-0` on each, or the buttons' own
           min-content width becomes a floor), and the name wraps instead of truncating.
         */}
-        <div className="relative flex flex-col lg:flex-row lg:items-end gap-[var(--s3)] mt-[var(--s3)]">
-          <div className="min-w-0 lg:flex-1 lg:pb-1">
+        {/*
+          …and `min-w-0` alone was not enough. The action cluster's natural width is eight buttons,
+          so on a laptop the row had negative free space, the identity column (flex-basis 0) never
+          grew past zero and the name rendered one letter per line. The column now carries a real
+          floor and the row may wrap, so when the buttons cannot sit beside a readable name they
+          take their own line instead of crushing it.
+        */}
+        <div className="relative flex flex-col lg:flex-row lg:flex-wrap lg:items-end gap-[var(--s3)] mt-[var(--s3)]">
+          <div className="min-w-0 lg:flex-1 lg:basis-[280px] lg:pb-1">
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="h1 break-words min-w-0">{person.full_name}</h1>
               <RolePill role={person.role} />
@@ -119,7 +126,7 @@ export function ProfileView({ person, tasks, projects, reports, leaves, edit, fo
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-wrap min-w-0 lg:justify-end lg:pb-1">
+          <div className="flex items-center gap-2 flex-wrap min-w-0 lg:justify-end lg:pb-1 lg:max-w-full">
             {!self && <ChatButton userId={person.id} variant="primary" size="md" />}
             {!self && <EntityLive ctx={{ personId: person.id, title: `Call with ${person.full_name}` }} include={["knock"]} label="Call · Video · Knock" />}
             {!self && (

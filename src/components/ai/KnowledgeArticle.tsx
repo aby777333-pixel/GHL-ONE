@@ -89,7 +89,15 @@ export function KnowledgeArticle({ article: initial, ownership }: { article: Kno
           <span className="inline-flex items-center gap-1"><Building2 size={12} /> {dept ? dept.name : "Company-wide"}</span>
           {ownerP && <span className="inline-flex items-center gap-1.5"><Avatar name={ownerP.full_name} src={ownerP.avatar_url} size={16} /> Owner {ownerP.full_name}</span>}
           {a.status === "approved" && a.approved_at && <span>Approved {approver ? `by ${approver.full_name} ` : ""}{fmtDate(a.approved_at)}</span>}
-          {a.review_at && <span className={outdated ? "text-danger font-medium" : ""}>Review by {fmtDate(a.review_at)}</span>}
+          {/*
+            A red date was the only sign that a review had lapsed, and red on its own does not say
+            what is wrong. Say it: the label itself changes to "Review overdue".
+          */}
+          {a.review_at && (
+            outdated
+              ? <span className="text-danger font-medium inline-flex items-center gap-1"><AlertTriangle size={12} /> Review overdue · was due {fmtDate(a.review_at)}</span>
+              : <span>Review by {fmtDate(a.review_at)}</span>
+          )}
           <span>Updated {ago(a.updated_at)}</span>
         </div>
 
@@ -115,8 +123,15 @@ export function KnowledgeArticle({ article: initial, ownership }: { article: Kno
         <Textarea value={reportNote} onChange={(e) => setReportNote(e.target.value)} placeholder="e.g. Step 3 no longer applies — approvals now go through the Help Desk." className="!min-h-[88px]" autoFocus />
       </Modal>
 
-      <Modal open={reviewOpen} onClose={() => setReviewOpen(false)} title="Set review date" width={420} footer={<><Button variant="ghost" onClick={() => setReviewOpen(false)}>Cancel</Button><Button variant="primary" loading={busy === "review"} onClick={async () => { await update({ review_at: reviewAt || null }, "Review date updated", "review"); setReviewOpen(false); }}>Save</Button></>}>
-        <Field label="Review by" hint="Buddy warns when guidance is past this date"><Input type="date" value={reviewAt} onChange={(e) => setReviewAt(e.target.value)} /></Field>
+      {/*
+        Setting a *new* review date in the past put the article straight back into "overdue" — the
+        one state the dialog exists to leave. The picker refuses earlier days and Save is disabled,
+        so the only reachable outcome is a date that is actually in the future.
+      */}
+      <Modal open={reviewOpen} onClose={() => setReviewOpen(false)} title="Set review date" width={420} footer={<><Button variant="ghost" onClick={() => setReviewOpen(false)}>Cancel</Button><Button variant="primary" loading={busy === "review"} disabled={!!reviewAt && reviewAt < today} onClick={async () => { await update({ review_at: reviewAt || null }, "Review date updated", "review"); setReviewOpen(false); }}>Save</Button></>}>
+        <Field label="Review by" hint="Buddy warns when guidance is past this date" error={reviewAt && reviewAt < today ? "Pick today or a later date — a past date is already overdue." : undefined}>
+          <Input type="date" min={today} value={reviewAt} onChange={(e) => setReviewAt(e.target.value)} />
+        </Field>
       </Modal>
     </div>
   );

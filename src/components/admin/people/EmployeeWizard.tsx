@@ -18,7 +18,7 @@ const STEPS = ["Identity", "Organization", "Role", "Access", "Workspace", "Appro
 type Tri = "inherit" | "allow" | "deny";
 type RolePick = { id: string; acting: boolean; expires: string };
 
-type Catalog = { roles: SystemRoleRow[]; defaults: RoleDefaultRow[]; screens: ScreenRow[]; rules: ScreenRuleRow[] };
+type Catalog = { roles: SystemRoleRow[]; defaults: RoleDefaultRow[]; screens: ScreenRow[]; rules: ScreenRuleRow[]; heldBy: { system_role_id: string; user_id: string }[] };
 
 /**
  * Employee creation wizard (Identity → Organization → Role → Access → Workspace → Approvals → Review).
@@ -73,7 +73,11 @@ function WizardBody({ onClose, teams }: { onClose: () => void; teams: { id: stri
       sb.from("role_defaults").select("*"),
       sb.from("screens").select("*").order("position"),
       sb.from("screen_rules").select("*"),
-    ]).then(([r, d, s, ru]) => { if (alive) setCatalog({ roles: r.data || [], defaults: d.data || [], screens: s.data || [], rules: ru.data || [] }); });
+      /* Who already holds which system role. It is the only signal in the schema for "which roles
+         belong to this department" — `system_roles` is org-wide with no department column — and it
+         is what lets the Role step lead with the roles this department actually uses. */
+      sb.from("user_roles").select("system_role_id,user_id").limit(4000),
+    ]).then(([r, d, s, ru, ur]) => { if (alive) setCatalog({ roles: r.data || [], defaults: d.data || [], screens: s.data || [], rules: ru.data || [], heldBy: ur.data || [] }); });
     return () => { alive = false; };
   }, []);
 
@@ -86,6 +90,25 @@ function WizardBody({ onClose, teams }: { onClose: () => void; teams: { id: stri
   const allRolesForPreview = actingPick && !pickedRoles.includes(actingPick) ? [...pickedRoles, actingPick] : pickedRoles;
   const effectiveLevel: RoleLevel = allRolesForPreview.reduce<RoleLevel>((best, r) => (ROLE_RANK[r.base_level] < ROLE_RANK[best] ? r.base_level : best), level);
   const status = level === "intern" ? "intern" : probationEnds && probationEnds >= today ? "probation" : "active";
+
+  /**
+   * The Role step, split into "used in <Department>" and the rest. The department is known by then
+   * (step 2 requires it), and "which roles does this department use" is answered by the roles its
+   * people already hold — `system_roles` itself is org-wide and carries no department.
+   */
+  const roleSections = React.useMemo(() => {
+    const all = catalog?.roles || [];
+    if (!all.length) return [] as { title: string; roles: SystemRoleRow[] }[];
+    const inDept = new Set(people.filter((p) => p.department_id === departmentId).map((p) => p.id));
+    if (!departmentId || !inDept.size) return [{ title: "All roles", roles: all }];
+    const used = new Set((catalog?.heldBy || []).filter((h) => inDept.has(h.user_id)).map((h) => h.system_role_id));
+    const common = all.filter((r) => used.has(r.id));
+    if (!common.length) return [{ title: "All roles", roles: all }];
+    return [
+      { title: `Used in ${dept?.name || "this department"}`, roles: common },
+      { title: "Other roles", roles: all.filter((r) => !used.has(r.id)) },
+    ].filter((s) => s.roles.length > 0);
+  }, [catalog, people, departmentId, dept?.name]);
 
   const permOverrideMap = Object.fromEntries(Object.entries(overrides).filter(([, v]) => v !== "inherit").map(([k, v]) => [k, v === "allow"]));
   const perms = catalog ? previewPermissions({ level, status, roles: allRolesForPreview, department: dept, levelDefaults: catalog.defaults, overrides: permOverrideMap }) : {};
@@ -238,28 +261,41 @@ function WizardBody({ onClose, teams }: { onClose: () => void; teams: { id: stri
               <Select value={level} onChange={(e) => setLevel(e.target.value as RoleLevel)}>{ASSIGNABLE_LEVELS.map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}</Select>
             </Field>
             <Note tone="info" icon={<Info size={14} />}><span className="font-medium">Role ≠ title.</span> The designation is what is printed on the card; system roles below add capabilities and can be temporary. Someone can be a “Senior Designer” by title and hold the <em>Design Reviewer</em> role for a quarter.</Note>
+            {/*
+              Picking "Sales" in the previous step used to change nothing here: all seventeen roles
+              were listed flat, IT and Design beside Sales, and the right one had to be hunted for.
+              Roles colleagues in the chosen department already hold now come first under their own
+              heading. Nothing is hidden — a cross-department role is a real case — it is just below.
+            */}
             {!catalog ? <div className="flex justify-center py-6"><Spinner /></div> : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {catalog.roles.map((r) => {
-                  const pick = rolePicks.find((p) => p.id === r.id);
-                  return (
-                    <div key={r.id} className={cn("rounded-[var(--radius-sm)] border p-2.5 space-y-2 transition-colors", pick ? "border-[var(--brand)] bg-[var(--brand-bg)]/30" : "border-[var(--line)]")}>
-                      <label className="flex items-start gap-2 cursor-pointer">
-                        <input type="checkbox" checked={!!pick} onChange={() => toggleRole(r.id)} className="accent-[var(--brand)] mt-0.5" />
-                        <span className="min-w-0 flex-1">
-                          <span className="text-sm font-medium inline-flex items-center gap-1.5">{r.name}<Pill tone="tone-neutral">{ROLE_LABEL[r.base_level]}</Pill></span>
-                          <span className="block text-[11px] text-muted truncate-2">{r.description || `${r.permissions.length} permissions`}</span>
-                        </span>
-                      </label>
-                      {pick && (
-                        <div className="grid grid-cols-2 gap-2 pl-6">
-                          <label className="text-xs inline-flex items-center gap-1.5"><input type="checkbox" checked={pick.acting} onChange={(e) => patchRole(r.id, { acting: e.target.checked })} className="accent-[var(--brand)]" /> Acting</label>
-                          <Input type="date" value={pick.expires} onChange={(e) => patchRole(r.id, { expires: e.target.value })} className="!h-8 !text-xs" title="Expires (optional)" />
-                        </div>
-                      )}
+              <div className="space-y-3">
+                {roleSections.map((section) => (
+                  <div key={section.title}>
+                    {roleSections.length > 1 && <div className="text-[10px] uppercase tracking-wider text-muted mb-1.5">{section.title}</div>}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {section.roles.map((r) => {
+                        const pick = rolePicks.find((p) => p.id === r.id);
+                        return (
+                          <div key={r.id} className={cn("rounded-[var(--radius-sm)] border p-2.5 space-y-2 transition-colors", pick ? "border-[var(--brand)] bg-[var(--brand-bg)]/30" : "border-[var(--line)]")}>
+                            <label className="flex items-start gap-2 cursor-pointer">
+                              <input type="checkbox" checked={!!pick} onChange={() => toggleRole(r.id)} className="accent-[var(--brand)] mt-0.5" />
+                              <span className="min-w-0 flex-1">
+                                <span className="text-sm font-medium inline-flex items-center gap-1.5">{r.name}<Pill tone="tone-neutral">{ROLE_LABEL[r.base_level]}</Pill></span>
+                                <span className="block text-[11px] text-muted truncate-2">{r.description || `${r.permissions.length} permissions`}</span>
+                              </span>
+                            </label>
+                            {pick && (
+                              <div className="grid grid-cols-2 gap-2 pl-6">
+                                <label className="text-xs inline-flex items-center gap-1.5"><input type="checkbox" checked={pick.acting} onChange={(e) => patchRole(r.id, { acting: e.target.checked })} className="accent-[var(--brand)]" /> Acting</label>
+                                <Input type="date" value={pick.expires} onChange={(e) => patchRole(r.id, { expires: e.target.value })} className="!h-8 !text-xs" title="Expires (optional)" />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
             )}
           </div>

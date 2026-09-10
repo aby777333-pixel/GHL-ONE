@@ -28,6 +28,7 @@ export function CareerCard({ person, self, canRequestMentor }: { person: Person;
   const [newInterest, setNewInterest] = React.useState("");
   const [addingInterest, setAddingInterest] = React.useState(false);
   const [requesting, setRequesting] = React.useState(false);
+  const [editingTopic, setEditingTopic] = React.useState<MentorshipRow | null>(null);
   const [busy, setBusy] = React.useState<string | null>(null);
 
   const load = React.useCallback(async () => {
@@ -80,6 +81,16 @@ export function CareerCard({ person, self, canRequestMentor }: { person: Person;
             : "Mentorship ended.",
       status === "active" ? "success" : "info"
     );
+  }
+
+  /* A pending request could be withdrawn but not corrected, so a mistyped topic meant withdrawing
+     and asking the same person again. While it is still `requested`, the mentee owns the wording. */
+  async function saveTopic(m: MentorshipRow, topic: string) {
+    const { data, error } = await createClient().from("mentorships").update({ topic: topic.trim() }).eq("id", m.id).select("*").single();
+    if (error || !data) { toast.push(error?.message || "Could not save", "danger"); return false; }
+    setMentorships((s) => (s || []).map((x) => (x.id === m.id ? data : x)));
+    toast.push("Request updated", "success");
+    return true;
   }
 
   const completed = (enrollments || []).filter((e) => e.status === "completed");
@@ -209,7 +220,10 @@ export function CareerCard({ person, self, canRequestMentor }: { person: Person;
                         {/* A pending request could previously only be waited on — neither side could
                             take it back. Withdraw is the mentee's, Decline the mentor's. */}
                         {m.status === "requested" && m.mentee_id === profile.id && (
-                          <button className="text-[11px] text-muted hover:text-danger ml-auto" onClick={() => setMentorship(m, "declined", "withdrawn")}>Withdraw request</button>
+                          <span className="ml-auto inline-flex items-center gap-2.5">
+                            <button className="text-[11px] link" onClick={() => setEditingTopic(m)}>Edit topic</button>
+                            <button className="text-[11px] text-muted hover:text-danger" onClick={() => setMentorship(m, "declined", "withdrawn")}>Withdraw request</button>
+                          </span>
                         )}
                         {m.status === "requested" && m.mentor_id === profile.id && (
                           <button className="text-[11px] text-muted hover:text-danger ml-auto" onClick={() => setMentorship(m, "declined")}>Decline</button>
@@ -224,6 +238,7 @@ export function CareerCard({ person, self, canRequestMentor }: { person: Person;
         </section>
       </div>
       {requesting && <RequestMentorModal menteeId={person.id} menteeName={person.full_name} self={self} onClose={() => setRequesting(false)} onDone={() => { setRequesting(false); void load(); }} />}
+      {editingTopic && <EditTopicModal mentorship={editingTopic} onClose={() => setEditingTopic(null)} onSave={saveTopic} />}
     </Card>
   );
 }
@@ -253,6 +268,33 @@ function RequestMentorModal({ menteeId, menteeName, self, onClose, onDone }: { m
         <div className="flex justify-end gap-2 pt-1">
           <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
           <Button type="submit" variant="primary" loading={loading} disabled={!mentorId || !topic.trim()}><HeartHandshake size={14} /> Send request</Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+/** Correct the topic on a mentorship request that nobody has answered yet. */
+function EditTopicModal({ mentorship, onClose, onSave }: { mentorship: MentorshipRow; onClose: () => void; onSave: (m: MentorshipRow, topic: string) => Promise<boolean> }) {
+  const [topic, setTopic] = React.useState(mentorship.topic);
+  const [busy, setBusy] = React.useState(false);
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!topic.trim()) return;
+    setBusy(true);
+    const ok = await onSave(mentorship, topic);
+    setBusy(false);
+    if (ok) onClose();
+  }
+  return (
+    <Modal open onClose={onClose} title="Edit mentoring request" width={460}>
+      <form onSubmit={submit} className="space-y-3">
+        <Field label="What do you want help with?" hint="Only you can change this, and only while the request is unanswered.">
+          <Input autoFocus value={topic} onChange={(e) => setTopic(e.target.value)} required />
+        </Field>
+        <div className="flex justify-end gap-2 pt-1">
+          <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button type="submit" variant="primary" loading={busy} disabled={!topic.trim() || topic.trim() === mentorship.topic}>Save changes</Button>
         </div>
       </form>
     </Modal>

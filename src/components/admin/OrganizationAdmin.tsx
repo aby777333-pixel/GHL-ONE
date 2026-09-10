@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Save, Building, Clock, MoonStar, Siren, ArrowRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { Button, Card, CardHeader, EmptyState, Field, Input, useToast } from "@/components/ui";
-import type { Tables } from "@/lib/utils";
+import { Button, Card, CardHeader, EmptyState, Field, Input, Select, useToast } from "@/components/ui";
+import { isValidTimezone, timezoneOptions, type Tables } from "@/lib/utils";
 import type { Json } from "@/lib/database.types";
 
 type Settings = {
@@ -42,6 +42,7 @@ export function OrganizationAdmin({ org }: { org: Tables<"organizations"> | null
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (!org) return;
+    if (!isValidTimezone(whTz)) { toast.push("Pick a valid timezone before saving", "danger"); return; }
     setBusy(true);
     const settings: Settings = {
       ...base,
@@ -75,7 +76,16 @@ export function OrganizationAdmin({ org }: { org: Tables<"organizations"> | null
               <Field label="Start"><Input type="time" value={whStart} onChange={(e) => setWhStart(e.target.value)} /></Field>
               <Field label="End"><Input type="time" value={whEnd} onChange={(e) => setWhEnd(e.target.value)} /></Field>
             </div>
-            <Field label="Timezone"><Input value={whTz} onChange={(e) => setWhTz(e.target.value)} placeholder="Asia/Kolkata" /></Field>
+            {/*
+              This was free text and accepted anything — "ssss" saved cleanly and then working
+              hours, rosters, escalation windows and quiet hours all quietly fell back to the server
+              default. It is a list of real IANA zones now, and save refuses an invalid one.
+            */}
+            <Field label="Timezone" hint="Drives working hours, quiet hours and escalation windows" error={isValidTimezone(whTz) ? undefined : "Pick a valid timezone."}>
+              <Select value={whTz} onChange={(e) => setWhTz(e.target.value)}>
+                {timezoneOptions(whTz).map((z) => <option key={z} value={z}>{z}</option>)}
+              </Select>
+            </Field>
             <div>
               <span className="label">Working days</span>
               <div className="flex flex-wrap gap-1.5">

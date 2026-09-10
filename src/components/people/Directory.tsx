@@ -57,8 +57,8 @@ export function Directory({ people, initial }: { people: DirectoryPerson[]; init
         subtitle={`${people.length} active member${people.length === 1 ? "" : "s"} across ${departments.length} departments`}
         actions={
           <div className="inline-flex rounded-[var(--radius-sm)] border overflow-hidden">
-            <button className={cn("btn btn-ghost btn-sm rounded-none", view === "grid" && "bg-[var(--neutral-bg)]")} onClick={() => setView("grid")}><LayoutGrid size={14} /> Directory</button>
-            <button className={cn("btn btn-ghost btn-sm rounded-none", view === "org" && "bg-[var(--neutral-bg)]")} onClick={() => setView("org")}><Network size={14} /> Org chart</button>
+            <button className={cn("btn btn-sm rounded-none border-0", view === "grid" ? "btn-primary" : "btn-ghost")} aria-pressed={view === "grid"} onClick={() => setView("grid")}><LayoutGrid size={14} /> Directory</button>
+            <button className={cn("btn btn-sm rounded-none border-0", view === "org" ? "btn-primary" : "btn-ghost")} aria-pressed={view === "org"} onClick={() => setView("org")}><Network size={14} /> Org chart</button>
           </div>
         }
       />

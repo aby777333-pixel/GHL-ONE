@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Lightbulb, Plus, ChevronUp, FolderKanban, ArrowUpRight, Flame, Clock, Inbox } from "lucide-react";
+import { Lightbulb, Plus, ChevronUp, FolderKanban, ArrowUpRight, Flame, Clock, Inbox, Pencil } from "lucide-react";
 import { Button, Card, EmptyState, Field, Input, Modal, PageHeader, Pill, Select, Tabs, Textarea, useToast } from "@/components/ui";
 import { Suggestions } from "@/components/ideas/Suggestions";
 import { PersonChip } from "@/components/tasks/TaskBits";
@@ -28,6 +28,7 @@ export function IdeasClient({ ideas: initial, myVotes: initialVotes, openNew }: 
   const [sort, setSort] = React.useState<"votes" | "newest">("votes");
   const [status, setStatus] = React.useState("");
   const [showNew, setShowNew] = React.useState(openNew);
+  const [editing, setEditing] = React.useState<Idea | null>(null);
   const [busy, setBusy] = React.useState<string | null>(null);
 
   const list = ideas
@@ -127,6 +128,9 @@ export function IdeasClient({ ideas: initial, myVotes: initialVotes, openNew }: 
                     <div className="flex items-center gap-x-3 gap-y-1.5 flex-wrap mt-2.5 text-xs text-muted">
                       <PersonChip id={idea.author_id} size={18} />
                       <span className="num">{ago(idea.created_at)}</span>
+                      {idea.author_id === profile.id && idea.status !== "converted" && (
+                        <button type="button" onClick={() => setEditing(idea)} className="link inline-flex items-center gap-1"><Pencil size={11} /> Edit</button>
+                      )}
                       {manager && (
                         <span className="ml-auto flex items-center gap-1.5">
                           <Select value={idea.status} onChange={(e) => setIdeaStatus(idea, e.target.value)} className="text-xs" style={{ width: "auto", height: 28 }} disabled={busy === idea.id}>
@@ -148,32 +152,42 @@ export function IdeasClient({ ideas: initial, myVotes: initialVotes, openNew }: 
 
       </>)}
 
-      {showNew && <SubmitIdeaModal onClose={() => { setShowNew(false); if (openNew) router.replace("/ideas"); }} onCreated={(i) => setIdeas((s) => [i, ...s])} />}
+      {showNew && <SubmitIdeaModal onClose={() => { setShowNew(false); if (openNew) router.replace("/ideas"); }} onCreated={(i) => setIdeas((s) => [i, ...s])} onUpdated={() => {}} />}
+      {editing && <SubmitIdeaModal idea={editing} onClose={() => setEditing(null)} onCreated={() => {}} onUpdated={(i) => setIdeas((s) => s.map((x) => (x.id === i.id ? i : x)))} />}
     </div>
   );
 }
 
-function SubmitIdeaModal({ onClose, onCreated }: { onClose: () => void; onCreated: (i: Idea) => void }) {
+/**
+ * Post a new idea, or correct one you already posted. There was no edit path at all, so a typo in
+ * a title could only be fixed by posting the idea a second time — the board filled with near
+ * duplicates and the votes on the original were stranded. (RLS already allowed the author to
+ * update; only the button was missing.)
+ */
+function SubmitIdeaModal({ idea, onClose, onCreated, onUpdated }: { idea?: Idea; onClose: () => void; onCreated: (i: Idea) => void; onUpdated: (i: Idea) => void }) {
   const { profile } = useSession();
   const router = useRouter();
   const toast = useToast();
-  const [title, setTitle] = React.useState("");
-  const [body, setBody] = React.useState("");
+  const [title, setTitle] = React.useState(idea?.title || "");
+  const [body, setBody] = React.useState(idea?.body || "");
   const [loading, setLoading] = React.useState(false);
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) return;
     setLoading(true);
-    const { data, error } = await createClient().from("ideas").insert({ org_id: profile.org_id!, title: title.trim(), body: body.trim() || null, author_id: profile.id }).select("*").single();
+    const patch = { title: title.trim(), body: body.trim() || null };
+    const { data, error } = idea
+      ? await createClient().from("ideas").update(patch).eq("id", idea.id).select("*").single()
+      : await createClient().from("ideas").insert({ ...patch, org_id: profile.org_id!, author_id: profile.id }).select("*").single();
     setLoading(false);
-    if (error || !data) return toast.push(error?.message || "Could not post", "danger");
-    toast.push("Idea posted", "success");
-    onCreated(data);
+    if (error || !data) return toast.push(error?.message || (idea ? "Could not save" : "Could not post"), "danger");
+    toast.push(idea ? "Idea updated" : "Idea posted", "success");
+    if (idea) onUpdated(data); else onCreated(data);
     router.refresh();
     onClose();
   }
   return (
-    <Modal open onClose={onClose} title="Submit an idea" width={560}>
+    <Modal open onClose={onClose} title={idea ? "Edit your idea" : "Submit an idea"} width={560}>
       <form onSubmit={submit} className="space-y-3">
         <Field label="Your idea">
           <Input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="What could we do better?" required />
@@ -183,7 +197,7 @@ function SubmitIdeaModal({ onClose, onCreated }: { onClose: () => void; onCreate
         </Field>
         <div className="flex justify-end gap-2 pt-1">
           <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button type="submit" variant="primary" loading={loading}><Lightbulb size={14} /> Post idea</Button>
+          <Button type="submit" variant="primary" loading={loading}><Lightbulb size={14} /> {idea ? "Save changes" : "Post idea"}</Button>
         </div>
       </form>
     </Modal>

@@ -53,7 +53,13 @@ export function GoalsClient({ data }: { data: GoalsData }) {
     if (level && g.level !== level) return false;
     if (dept && g.level !== "company" && deptOf(g) !== dept) return false;
     if (scope === "mine" && g.owner_id !== profile.id) return false;
-    if (scope === "team" && !(deptOf(g) === profile.department_id || g.owner_id === profile.id || g.level === "company")) return false;
+    if (scope === "team") {
+      // "My team" is the team's work, not a second copy of "Mine". An individual goal assigned to
+      // me alone already appears under Mine; repeating it here made the team filter meaningless.
+      // A team/department/company goal I happen to own is still team work, so it stays.
+      if (g.level === "employee" && g.owner_id === profile.id) return false;
+      if (!(deptOf(g) === profile.department_id || g.owner_id === profile.id || g.level === "company")) return false;
+    }
     return true;
   }), [goals, showClosed, period, level, dept, scope, deptOf, profile.id, profile.department_id]);
 
@@ -151,8 +157,8 @@ export function GoalsClient({ data }: { data: GoalsData }) {
         <div className="flex items-center gap-2 sm:ml-auto">
           <label className="text-xs inline-flex items-center gap-1.5 cursor-pointer text-muted"><input type="checkbox" checked={showClosed} onChange={(e) => setShowClosed(e.target.checked)} className="accent-[var(--brand)]" /> Show achieved & dropped</label>
           <div className="inline-flex rounded-[var(--radius-sm)] border overflow-hidden">
-            <button className={cn("btn btn-ghost btn-sm rounded-none", view === "tree" && "bg-[var(--neutral-bg)]")} onClick={() => setView("tree")} title="Tree"><ListTree size={14} /></button>
-            <button className={cn("btn btn-ghost btn-sm rounded-none", view === "list" && "bg-[var(--neutral-bg)]")} onClick={() => setView("list")} title="List"><LayoutList size={14} /></button>
+            <button className={cn("btn btn-sm rounded-none border-0", view === "tree" ? "btn-primary" : "btn-ghost")} aria-pressed={view === "tree"} onClick={() => setView("tree")} title="Tree"><ListTree size={14} /></button>
+            <button className={cn("btn btn-sm rounded-none border-0", view === "list" ? "btn-primary" : "btn-ghost")} aria-pressed={view === "list"} onClick={() => setView("list")} title="List"><LayoutList size={14} /></button>
           </div>
         </div>
       </div>

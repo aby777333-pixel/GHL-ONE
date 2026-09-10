@@ -215,12 +215,33 @@ export function IntelligenceAdmin() {
               {agg.t30.calls === 0 ? (
                 <EmptyState title="No AI usage yet" hint="Usage appears here as soon as someone asks GHL, opens a brief or runs an extraction." className="py-6" />
               ) : (
+                /*
+                  The day's figures used to ride on the native `title` attribute, which the browser
+                  parks wherever it likes — on the last few bars that meant half off the edge of the
+                  chart, and it took a second of hovering to appear at all. This is a real tooltip:
+                  it shows at once, and the bars nearest each edge anchor to that edge instead of
+                  centring on a bar that has no room beside it.
+                */
                 <div className="flex items-end gap-[3px] h-28 border-b">
-                  {agg.days.map(([day, d]) => (
-                    <div key={day} className="flex-1 min-w-0 h-full flex flex-col justify-end group" title={`${format(new Date(day), "d MMM")}: ${d.calls} call${d.calls === 1 ? "" : "s"} · ${fmtUsd(d.cost)}`}>
-                      <div className={cn("w-full rounded-t-[3px] transition-[height]", d.calls ? "bg-[var(--brand-2)] group-hover:bg-[var(--brand)]" : "bg-[var(--bg-sunken)]")} style={{ height: d.calls ? `${Math.max(4, (d.calls / agg.maxCalls) * 100)}%` : 2 }} />
-                    </div>
-                  ))}
+                  {agg.days.map(([day, d], i, arr) => {
+                    const nearRight = i >= arr.length - Math.max(2, Math.round(arr.length * 0.2));
+                    const nearLeft = i < Math.max(2, Math.round(arr.length * 0.2));
+                    return (
+                      <div key={day} className="relative flex-1 min-w-0 h-full flex flex-col justify-end group" aria-label={`${format(new Date(day), "d MMM")}: ${d.calls} calls, ${fmtUsd(d.cost)}`}>
+                        <div className={cn("w-full rounded-t-[3px] transition-[height]", d.calls ? "bg-[var(--brand-2)] group-hover:bg-[var(--brand)]" : "bg-[var(--bg-sunken)]")} style={{ height: d.calls ? `${Math.max(4, (d.calls / agg.maxCalls) * 100)}%` : 2 }} />
+                        <div
+                          className={cn(
+                            "pointer-events-none absolute bottom-full mb-1.5 z-20 hidden group-hover:block whitespace-nowrap card px-2 py-1 text-[11px] leading-tight",
+                            nearRight ? "right-0" : nearLeft ? "left-0" : "left-1/2 -translate-x-1/2",
+                          )}
+                          style={{ boxShadow: "var(--shadow)" }}
+                        >
+                          <span className="font-medium num">{format(new Date(day), "d MMM")}</span>
+                          <span className="text-muted"> · {d.calls} call{d.calls === 1 ? "" : "s"} · {fmtUsd(d.cost)}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
               <div className="flex justify-between text-[10px] text-muted num mt-1">

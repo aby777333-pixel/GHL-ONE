@@ -170,3 +170,41 @@ export function healthScore(parts: { weight: number; bad: number; total: number 
   }
   return wsum ? Math.round((score / wsum) * 100) : 100;
 }
+
+/* ---------------------------------------------------------------- Timezones */
+/**
+ * Company and working-hours settings drive rosters, escalation windows and notification quiet
+ * hours, so the timezone has to be a real IANA zone — a free-text field accepted "ssss" and every
+ * downstream calculation then silently used the server default.
+ *
+ * `Intl.supportedValuesOf` gives the browser's full zone list where it exists (all current engines);
+ * the shortlist is the fallback for anything older and for the server render.
+ */
+export const TIMEZONE_FALLBACK = [
+  "Asia/Kolkata", "Asia/Dubai", "Asia/Singapore", "Asia/Tokyo", "Asia/Shanghai",
+  "Europe/London", "Europe/Berlin", "Europe/Paris", "America/New_York", "America/Chicago",
+  "America/Los_Angeles", "America/Sao_Paulo", "Australia/Sydney", "Africa/Johannesburg", "UTC",
+];
+
+/** Valid zones to offer, with `current` kept at the front so an existing value is never dropped. */
+export function timezoneOptions(current?: string | null): string[] {
+  let list = TIMEZONE_FALLBACK;
+  try {
+    const supported = (Intl as unknown as { supportedValuesOf?: (key: string) => string[] }).supportedValuesOf?.("timeZone");
+    if (supported?.length) list = supported;
+  } catch {
+    /* older engine — the shortlist stands */
+  }
+  return current && !list.includes(current) ? [current, ...list] : list;
+}
+
+/** Does Intl accept this as a timezone? The check the free-text field never made. */
+export function isValidTimezone(tz?: string | null): boolean {
+  if (!tz) return false;
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+}

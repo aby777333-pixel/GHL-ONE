@@ -63,7 +63,7 @@ export function PeopleRecords({ data, perms = [], initialUser }: { data: HrData;
         <CardHeader
           title="Employee records"
           subtitle={`${data.people.length - inactive} active${inactive ? ` · ${inactive} inactive` : ""} · open a row to edit the master record and private details`}
-          action={<span className="inline-flex gap-1.5"><Button variant="secondary" size="sm" onClick={() => setBulk((b) => !b)}><FileSpreadsheet size={14} /> <span className="hidden sm:inline">{bulk ? "Hide bulk tools" : "Bulk import"}</span></Button><Button variant="primary" size="sm" onClick={() => setInvite(true)}><MailPlus size={14} /> <span className="hidden sm:inline">Add employee</span></Button></span>}
+          action={<span className="inline-flex gap-1.5"><Button variant="secondary" size="sm" onClick={() => setBulk(true)}><FileSpreadsheet size={14} /> <span className="hidden sm:inline">Bulk import</span></Button><Button variant="primary" size="sm" onClick={() => setInvite(true)}><MailPlus size={14} /> <span className="hidden sm:inline">Add employee</span></Button></span>}
         />
         <div className="px-[var(--s4)] pb-3 flex flex-wrap items-center gap-2">
           <div className="relative flex-1 min-w-[180px]"><Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Name, email, code, designation…" className="input pl-8 !h-9 !text-sm w-full" /></div>
@@ -93,7 +93,10 @@ export function PeopleRecords({ data, perms = [], initialUser }: { data: HrData;
                   <th className="px-3 py-2 font-medium">Shift</th>
                   <th className="px-3 py-2 font-medium">Joined</th>
                   <th className="px-3 py-2 font-medium">Probation</th>
-                  <th className="px-3 py-2 font-medium">Status</th>
+                  {/* The cell leads with the role badge — Super Admin, Manager, Employee — so
+                      "Status" described something the column does not show. The employment-status
+                      pills (Frozen, Probation, External) still ride along and name themselves. */}
+                  <th className="px-3 py-2 font-medium">Role</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -136,7 +139,16 @@ export function PeopleRecords({ data, perms = [], initialUser }: { data: HrData;
           onAction={(kind) => { setAction({ kind, person: selected }); }}
         />
       )}
-      {bulk && <BulkImport people={data.people} />}
+      {/*
+        The bulk tools used to unfold *below* the employee table: opening them meant scrolling past
+        every record to reach them, and scrolling back up to leave. They are a dialog now — one
+        click in, a Close button always in reach, and the table keeps its scroll position.
+      */}
+      {bulk && (
+        <Modal open onClose={() => setBulk(false)} title="Bulk import & bulk actions" width={980} footer={<Button variant="ghost" onClick={() => setBulk(false)}>Close</Button>}>
+          <BulkImport people={data.people} />
+        </Modal>
+      )}
 
       {center && (
         <EmployeeCenter

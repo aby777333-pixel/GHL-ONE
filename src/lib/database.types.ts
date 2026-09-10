@@ -950,23 +950,33 @@ export type Database = {
       ai_memory: {
         Row: {
           key: string
+          org_id: string | null
           updated_at: string
           user_id: string
           value: Json
         }
         Insert: {
           key: string
+          org_id?: string | null
           updated_at?: string
           user_id: string
           value: Json
         }
         Update: {
           key?: string
+          org_id?: string | null
           updated_at?: string
           user_id?: string
           value?: Json
         }
         Relationships: [
+          {
+            foreignKeyName: "ai_memory_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "ai_memory_user_id_fkey"
             columns: ["user_id"]
@@ -2918,6 +2928,7 @@ export type Database = {
           owner_id: string | null
           phone: string | null
           rating: number | null
+          referred_by: string | null
           resume_path: string | null
           source: string | null
           stage: string
@@ -2935,6 +2946,7 @@ export type Database = {
           owner_id?: string | null
           phone?: string | null
           rating?: number | null
+          referred_by?: string | null
           resume_path?: string | null
           source?: string | null
           stage?: string
@@ -2952,6 +2964,7 @@ export type Database = {
           owner_id?: string | null
           phone?: string | null
           rating?: number | null
+          referred_by?: string | null
           resume_path?: string | null
           source?: string | null
           stage?: string
@@ -2982,6 +2995,13 @@ export type Database = {
           {
             foreignKeyName: "candidates_owner_id_fkey"
             columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidates_referred_by_fkey"
+            columns: ["referred_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -3525,6 +3545,48 @@ export type Database = {
             columns: ["task_id"]
             isOneToOne: false
             referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_admin_limits: {
+        Row: {
+          note: string | null
+          org_id: string
+          permissions: string[] | null
+          set_by: string | null
+          template: string
+          updated_at: string
+        }
+        Insert: {
+          note?: string | null
+          org_id: string
+          permissions?: string[] | null
+          set_by?: string | null
+          template?: string
+          updated_at?: string
+        }
+        Update: {
+          note?: string | null
+          org_id?: string
+          permissions?: string[] | null
+          set_by?: string | null
+          template?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_admin_limits_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_admin_limits_set_by_fkey"
+            columns: ["set_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -8493,6 +8555,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "meetings_cancelled_by_fkey"
+            columns: ["cancelled_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "meetings_department_id_fkey"
             columns: ["department_id"]
             isOneToOne: false
@@ -9338,112 +9407,15 @@ export type Database = {
           subject?: string
           subject_id?: string | null
         }
-        Relationships: []
-      }
-      permissions: {
-        Row: {
-          description: string | null
-          grp: string
-          key: string
-          label: string
-          platform_only: boolean
-          position: number
-          requires: string[]
-          risk: string
-        }
-        Insert: {
-          description?: string | null
-          grp?: string
-          key: string
-          label: string
-          platform_only?: boolean
-          position?: number
-          requires?: string[]
-          risk?: string
-        }
-        Update: {
-          description?: string | null
-          grp?: string
-          key?: string
-          label?: string
-          platform_only?: boolean
-          position?: number
-          requires?: string[]
-          risk?: string
-        }
-        Relationships: []
-      }
-      company_admin_limits: {
-        Row: {
-          note: string | null
-          org_id: string
-          permissions: string[] | null
-          set_by: string | null
-          template: string
-          updated_at: string
-        }
-        Insert: {
-          note?: string | null
-          org_id: string
-          permissions?: string[] | null
-          set_by?: string | null
-          template?: string
-          updated_at?: string
-        }
-        Update: {
-          note?: string | null
-          org_id?: string
-          permissions?: string[] | null
-          set_by?: string | null
-          template?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      system_role_versions: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          denied_screens: string[]
-          description: string | null
-          id: string
-          name: string | null
-          note: string | null
-          org_id: string | null
-          permissions: string[]
-          screens: string[]
-          system_role_id: string
-          version: number
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          denied_screens?: string[]
-          description?: string | null
-          id?: string
-          name?: string | null
-          note?: string | null
-          org_id?: string | null
-          permissions?: string[]
-          screens?: string[]
-          system_role_id: string
-          version: number
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          denied_screens?: string[]
-          description?: string | null
-          id?: string
-          name?: string | null
-          note?: string | null
-          org_id?: string | null
-          permissions?: string[]
-          screens?: string[]
-          system_role_id?: string
-          version?: number
-        }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "permission_changes_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       permission_overrides: {
         Row: {
@@ -9492,6 +9464,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      permissions: {
+        Row: {
+          description: string | null
+          grp: string
+          key: string
+          label: string
+          platform_only: boolean
+          position: number
+          requires: string[]
+          risk: string
+        }
+        Insert: {
+          description?: string | null
+          grp?: string
+          key: string
+          label: string
+          platform_only?: boolean
+          position?: number
+          requires?: string[]
+          risk?: string
+        }
+        Update: {
+          description?: string | null
+          grp?: string
+          key?: string
+          label?: string
+          platform_only?: boolean
+          position?: number
+          requires?: string[]
+          risk?: string
+        }
+        Relationships: []
       }
       platform_admin_invites: {
         Row: {
@@ -10451,6 +10456,84 @@ export type Database = {
           {
             foreignKeyName: "projects_owner_id_fkey"
             columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      push_config: {
+        Row: {
+          enabled: boolean
+          hook_secret: string | null
+          hook_url: string | null
+          id: number
+          updated_at: string
+        }
+        Insert: {
+          enabled?: boolean
+          hook_secret?: string | null
+          hook_url?: string | null
+          id?: number
+          updated_at?: string
+        }
+        Update: {
+          enabled?: boolean
+          hook_secret?: string | null
+          hook_url?: string | null
+          id?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          failure_count: number
+          id: string
+          last_used_at: string | null
+          org_id: string | null
+          p256dh: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          failure_count?: number
+          id?: string
+          last_used_at?: string | null
+          org_id?: string | null
+          p256dh: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          failure_count?: number
+          id?: string
+          last_used_at?: string | null
+          org_id?: string | null
+          p256dh?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_subscriptions_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "push_subscriptions_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -11955,6 +12038,66 @@ export type Database = {
           },
         ]
       }
+      system_role_versions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          denied_screens: string[]
+          description: string | null
+          id: string
+          name: string | null
+          note: string | null
+          org_id: string | null
+          permissions: string[]
+          screens: string[]
+          system_role_id: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          denied_screens?: string[]
+          description?: string | null
+          id?: string
+          name?: string | null
+          note?: string | null
+          org_id?: string | null
+          permissions?: string[]
+          screens?: string[]
+          system_role_id: string
+          version: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          denied_screens?: string[]
+          description?: string | null
+          id?: string
+          name?: string | null
+          note?: string | null
+          org_id?: string | null
+          permissions?: string[]
+          screens?: string[]
+          system_role_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "system_role_versions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "system_role_versions_system_role_id_fkey"
+            columns: ["system_role_id"]
+            isOneToOne: false
+            referencedRelation: "system_roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       system_roles: {
         Row: {
           base_level: Database["public"]["Enums"]["role_level"]
@@ -13099,6 +13242,7 @@ export type Database = {
     Functions: {
       access_event_summary: { Args: { p_days?: number }; Returns: Json }
       access_findings: { Args: never; Returns: Json }
+      access_review_board: { Args: { p_org?: string }; Returns: Json }
       ack_task: {
         Args: { p_note?: string; p_status: string; p_task: string }
         Returns: undefined
@@ -13116,6 +13260,7 @@ export type Database = {
         Args: { p_conversation: string; p_due: string; p_text: string }
         Returns: string
       }
+      admin_ceiling: { Args: { p_org?: string }; Returns: string[] }
       admin_sessions: {
         Args: { p_user?: string }
         Returns: {
@@ -13131,6 +13276,16 @@ export type Database = {
       }
       ai_feedback_excerpt: { Args: { p_feedback: string }; Returns: Json }
       ai_requests_today: { Args: never; Returns: number }
+      amend_grant: {
+        Args: {
+          p_clear_expiry?: boolean
+          p_expires_at?: string
+          p_grant: string
+          p_level?: string
+          p_reason?: string
+        }
+        Returns: undefined
+      }
       apply_access_review: { Args: { p_review: string }; Returns: Json }
       apply_inbox_rules: {
         Args: {
@@ -13293,25 +13448,17 @@ export type Database = {
         Args: { p_user: string; p_video?: boolean }
         Returns: string
       }
-      cancel_meeting: { Args: { p_meeting: string; p_reason?: string }; Returns: Json }
-      access_review_board: { Args: { p_org?: string }; Returns: Json }
-      admin_ceiling: { Args: { p_org?: string }; Returns: string[] }
-      can_manage_permission: { Args: { p_perm: string; p_org?: string }; Returns: boolean }
-      can_review_access: { Args: { p_user: string }; Returns: boolean }
-      effective_permissions: { Args: { p_user?: string }; Returns: Json }
-      explain_permission: { Args: { p_user: string; p_perm: string }; Returns: Json }
-      is_platform_owner_user: { Args: { p_user: string }; Returns: boolean }
-      permission_holders: { Args: { p_perm: string }; Returns: Json }
-      preview_role_access: { Args: { p_role: string }; Returns: Json }
-      preview_user_access: { Args: { p_user: string }; Returns: Json }
-      restore_system_role: { Args: { p_role: string; p_version: number; p_reason?: string }; Returns: Json }
-      role_change_impact: { Args: { p_role: string; p_permissions: string[] }; Returns: Json }
       can_assign: {
         Args: { p_assignee: string; p_assigner?: string }
         Returns: boolean
       }
       can_edit_board: { Args: { b: string }; Returns: boolean }
       can_edit_task: { Args: { t: string }; Returns: boolean }
+      can_manage_permission: {
+        Args: { p_org?: string; p_perm: string }
+        Returns: boolean
+      }
+      can_review_access: { Args: { p_user: string }; Returns: boolean }
       can_see_workforce: { Args: { p_department?: string }; Returns: boolean }
       can_view_board: { Args: { b: string }; Returns: boolean }
       can_view_channel: { Args: { c: string }; Returns: boolean }
@@ -13327,6 +13474,13 @@ export type Database = {
       can_view_recording: { Args: { r: string }; Returns: boolean }
       can_view_screen: { Args: { p_key: string }; Returns: boolean }
       can_view_task: { Args: { t: string }; Returns: boolean }
+      can_view_workflow_run: { Args: { p_run: string }; Returns: boolean }
+      cancel_meeting: {
+        Args: { p_meeting: string; p_reason?: string }
+        Returns: Json
+      }
+      candidate_org: { Args: { p_candidate: string }; Returns: string }
+      candidate_owner: { Args: { p_candidate: string }; Returns: string }
       capacity_calendar: {
         Args: { p_days?: number; p_user?: string }
         Returns: Json
@@ -13541,6 +13695,7 @@ export type Database = {
         Returns: Database["public"]["Enums"]["role_level"]
       }
       effective_nav: { Args: { p_user?: string }; Returns: Json }
+      effective_permissions: { Args: { p_user?: string }; Returns: Json }
       effective_screens: {
         Args: { p_user?: string }
         Returns: {
@@ -13567,6 +13722,10 @@ export type Database = {
       expire_delegations_and_roles: { Args: never; Returns: number }
       explain_access: {
         Args: { p_id: string; p_type: string; p_user: string }
+        Returns: Json
+      }
+      explain_permission: {
+        Args: { p_perm: string; p_user: string }
         Returns: Json
       }
       feature_enabled: {
@@ -13667,6 +13826,10 @@ export type Database = {
       }
       is_active_member: { Args: never; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
+      is_candidate_panelist: {
+        Args: { p_candidate: string; p_user?: string }
+        Returns: boolean
+      }
       is_channel_member: { Args: { c: string }; Returns: boolean }
       is_hr: { Args: never; Returns: boolean }
       is_inbox_member: {
@@ -13695,9 +13858,14 @@ export type Database = {
       is_platform_admin: { Args: never; Returns: boolean }
       is_platform_admin_user: { Args: { p_user: string }; Returns: boolean }
       is_platform_owner: { Args: never; Returns: boolean }
+      is_platform_owner_user: { Args: { p_user: string }; Returns: boolean }
       is_primary_admin: { Args: never; Returns: boolean }
       is_primary_admin_user: { Args: { p_user: string }; Returns: boolean }
       is_project_member: { Args: { p: string }; Returns: boolean }
+      is_run_step_owner: {
+        Args: { p_run: string; p_user?: string }
+        Returns: boolean
+      }
       join_live_room: {
         Args: { p_device?: string; p_room: string }
         Returns: Json
@@ -13945,6 +14113,7 @@ export type Database = {
       }
       org_health: { Args: never; Returns: Json }
       people_intelligence: { Args: { p_days?: number }; Returns: Json }
+      permission_holders: { Args: { p_perm: string }; Returns: Json }
       person_name: { Args: { uid: string }; Returns: string }
       pick_agent: { Args: { p_inbox: string }; Returns: string }
       platform_can_touch: {
@@ -13954,6 +14123,7 @@ export type Database = {
       platform_company: { Args: { p_org: string }; Returns: Json }
       platform_overview: { Args: never; Returns: Json }
       platform_role: { Args: { p_user?: string }; Returns: string }
+      platform_self_test: { Args: never; Returns: Json }
       prepare_handover: {
         Args: {
           p_backup: string
@@ -13964,9 +14134,33 @@ export type Database = {
         Returns: Json
       }
       prepare_shift_handover: { Args: { p_department: string }; Returns: Json }
+      preview_role_access: { Args: { p_role: string }; Returns: Json }
+      preview_user_access: { Args: { p_user: string }; Returns: Json }
       probation_reminders: { Args: never; Returns: number }
       publish_platform_announcement: { Args: { p_id: string }; Returns: number }
       purge_access_events: { Args: never; Returns: number }
+      push_notification: {
+        Args: { p_id: string; p_secret: string }
+        Returns: Json
+      }
+      push_settle: {
+        Args: {
+          p_dead?: string[]
+          p_delivered?: string[]
+          p_secret: string
+          p_shaky?: string[]
+        }
+        Returns: undefined
+      }
+      push_targets: {
+        Args: {
+          p_kind?: string
+          p_org?: string
+          p_secret: string
+          p_user: string
+        }
+        Returns: Json
+      }
       queue_message: {
         Args: {
           p_ai?: boolean
@@ -13983,6 +14177,10 @@ export type Database = {
         Returns: Json
       }
       related_to: { Args: { eid: string; entity: string }; Returns: Json }
+      remove_push_subscription: {
+        Args: { p_endpoint: string }
+        Returns: number
+      }
       render_tpl: { Args: { ctx: Json; tpl: string }; Returns: string }
       reports_of: {
         Args: { p_depth?: number; p_user?: string }
@@ -14027,6 +14225,10 @@ export type Database = {
         Returns: undefined
       }
       restore_handovers: { Args: never; Returns: number }
+      restore_system_role: {
+        Args: { p_reason?: string; p_role: string; p_version: number }
+        Returns: Json
+      }
       restricted_hits: {
         Args: { p_limit?: number; p_q: string }
         Returns: {
@@ -14047,6 +14249,10 @@ export type Database = {
       }
       revoke_session: { Args: { p_session: string }; Returns: undefined }
       revoke_support_access: { Args: { p_id: string }; Returns: undefined }
+      role_change_impact: {
+        Args: { p_permissions: string[]; p_role: string }
+        Returns: Json
+      }
       role_rank: {
         Args: { r: Database["public"]["Enums"]["role_level"] }
         Returns: number
@@ -14079,6 +14285,15 @@ export type Database = {
       run_digests: { Args: { p_mode: string }; Returns: number }
       run_escalations: { Args: never; Returns: number }
       run_scheduled_automations: { Args: never; Returns: number }
+      save_push_subscription: {
+        Args: {
+          p_auth: string
+          p_endpoint: string
+          p_p256dh: string
+          p_user_agent?: string
+        }
+        Returns: string
+      }
       schedule_next_run: {
         Args: { cfg: Json; from_ts: string }
         Returns: string
@@ -14122,6 +14337,12 @@ export type Database = {
           title: string
         }[]
       }
+      selftest_allowed: { Args: never; Returns: boolean }
+      selftest_global_tables: { Args: never; Returns: string[] }
+      selftest_isolation_report: { Args: never; Returns: Json }
+      selftest_jwt_role: { Args: never; Returns: string }
+      selftest_platform_only_tables: { Args: never; Returns: string[] }
+      selftest_result: { Args: { p_checks: Json }; Returns: Json }
       set_active_workspace: {
         Args: { p_org: string; p_reason?: string }
         Returns: Json
@@ -14281,6 +14502,12 @@ export type Database = {
       tenant_isolation_report: { Args: never; Returns: Json }
       tenant_usage_snapshot: { Args: never; Returns: number }
       test_automation: { Args: { p_id: string; p_task: string }; Returns: Json }
+      test_enum_casts: { Args: never; Returns: Json }
+      test_function_volatility: { Args: never; Returns: Json }
+      test_policy_recursion: { Args: never; Returns: Json }
+      test_returning_policies: { Args: never; Returns: Json }
+      test_rls_role_sweep: { Args: never; Returns: Json }
+      test_tenant_scoping: { Args: never; Returns: Json }
       timesheet_suggestions: { Args: { p_day: string }; Returns: Json }
       touch_module: { Args: { p_module: string }; Returns: undefined }
       training_gate_ok: { Args: { p_user?: string }; Returns: boolean }
@@ -14318,6 +14545,7 @@ export type Database = {
         }[]
       }
       workflow_release_step: { Args: { p_step: string }; Returns: undefined }
+      workflow_run_starter: { Args: { p_run: string }; Returns: string }
       workforce_live: { Args: never; Returns: Json }
       workload: {
         Args: never

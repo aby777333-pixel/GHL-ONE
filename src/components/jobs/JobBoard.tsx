@@ -11,7 +11,7 @@ import { useSeen } from "@/components/providers/ActivityProvider";
 import { PersonChip } from "@/components/tasks/TaskBits";
 import { ago, cn, fmtDate, humanize, isManagerPlus, type Tables } from "@/lib/utils";
 import { PersonLine } from "@/components/admin/AdminBits";
-import { APPLICATION_STATUSES, APPLICATION_TONE } from "@/components/admin/hr/lib";
+import { APPLICATION_STATUSES, APPLICATION_TONE, REVIEWER_APPLICATION_STATUSES } from "@/components/admin/hr/lib";
 
 export type JobRow = Tables<"job_openings">;
 export type ApplicationRow = Tables<"internal_applications">;
@@ -101,7 +101,8 @@ export function JobBoard({ data }: { data: JobBoardData }) {
                                     <li key={a.id} className="flex flex-wrap items-center gap-2">
                                       <PersonLine id={a.user_id} size={24} sub={<>{ago(a.created_at)}{a.note ? ` · “${a.note}”` : ""}</>} className="flex-1 min-w-[200px]" />
                                       <Select value={a.status} onChange={(e) => setStatus(a, e.target.value)} className={cn("!w-auto !h-8 !text-xs", a.status === "selected" && "text-success", a.status === "rejected" && "text-danger")} disabled={a.status === "withdrawn"}>
-                                        {APPLICATION_STATUSES.map((s) => <option key={s} value={s}>{humanize(s)}</option>)}
+                                        {/* Withdrawn stays listed only when it is already the value, so the disabled select still reads correctly. */}
+                                        {(a.status === "withdrawn" ? APPLICATION_STATUSES : REVIEWER_APPLICATION_STATUSES).map((s) => <option key={s} value={s}>{humanize(s)}</option>)}
                                       </Select>
                                     </li>
                                   ))}

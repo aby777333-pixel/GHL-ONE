@@ -54,10 +54,12 @@ export function KnowledgeEditor({ open, onClose, initial, canApprove, onSaved }:
   }, [initial]);
 
   const patch = (p: Partial<KnowledgeDraft>) => setD((s) => ({ ...s, ...p }));
+  const [today] = React.useState(() => new Date().toISOString().slice(0, 10));
 
   const save = async (approve: boolean) => {
     if (!d.title.trim()) return toast.push("Give the article a title", "danger");
     if (!d.body.trim()) return toast.push("Write the article body", "danger");
+    if (d.review_at && d.review_at < today) return toast.push("The review date is in the past — pick today or later", "danger");
     setBusy(approve ? "approve" : "draft");
     const supabase = createClient();
     const tags = d.tags.split(",").map((t) => t.trim().toLowerCase()).filter(Boolean);
@@ -117,7 +119,10 @@ export function KnowledgeEditor({ open, onClose, initial, canApprove, onSaved }:
         </Field>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Tags" hint="Comma separated"><Input value={d.tags} onChange={(e) => patch({ tags: e.target.value })} placeholder="leave, self-service" /></Field>
-          <Field label="Review by" hint="Buddy warns when guidance is past its review date"><Input type="date" value={d.review_at} onChange={(e) => patch({ review_at: e.target.value })} /></Field>
+          {/* Same rule as the "Set review date" dialog: a review date in the past is born overdue. */}
+          <Field label="Review by" hint="Buddy warns when guidance is past its review date" error={d.review_at && d.review_at < today ? "Pick today or a later date." : undefined}>
+            <Input type="date" min={today} value={d.review_at} onChange={(e) => patch({ review_at: e.target.value })} />
+          </Field>
         </div>
       </div>
     </Modal>

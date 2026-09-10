@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, X, MessageSquareWarning, KeyRound, ShieldOff, Siren, RefreshCw, Inbox, Hourglass } from "lucide-react";
+import { Check, X, MessageSquareWarning, KeyRound, Pencil, ShieldOff, Siren, RefreshCw, Inbox, Hourglass } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button, Card, CardHeader, EmptyState, Field, Input, Modal, Pill, Select, Textarea, useToast } from "@/components/ui";
 import { PersonPicker } from "@/components/pickers";
@@ -43,6 +43,10 @@ export function AccessAdmin({ requests: initialRequests, grants: initialGrants, 
   const [type, setType] = React.useState("");
   const [decision, setDecision] = React.useState<Decision>(null);
   const [revoking, setRevoking] = React.useState<AccessGrantRow | null>(null);
+  /* An approved request produced a grant that could only be revoked. When the requirement changed,
+     the only route was revoke + re-request, which lost the approval trail and the person's access in
+     between. `amend_grant` changes the live grant and records before/after in the audit log. */
+  const [amending, setAmending] = React.useState<AccessGrantRow | null>(null);
 
   const reload = React.useCallback(async () => {
     setLoading(true);
@@ -80,6 +84,13 @@ export function AccessAdmin({ requests: initialRequests, grants: initialGrants, 
 
   const activeGrants = grants.filter((g) => !g.revoked_at && (!g.expires_at || new Date(g.expires_at).getTime() > now));
   const canDecide = (r: AccessRequestRow) => r.status === "pending" && (canApproveAll || r.approver_id === me);
+  /** The live grant an approved request produced, via `access_grants.source_request_id`. */
+  const grantByRequest = React.useMemo(() => {
+    const m = new Map<string, AccessGrantRow>();
+    for (const g of grants) if (g.source_request_id && !g.revoked_at) m.set(g.source_request_id, g);
+    return m;
+  }, [grants]);
+  const grantFor = (r: AccessRequestRow) => grantByRequest.get(r.id) || null;
 
   async function decide(req: AccessRequestRow, mode: NonNullable<Decision>["mode"], patch: { granted_level?: string; granted_until?: string | null; note: string }) {
     const next: ApprovalStatus = mode === "approve" ? "approved" : mode === "reject" ? "rejected" : "changes_requested";
@@ -92,6 +103,21 @@ export function AccessAdmin({ requests: initialRequests, grants: initialGrants, 
     }).eq("id", req.id);
     if (error) { toast.push(error.message, "danger"); return false; }
     toast.push(mode === "approve" ? `Access approved for ${req.resource_label}` : mode === "reject" ? "Request rejected" : "Changes requested", mode === "approve" ? "success" : "info");
+    await reload();
+    router.refresh();
+    return true;
+  }
+
+  async function amend(g: AccessGrantRow, patch: { level: string; expires: string | null; clearExpiry: boolean; reason: string }) {
+    const { error } = await createClient().rpc("amend_grant", {
+      p_grant: g.id,
+      p_level: patch.level,
+      p_expires_at: patch.clearExpiry ? undefined : patch.expires || undefined,
+      p_clear_expiry: patch.clearExpiry,
+      p_reason: patch.reason.trim() || undefined,
+    });
+    if (error) { toast.push(error.message, "danger"); return false; }
+    toast.push("Access updated", "success");
     await reload();
     router.refresh();
     return true;
@@ -138,6 +164,8 @@ export function AccessAdmin({ requests: initialRequests, grants: initialGrants, 
             {filtered.map((r) => {
               const href = resourceHref(r.resource_type, r.resource_id);
               const pending = r.status === "pending";
+              // The live grant this request produced, if it is still standing.
+              const liveGrant = pending ? null : grantFor(r);
               const untilLabel = r.duration === "until_date" ? (r.until_at ? `until ${fmtDate(r.until_at, true)}` : "until a date") : DURATION_LABEL[r.duration] || humanize(r.duration);
               return (
                 <div key={r.id} className={cn("px-[var(--s4)] py-3 flex flex-col lg:flex-row lg:items-start gap-3", r.risk === "high" && pending && "bg-[var(--danger-bg)]/40")}>
@@ -165,6 +193,14 @@ export function AccessAdmin({ requests: initialRequests, grants: initialGrants, 
                       <Button size="sm" variant="success" onClick={() => setDecision({ req: r, mode: "approve" })}><Check size={14} /> Approve</Button>
                       <Button size="sm" variant="secondary" onClick={() => setDecision({ req: r, mode: "changes" })}><MessageSquareWarning size={14} /> Changes</Button>
                       <Button size="sm" variant="danger" onClick={() => setDecision({ req: r, mode: "reject" })}><X size={14} /> Reject</Button>
+                    </div>
+                  )}
+                  {/* Approved and still live: the decision is made, but the access it created can
+                      still be corrected or ended from the request you are looking at. */}
+                  {liveGrant && (canApproveAll || liveGrant.granted_by === me) && (
+                    <div className="flex items-center gap-1.5 shrink-0 lg:pt-0.5">
+                      <Button size="sm" variant="secondary" onClick={() => setAmending(liveGrant)}><Pencil size={14} /> Change access</Button>
+                      <Button size="sm" variant="ghost" className="text-danger" onClick={() => setRevoking(liveGrant)}><ShieldOff size={14} /> Revoke</Button>
                     </div>
                   )}
                 </div>
@@ -209,6 +245,7 @@ export function AccessAdmin({ requests: initialRequests, grants: initialGrants, 
                       <td className="px-3 py-2"><PersonLine id={g.granted_by} size={18} /></td>
                       <td className="px-3 py-2 text-xs text-muted max-w-[260px] truncate" title={g.reason || undefined}>{g.reason || "—"}</td>
                       <td className="px-3 py-2 text-right whitespace-nowrap">
+                        {(canApproveAll || g.granted_by === me) && <Button size="sm" variant="ghost" onClick={() => setAmending(g)}><Pencil size={13} /> Change</Button>}
                         {(canApproveAll || g.granted_by === me) && <Button size="sm" variant="ghost" className="text-danger" onClick={() => setRevoking(g)}><ShieldOff size={13} /> Revoke</Button>}
                       </td>
                     </tr>
@@ -228,6 +265,7 @@ export function AccessAdmin({ requests: initialRequests, grants: initialGrants, 
 
       <DecisionModal decision={decision} onClose={() => setDecision(null)} onSubmit={decide} />
       <RevokeModal grant={revoking} onClose={() => setRevoking(null)} onSubmit={revoke} />
+      <AmendModal grant={amending} onClose={() => setAmending(null)} onSubmit={amend} />
     </div>
   );
 }
@@ -283,6 +321,60 @@ function DecisionModal({ decision, onClose, onSubmit }: { decision: Decision; on
         <Field label={mode === "approve" ? "Note to requester (optional)" : "Note to requester"} hint={mode === "changes" ? "Say what they should change — narrower scope, a better reason, a shorter period." : undefined}>
           <Textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} placeholder={mode === "approve" ? "Anything they should know" : mode === "reject" ? "Why this is declined" : "What to change"} />
         </Field>
+      </div>
+    </Modal>
+  );
+}
+
+/* ------------------------------------------------------------- Amend modal */
+/**
+ * Change a live grant's level or expiry. Not a new approval — the original request, its approver and
+ * its decision note all stand; `amend_grant` writes the before/after into the audit log so the
+ * history reads as one continuous story rather than a revoke followed by an unexplained re-grant.
+ */
+function AmendModal({ grant, onClose, onSubmit }: { grant: AccessGrantRow | null; onClose: () => void; onSubmit: (g: AccessGrantRow, patch: { level: string; expires: string | null; clearExpiry: boolean; reason: string }) => Promise<boolean> }) {
+  const [level, setLevel] = React.useState("view");
+  const [expires, setExpires] = React.useState("");
+  const [permanent, setPermanent] = React.useState(false);
+  const [reason, setReason] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+  const [forId, setForId] = React.useState("");
+  /* Fixed at mount rather than read during render. A few minutes of drift does not matter here —
+     `amend_grant` re-checks the expiry against the database clock, which is the one that counts. */
+  const [now] = React.useState(() => Date.now());
+  if (grant && forId !== grant.id) {
+    setForId(grant.id);
+    setLevel(grant.level);
+    setExpires(grant.expires_at ? toLocalInput(grant.expires_at) : "");
+    setPermanent(!grant.expires_at);
+    setReason("");
+  }
+  if (!grant) return null;
+  const iso = permanent ? null : fromLocalInput(expires);
+  const expiryInPast = !permanent && !!iso && new Date(iso).getTime() <= now;
+  const unchanged = level === grant.level && permanent === !grant.expires_at && (permanent || iso === grant.expires_at);
+  async function submit() {
+    if (!grant || expiryInPast) return;
+    setBusy(true);
+    const ok = await onSubmit(grant, { level, expires: iso, clearExpiry: permanent, reason });
+    setBusy(false);
+    if (ok) onClose();
+  }
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title="Change access"
+      footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button variant="primary" loading={busy} disabled={unchanged || expiryInPast} onClick={submit}><Check size={14} /> Save change</Button></>}
+    >
+      <div className="space-y-3">
+        <div className="text-sm flex items-center gap-2 flex-wrap"><PersonLine id={grant.user_id} size={20} /> <span className="text-muted">currently has</span> <LevelPill level={grant.level} /> <span className="text-muted">on</span> <ResourceTypePill type={grant.resource_type} /> <span className="font-medium">{grant.label || grant.resource_id.slice(0, 8)}</span></div>
+        <Field label="Access level"><Select value={level} onChange={(e) => setLevel(e.target.value)}>{LEVELS.map((l) => <option key={l} value={l}>{humanize(l)}</option>)}</Select></Field>
+        <Field label="Expires" hint="Leave a date to keep it temporary." error={expiryInPast ? "That is in the past. Revoke the grant instead of expiring it retroactively." : undefined}>
+          <Input type="datetime-local" value={expires} disabled={permanent} onChange={(e) => setExpires(e.target.value)} />
+        </Field>
+        <label className="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" checked={permanent} onChange={(e) => setPermanent(e.target.checked)} className="accent-[var(--brand)]" /> Permanent — no expiry</label>
+        <Field label="Why" hint="Recorded in the audit log alongside the original approval."><Textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Moved to the project team, needs edit until launch" /></Field>
       </div>
     </Modal>
   );

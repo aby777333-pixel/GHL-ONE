@@ -81,6 +81,12 @@ export const INTERVIEW_KINDS = ["screening", "interview", "practical_test", "fin
 export const CANDIDATE_SOURCES = ["referral", "linkedin", "job_portal", "website", "agency", "walk_in", "other"] as const;
 
 export const APPLICATION_STATUSES = ["applied", "shortlisted", "interview", "selected", "rejected", "withdrawn"] as const;
+/**
+ * What the *hiring side* may set. "Withdrawn" records that the candidate pulled out, so offering it
+ * to a reviewer let a rejection be filed as the applicant's own decision — the history then said
+ * something about the person that never happened. A reviewer who is not proceeding picks "rejected".
+ */
+export const REVIEWER_APPLICATION_STATUSES = APPLICATION_STATUSES.filter((s) => s !== "withdrawn");
 export const APPLICATION_TONE: Record<string, string> = { applied: "tone-neutral", shortlisted: "tone-info", interview: "tone-brand", selected: "tone-success", rejected: "tone-danger", withdrawn: "tone-muted" };
 
 /* ----------------------------------------------------------- step owners */

@@ -95,8 +95,8 @@ export function FilesBrowser({ files, projects, initial }: { files: FileListItem
         actions={
           <>
             <div className="hidden sm:inline-flex rounded-[var(--radius-sm)] border overflow-hidden">
-              <button className={cn("btn btn-ghost btn-sm rounded-none", view === "grid" && "bg-[var(--neutral-bg)]")} onClick={() => changeView("grid")} aria-label="Grid"><LayoutGrid size={15} /></button>
-              <button className={cn("btn btn-ghost btn-sm rounded-none", view === "list" && "bg-[var(--neutral-bg)]")} onClick={() => changeView("list")} aria-label="List"><ListIcon size={15} /></button>
+              <button className={cn("btn btn-sm rounded-none border-0", view === "grid" ? "btn-primary" : "btn-ghost")} aria-pressed={view === "grid"} onClick={() => changeView("grid")} aria-label="Grid"><LayoutGrid size={15} /></button>
+              <button className={cn("btn btn-sm rounded-none border-0", view === "list" ? "btn-primary" : "btn-ghost")} aria-pressed={view === "list"} onClick={() => changeView("list")} aria-label="List"><ListIcon size={15} /></button>
             </div>
             <Button variant="primary" onClick={() => setUpload(true)}><Upload size={15} /> Upload</Button>
           </>

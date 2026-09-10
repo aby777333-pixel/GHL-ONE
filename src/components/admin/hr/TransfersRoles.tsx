@@ -183,7 +183,9 @@ export function TransferModal({ open, person, people, teams, onClose }: { open: 
               {teams.filter((t) => !toDept || t.department_id === toDept).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </Select>
           </Field>
-          <Field label="New manager" hint="Leave empty to keep the current manager."><PersonPicker value={toManager} onChange={setToManager} placeholder="Keep current" departmentId={toDept || undefined} /></Field>
+          {/* Interns, consultants and individual contributors were all offered as "New manager".
+              Managers and above only — the person being transferred needs a real reporting line. */}
+          <Field label="New manager" hint="Team leads and above. Leave empty to keep the current manager."><PersonPicker value={toManager} onChange={setToManager} placeholder="Keep current" departmentId={toDept || undefined} minRole="team_lead" excludeIds={userId ? [userId] : undefined} /></Field>
           <Field label="Effective on"><Input type="date" value={effective} onChange={(e) => setEffective(e.target.value)} /></Field>
           <Field label="Reason" className="sm:col-span-2"><Textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Shared with the person when the transfer is applied." /></Field>
         </div>
@@ -238,7 +240,7 @@ export function RoleChangeModal({ open, person, people, onClose }: { open: boole
             <Select value={newRole} onChange={(e) => setNewRole(e.target.value as RoleLevel)}>{ROLES.map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}</Select>
           </Field>
           <Field label="New designation"><Input value={designation} onChange={(e) => setDesignation(e.target.value)} placeholder="e.g. Team Lead — Sales" /></Field>
-          <Field label="New manager" hint="Leave empty to keep the current manager."><PersonPicker value={manager} onChange={setManager} placeholder="Keep current" /></Field>
+          <Field label="New manager" hint="Team leads and above. Leave empty to keep the current manager."><PersonPicker value={manager} onChange={setManager} placeholder="Keep current" minRole="team_lead" excludeIds={userId ? [userId] : undefined} /></Field>
           <Field label="Effective on"><Input type="date" value={effective} onChange={(e) => setEffective(e.target.value)} /></Field>
           <Field label="Reason" className="sm:col-span-2"><Textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Shared with the person when applied." /></Field>
         </div>

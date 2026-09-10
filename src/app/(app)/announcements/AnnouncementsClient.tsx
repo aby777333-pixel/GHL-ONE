@@ -2,13 +2,13 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Megaphone, Pin, ShieldAlert, CheckCircle2, Plus, Users, Archive } from "lucide-react";
+import { Megaphone, Pin, ShieldAlert, CheckCircle2, Plus, Users, Archive, Pencil } from "lucide-react";
 import { Avatar, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Pill, Select, Textarea, useToast } from "@/components/ui";
 import { PersonChip } from "@/components/tasks/TaskBits";
 import { DepartmentChips } from "@/components/meetings/PeopleMultiSelect";
 import { useSession } from "@/components/providers/SessionProvider";
 import { createClient } from "@/lib/supabase/client";
-import { ago, cn, fmtDate, isManagerPlus, type Tables } from "@/lib/utils";
+import { ago, cn, fmtDate, isAdminRole, isManagerPlus, type Tables } from "@/lib/utils";
 
 type Announcement = Tables<"announcements">;
 type Ack = Pick<Tables<"announcement_acks">, "announcement_id" | "user_id" | "acked_at">;
@@ -68,12 +68,15 @@ export function AnnouncementsClient({ announcements, acks, openNew }: { announce
   const [showExpired, setShowExpired] = React.useState(false);
   const [showNew, setShowNew] = React.useState(openNew && manager);
   const [ackFor, setAckFor] = React.useState<Announcement | null>(null);
+  const [editing, setEditing] = React.useState<Announcement | null>(null);
   const [busy, setBusy] = React.useState<string | null>(null);
 
   const myAcks = React.useMemo(() => new Map(acks.filter((a) => a.user_id === profile.id).map((a) => [a.announcement_id, a.acked_at])), [acks, profile.id]);
   const deptName = (id: string) => departments.find((d) => d.id === id)?.name || "Department";
   const targets = (a: Announcement) => (a.department_ids.length ? people.filter((p) => p.department_id && a.department_ids.includes(p.department_id)) : people);
   const ackCount = (a: Announcement) => acks.filter((x) => x.announcement_id === a.id).length;
+  /* The database lets any manager write announcements; the button is narrower — your own, or an admin's to fix anyone's. */
+  const canEdit = (a: Announcement) => manager && (a.author_id === profile.id || isAdminRole(profile.role));
 
   const list = announcements
     .filter((a) => showExpired || !a.expires_at || Date.parse(a.expires_at) > now)
@@ -137,6 +140,8 @@ export function AnnouncementsClient({ announcements, acks, openNew }: { announce
                 <RichBody body={a.body} className="mt-4" />
                 {(a.mandatory || manager) && (
                   <div className="flex items-center gap-2 flex-wrap mt-4 pt-3 border-t">
+                    {/* Correcting a published notice beats publishing a second, contradictory one. */}
+                    {canEdit(a) && <Button variant="secondary" size="sm" onClick={() => setEditing(a)}><Pencil size={14} /> Edit</Button>}
                     {a.mandatory && (acked ? (
                       <span className="inline-flex items-center gap-1.5 text-sm text-success"><CheckCircle2 size={15} /> Confirmed on {fmtDate(acked, true)}</span>
                     ) : (
@@ -163,6 +168,7 @@ export function AnnouncementsClient({ announcements, acks, openNew }: { announce
         </Modal>
       )}
       {showNew && <NewAnnouncementModal onClose={() => { setShowNew(false); if (openNew) router.replace("/announcements"); }} />}
+      {editing && <NewAnnouncementModal announcement={editing} onClose={() => setEditing(null)} />}
     </div>
   );
 }
@@ -195,17 +201,23 @@ function AckList({ announcement, acks, targets }: { announcement: Announcement; 
   );
 }
 
-function NewAnnouncementModal({ onClose }: { onClose: () => void }) {
+/**
+ * Publish a new announcement, or correct one already out there. Without an edit path a wrong date
+ * could only be fixed by publishing a second announcement, which left the company reading two
+ * versions of the same notice and re-confirming a "mandatory" one they had already acknowledged.
+ */
+function NewAnnouncementModal({ announcement, onClose }: { announcement?: Announcement; onClose: () => void }) {
   const { profile } = useSession();
   const router = useRouter();
   const toast = useToast();
-  const [title, setTitle] = React.useState("");
-  const [body, setBody] = React.useState("");
-  const [kind, setKind] = React.useState<string>("update");
-  const [mandatory, setMandatory] = React.useState(false);
-  const [pinned, setPinned] = React.useState(false);
-  const [depts, setDepts] = React.useState<string[]>([]);
-  const [expires, setExpires] = React.useState("");
+  const editing = !!announcement;
+  const [title, setTitle] = React.useState(announcement?.title || "");
+  const [body, setBody] = React.useState(announcement?.body || "");
+  const [kind, setKind] = React.useState<string>(announcement?.kind || "update");
+  const [mandatory, setMandatory] = React.useState(!!announcement?.mandatory);
+  const [pinned, setPinned] = React.useState(!!announcement?.pinned);
+  const [depts, setDepts] = React.useState<string[]>(announcement?.department_ids || []);
+  const [expires, setExpires] = React.useState(announcement?.expires_at ? announcement.expires_at.slice(0, 10) : "");
   const [loading, setLoading] = React.useState(false);
 
   async function submit(e: React.FormEvent) {
@@ -213,8 +225,7 @@ function NewAnnouncementModal({ onClose }: { onClose: () => void }) {
     if (!title.trim() || !body.trim()) return;
     setLoading(true);
     const supabase = createClient();
-    const { error } = await supabase.from("announcements").insert({
-      org_id: profile.org_id!,
+    const payload = {
       title: title.trim(),
       body: body.trim(),
       kind,
@@ -222,30 +233,35 @@ function NewAnnouncementModal({ onClose }: { onClose: () => void }) {
       pinned,
       department_ids: depts,
       expires_at: expires ? new Date(`${expires}T23:59:59`).toISOString() : null,
-      author_id: profile.id,
-    });
+    };
+    const { error } = editing && announcement
+      ? await supabase.from("announcements").update(payload).eq("id", announcement.id)
+      : await supabase.from("announcements").insert({ ...payload, org_id: profile.org_id!, author_id: profile.id });
     if (error) {
       setLoading(false);
       return toast.push(error.message, "danger");
     }
     // Echo into #announcements so it reaches people in chat as well. Best effort.
-    try {
-      const { data: ch } = await supabase.from("channels").select("id").eq("slug", "announcements").maybeSingle();
-      if (ch) {
-        const excerpt = body.trim().replace(/\s+/g, " ").slice(0, 300);
-        await supabase.from("messages").insert({ channel_id: ch.id, author_id: profile.id, body: `📣 ${title.trim()}\n${excerpt}${body.trim().length > 300 ? "…" : ""}` });
+    // Only on publish: an edit must not post the notice to chat a second time.
+    if (!editing) {
+      try {
+        const { data: ch } = await supabase.from("channels").select("id").eq("slug", "announcements").maybeSingle();
+        if (ch) {
+          const excerpt = body.trim().replace(/\s+/g, " ").slice(0, 300);
+          await supabase.from("messages").insert({ channel_id: ch.id, author_id: profile.id, body: `📣 ${title.trim()}\n${excerpt}${body.trim().length > 300 ? "…" : ""}` });
+        }
+      } catch {
+        /* channel post is optional */
       }
-    } catch {
-      /* channel post is optional */
     }
     setLoading(false);
-    toast.push("Announcement published", "success");
+    toast.push(editing ? "Announcement updated" : "Announcement published", "success");
     router.refresh();
     onClose();
   }
 
   return (
-    <Modal open onClose={onClose} title="New announcement" width={640}>
+    <Modal open onClose={onClose} title={editing ? "Edit announcement" : "New announcement"} width={640}>
       <form onSubmit={submit} className="space-y-3">
         <Field label="Title">
           <Input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Office closed on 2 October" required />
@@ -275,7 +291,7 @@ function NewAnnouncementModal({ onClose }: { onClose: () => void }) {
         </div>
         <div className="flex justify-end gap-2 pt-1">
           <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button type="submit" variant="primary" loading={loading}><Megaphone size={14} /> Publish</Button>
+          <Button type="submit" variant="primary" loading={loading}><Megaphone size={14} /> {editing ? "Save changes" : "Publish"}</Button>
         </div>
       </form>
     </Modal>

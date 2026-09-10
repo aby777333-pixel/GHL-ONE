@@ -113,7 +113,26 @@ export function TeamBoard({ initialRows, initialDay }: { initialRows: BoardRow[]
           <Card key={g.id}>
             <CardHeader title={<span className="inline-flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full" style={{ background: g.color || "var(--line-strong)" }} />{g.name}</span>} subtitle={`${g.list.filter((r) => r.first_in).length}/${g.list.length} checked in`} />
             <div className="overflow-x-auto">
-              <table className="w-full text-sm min-w-[640px]">
+              {/*
+                Every department renders its own table. With automatic layout each one sized its
+                columns to its own contents, so the repeated headers stepped left and right down the
+                page and no two sections lined up. Fixed layout plus one shared column template makes
+                every section land on the same grid; only the Person column takes the slack.
+              */}
+              <table className="w-full text-sm min-w-[820px] table-fixed">
+                {/* The fixed widths sum to 644px, so at the 820px minimum the Person column still
+                    has 176px to itself and only grows from there. The wrapper scrolls sideways
+                    below that rather than letting any column collapse. */}
+                <colgroup>
+                  <col />
+                  <col className="w-[132px]" />
+                  <col className="w-[88px]" />
+                  <col className="w-[100px]" />
+                  <col className="w-[80px]" />
+                  <col className="w-[100px]" />
+                  <col className="w-[100px]" />
+                  <col className="w-[44px]" />
+                </colgroup>
                 <thead className="text-[11px] text-muted uppercase tracking-wide">
                   <tr className="border-t border-b">
                     <th className="text-left font-medium px-[var(--s4)] py-1.5">Person</th>
@@ -135,12 +154,12 @@ export function TeamBoard({ initialRows, initialDay }: { initialRows: BoardRow[]
                           <span className="min-w-0"><span className="flex items-center gap-1.5"><span className="truncate">{r.full_name}</span><Blink zone={`user:${r.user_id}`} /></span><span className="block text-[11px] text-muted truncate">{r.designation || "—"}{r.status_text ? ` · ${r.status_text}` : ""}</span></span>
                         </Link>
                       </td>
-                      <td className="px-2 py-1.5"><Pill tone={ATT_STATUS_TONE[r.status] || "tone-neutral"}>{ATT_STATUS_LABEL[r.status] || r.status}{r.status === "leave" && r.leave_kind ? ` · ${r.leave_kind.replace(/_/g, " ")}` : ""}</Pill></td>
+                      <td className="px-2 py-1.5 overflow-hidden"><Pill tone={ATT_STATUS_TONE[r.status] || "tone-neutral"} className="max-w-full truncate">{ATT_STATUS_LABEL[r.status] || r.status}{r.status === "leave" && r.leave_kind ? ` · ${r.leave_kind.replace(/_/g, " ")}` : ""}</Pill></td>
                       <td className={cn("px-2 py-1.5 num", r.late && "text-warn")}>{r.first_in ? istTime(r.first_in) : "—"}</td>
                       <td className="px-2 py-1.5 num">{r.last_out ? istTime(r.last_out) : r.first_in ? (day === today ? <span className="text-success">in</span> : <span className="text-warn inline-flex items-center gap-1"><AlertTriangle size={12} /> missing</span>) : "—"}</td>
                       <td className="px-2 py-1.5 num text-right">{r.minutes_worked ? fmtMinutes(r.minutes_worked) : "—"}</td>
-                      <td className="px-2 py-1.5 text-muted">{r.mode ? MODE_LABEL[r.mode] : "—"}</td>
-                      <td className="px-2 py-1.5 text-muted">{r.shift_name || "—"}</td>
+                      <td className="px-2 py-1.5 text-muted truncate">{r.mode ? MODE_LABEL[r.mode] : "—"}</td>
+                      <td className="px-2 py-1.5 text-muted truncate">{r.shift_name || "—"}</td>
                       <td className="px-2 py-1.5 text-right">{r.in_meeting && <span className="pill tone-violet" title="In a meeting now"><Video size={10} /></span>}</td>
                     </tr>
                   ))}

@@ -24,7 +24,18 @@ export function AssignTrainingModal({ courses, initialCourseId, initialPeople, o
   }, [people, profile.id, q, dept]);
 
   const toggle = (id: string) => setSelected((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
-  const selectAll = () => setSelected((s) => { const n = new Set(s); list.forEach((p) => n.add(p.id)); return n; });
+  /**
+   * The link used to only ever add, and kept saying "Select all shown" after it had selected them
+   * all — so the current state was unreadable and there was no way back except unticking one by one.
+   * It is a toggle now, and the label says which way it will go.
+   */
+  const allShownSelected = list.length > 0 && list.every((p) => selected.has(p.id));
+  const toggleAllShown = () => setSelected((s) => {
+    const n = new Set(s);
+    if (allShownSelected) list.forEach((p) => n.delete(p.id));
+    else list.forEach((p) => n.add(p.id));
+    return n;
+  });
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -55,7 +66,7 @@ export function AssignTrainingModal({ courses, initialCourseId, initialPeople, o
         <div>
           <div className="flex items-center justify-between gap-2 mb-1.5">
             <span className="label !mb-0">People <span className="text-muted font-normal">· {selected.size} selected</span></span>
-            <button type="button" className="text-xs link" onClick={selectAll}>Select all shown</button>
+            <button type="button" className="text-xs link" onClick={toggleAllShown} disabled={list.length === 0}>{allShownSelected ? "Deselect all shown" : "Select all shown"}</button>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 mb-2">
             <SearchInput value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search people…" className="flex-1" />

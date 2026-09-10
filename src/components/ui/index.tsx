@@ -111,12 +111,13 @@ export const Select = React.forwardRef<HTMLSelectElement, React.SelectHTMLAttrib
     </select>
   );
 });
-export function Field({ label, hint, children, className }: { label?: string; hint?: string; children: React.ReactNode; className?: string }) {
+/** `error` replaces the hint while it is set, so a field says why it is refusing right where it is refusing. */
+export function Field({ label, hint, error, children, className }: { label?: string; hint?: string; error?: string | false | null; children: React.ReactNode; className?: string }) {
   return (
     <label className={cn("block", className)}>
       {label && <span className="label">{label}</span>}
       {children}
-      {hint && <span className="block text-[11px] text-muted mt-1">{hint}</span>}
+      {error ? <span className="block text-[11px] text-danger mt-1">{error}</span> : hint ? <span className="block text-[11px] text-muted mt-1">{hint}</span> : null}
     </label>
   );
 }
@@ -268,7 +269,25 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 /* ----------------------------------------------------------------- Menu */
 export function Menu({ trigger, children, align = "right", width = 200 }: { trigger: React.ReactNode; children: React.ReactNode; align?: "left" | "right"; width?: number }) {
   const [open, setOpen] = React.useState(false);
+  /**
+   * Which way the panel opens. It always dropped downwards, so a trigger low in the viewport —
+   * the "…" in the footer of a people card, say — threw its menu into the gap below the card
+   * where it read as detached, or off the bottom of the screen entirely. Measure once on open
+   * and flip upwards when there is more room above than below.
+   */
+  const [up, setUp] = React.useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
+  const panelRef = React.useRef<HTMLDivElement>(null);
+  React.useLayoutEffect(() => {
+    // Only ever decided while open. A closed menu renders nothing, so there is no stale frame to
+    // reset — and resetting here would be a setState in an effect body for no visible gain.
+    if (!open) return;
+    const anchor = ref.current?.getBoundingClientRect();
+    const h = panelRef.current?.offsetHeight ?? 0;
+    if (!anchor || !h) return;
+    const below = window.innerHeight - anchor.bottom;
+    setUp(below < h + 12 && anchor.top > below);
+  }, [open]);
   React.useEffect(() => {
     if (!open) return;
     const onDoc = (e: MouseEvent) => {
@@ -281,7 +300,12 @@ export function Menu({ trigger, children, align = "right", width = 200 }: { trig
     <div ref={ref} className="relative inline-flex">
       <span onClick={() => setOpen((o) => !o)}>{trigger}</span>
       {open && (
-        <div className="absolute top-full mt-1 z-50 card p-1 anim-pop" style={{ [align]: 0, width, boxShadow: "var(--shadow-lg)" }} onClick={() => setOpen(false)}>
+        <div
+          ref={panelRef}
+          className={cn("absolute z-50 card p-1 anim-pop", up ? "bottom-full mb-1" : "top-full mt-1")}
+          style={{ [align]: 0, width, boxShadow: "var(--shadow-lg)" }}
+          onClick={() => setOpen(false)}
+        >
           {children}
         </div>
       )}

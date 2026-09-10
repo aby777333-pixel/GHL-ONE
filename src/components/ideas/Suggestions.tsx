@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Inbox, Plus, EyeOff, MessageSquareReply, Wrench, Building, Cog, HelpCircle } from "lucide-react";
+import { Inbox, Plus, EyeOff, MessageSquareReply, Wrench, Building, Cog, HelpCircle, Pencil } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button, Card, EmptyState, Field, Input, Modal, Pill, Select, Skeleton, Textarea, useToast } from "@/components/ui";
 import { useSession } from "@/components/providers/SessionProvider";
@@ -20,6 +20,7 @@ export function Suggestions({ openNew }: { openNew?: boolean }) {
   const [status, setStatus] = React.useState("");
   const [showNew, setShowNew] = React.useState(!!openNew);
   const [responding, setResponding] = React.useState<Row | null>(null);
+  const [editing, setEditing] = React.useState<Row | null>(null);
   const canReview = isManagerPlus(profile.role) || isHr;
 
   const load = React.useCallback(async () => {
@@ -78,6 +79,9 @@ export function Suggestions({ openNew }: { openNew?: boolean }) {
                   <div className="flex items-center gap-x-3 gap-y-1.5 flex-wrap mt-2.5 text-xs text-muted">
                     {r.anonymous && !r.author_id ? <span className="inline-flex items-center gap-1"><EyeOff size={12} /> Anonymous</span> : r.author_id ? <span className="inline-flex items-center gap-1"><PersonChip id={r.author_id} size={18} />{r.anonymous && <span title="Anonymous to managers; visible to HR only">(anonymous)</span>}</span> : <span>Someone</span>}
                     <span className="num">{r.created_at ? ago(r.created_at) : ""}</span>
+                    {r.author_id === profile.id && (r.status || "new") === "new" && (
+                      <button type="button" onClick={() => setEditing(r)} className="link inline-flex items-center gap-1"><Pencil size={11} /> Edit</button>
+                    )}
                     {canReview && <Button size="xs" variant="secondary" className="ml-auto" onClick={() => setResponding(r)}><MessageSquareReply size={12} /> {r.response ? "Update response" : "Respond"}</Button>}
                   </div>
                 </div>
@@ -88,32 +92,41 @@ export function Suggestions({ openNew }: { openNew?: boolean }) {
       )}
 
       {showNew && <SubmitSuggestionModal onClose={() => setShowNew(false)} onCreated={load} />}
+      {editing && <SubmitSuggestionModal row={editing} onClose={() => setEditing(null)} onCreated={load} />}
       {responding && <RespondModal row={responding} onClose={() => setResponding(null)} onSaved={() => { setResponding(null); void load(); }} />}
     </div>
   );
 }
 
-function SubmitSuggestionModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+/**
+ * Write a suggestion, or correct one you already sent. "Update response" is the reviewer's field;
+ * the author had no way at all to fix their own wording, so a mistake stayed in the box for good.
+ * The database already allowed this while the suggestion is still `new` (untouched by a reviewer).
+ */
+function SubmitSuggestionModal({ row, onClose, onCreated }: { row?: Row; onClose: () => void; onCreated: () => void }) {
   const { profile } = useSession();
   const toast = useToast();
-  const [kind, setKind] = React.useState<SuggestionKind>("process");
-  const [title, setTitle] = React.useState("");
-  const [body, setBody] = React.useState("");
+  const editing = !!row;
+  const [kind, setKind] = React.useState<SuggestionKind>((row?.kind as SuggestionKind) || "process");
+  const [title, setTitle] = React.useState(row?.title || "");
+  const [body, setBody] = React.useState(row?.body || "");
   const [anonymous, setAnonymous] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) return;
     setLoading(true);
-    const { error } = await createClient().from("suggestions").insert({ org_id: profile.org_id!, author_id: profile.id, anonymous, kind, title: title.trim(), body: body.trim() || null });
+    const { error } = editing && row?.id
+      ? await createClient().from("suggestions").update({ kind, title: title.trim(), body: body.trim() || null }).eq("id", row.id)
+      : await createClient().from("suggestions").insert({ org_id: profile.org_id!, author_id: profile.id, anonymous, kind, title: title.trim(), body: body.trim() || null });
     setLoading(false);
     if (error) { toast.push(error.message, "danger"); return; }
-    toast.push(anonymous ? "Sent anonymously. Managers see the suggestion, not your name." : "Suggestion sent", "success");
+    toast.push(editing ? "Suggestion updated" : anonymous ? "Sent anonymously. Managers see the suggestion, not your name." : "Suggestion sent", "success");
     onCreated();
     onClose();
   }
   return (
-    <Modal open onClose={onClose} title="Make a suggestion" width={540}>
+    <Modal open onClose={onClose} title={editing ? "Edit your suggestion" : "Make a suggestion"} width={540}>
       <form onSubmit={submit} className="space-y-3">
         <Field label="About">
           <div className="flex flex-wrap gap-1.5">
@@ -124,13 +137,16 @@ function SubmitSuggestionModal({ onClose, onCreated }: { onClose: () => void; on
         </Field>
         <Field label="Suggestion"><Input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="What should change?" required /></Field>
         <Field label="Details" hint="What is the problem today, and what would better look like?"><Textarea value={body} onChange={(e) => setBody(e.target.value)} style={{ minHeight: 100 }} /></Field>
-        <label className="flex items-start gap-2 text-sm cursor-pointer">
-          <input type="checkbox" checked={anonymous} onChange={(e) => setAnonymous(e.target.checked)} className="mt-1 accent-[var(--brand)]" />
-          <span className="inline-flex flex-col"><span className="inline-flex items-center gap-1.5"><EyeOff size={13} /> Send anonymously</span><span className="text-[11px] text-muted">Managers reviewing the box will not see who wrote it. Only a Super Admin or HR administrator can.</span></span>
-        </label>
+        {/* Anonymity is fixed at send time — flipping it afterwards cannot un-see a name a reviewer already read. */}
+        {!editing && (
+          <label className="flex items-start gap-2 text-sm cursor-pointer">
+            <input type="checkbox" checked={anonymous} onChange={(e) => setAnonymous(e.target.checked)} className="mt-1 accent-[var(--brand)]" />
+            <span className="inline-flex flex-col"><span className="inline-flex items-center gap-1.5"><EyeOff size={13} /> Send anonymously</span><span className="text-[11px] text-muted">Managers reviewing the box will not see who wrote it. Only a Super Admin or HR administrator can.</span></span>
+          </label>
+        )}
         <div className="flex justify-end gap-2 pt-1">
           <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button type="submit" variant="primary" loading={loading}><Inbox size={14} /> Send</Button>
+          <Button type="submit" variant="primary" loading={loading}><Inbox size={14} /> {editing ? "Save changes" : "Send"}</Button>
         </div>
       </form>
     </Modal>

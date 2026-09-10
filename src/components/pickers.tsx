@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Select } from "@/components/ui";
 import { useSession } from "@/components/providers/SessionProvider";
-import { PRIORITIES, PRIORITY_LABEL, TASK_STATUSES, STATUS_LABEL, CLASSIFICATIONS, CLASSIFICATION_LABEL, type TaskPriority, type TaskStatus, type Classification } from "@/lib/utils";
+import { PRIORITIES, PRIORITY_LABEL, TASK_STATUSES, STATUS_LABEL, CLASSIFICATIONS, CLASSIFICATION_LABEL, ROLE_RANK, type RoleLevel, type TaskPriority, type TaskStatus, type Classification } from "@/lib/utils";
 
 type SelProps = Omit<React.SelectHTMLAttributes<HTMLSelectElement>, "value" | "onChange"> & {
   value?: string | null;
@@ -12,16 +12,28 @@ type SelProps = Omit<React.SelectHTMLAttributes<HTMLSelectElement>, "value" | "o
   allowEmpty?: boolean;
 };
 
-/** Pick a person from the directory. */
 /**
+ * Pick a person from the directory.
+ *
  * `excludeIds` removes people who must not be choosable at all — an approver cannot be the
  * requester, a mentor cannot be the mentee. Leaving an invalid name in the list and rejecting it
  * on submit only teaches people that the form is broken; the option should not be there.
+ *
+ * `minRole` keeps the list to people senior enough for the job — a hiring manager or a reporting
+ * manager is not an intern, and offering every intern and consultant as "New manager" made the
+ * choice look arbitrary. It is a *rank* floor (see `ROLE_RANK`), so `team_lead` also admits
+ * managers, department heads, executives and directors — it removes the people who manage nobody
+ * (employees, interns, consultants, vendors, guests) without narrowing a legitimate reporting line.
+ *
+ * `preferDepartmentId` sorts that department's group to the top rather than hiding the rest, because
+ * cross-department hiring managers are legitimate — they just should not be the first thing you see.
  */
-export function PersonPicker({ value, onChange, placeholder = "Unassigned", allowEmpty = true, departmentId, excludeIds, ...rest }: SelProps & { departmentId?: string | null; excludeIds?: string[] }) {
+export function PersonPicker({ value, onChange, placeholder = "Unassigned", allowEmpty = true, departmentId, preferDepartmentId, minRole, excludeIds, ...rest }: SelProps & { departmentId?: string | null; preferDepartmentId?: string | null; minRole?: RoleLevel; excludeIds?: string[] }) {
   const { people, departments } = useSession();
-  const base = departmentId ? people.filter((p) => p.department_id === departmentId) : people;
+  const byDeptFilter = departmentId ? people.filter((p) => p.department_id === departmentId) : people;
+  const ceiling = minRole ? ROLE_RANK[minRole] : null;
   // Never hide the value already selected, or the Select would silently show a blank row.
+  const base = ceiling === null ? byDeptFilter : byDeptFilter.filter((p) => p.id === value || ROLE_RANK[p.role] <= ceiling);
   const list = excludeIds?.length ? base.filter((p) => p.id === value || !excludeIds.includes(p.id)) : base;
   const grouped = React.useMemo(() => {
     const byDept = new Map<string, typeof list>();
@@ -30,13 +42,15 @@ export function PersonPicker({ value, onChange, placeholder = "Unassigned", allo
       if (!byDept.has(k)) byDept.set(k, []);
       byDept.get(k)!.push(p);
     }
-    return [...byDept.entries()].map(([k, ps]) => ({ name: departments.find((d) => d.id === k)?.name || "No department", people: ps }));
-  }, [list, departments]);
+    const groups = [...byDept.entries()].map(([k, ps]) => ({ key: k, name: departments.find((d) => d.id === k)?.name || "No department", people: ps }));
+    if (preferDepartmentId) groups.sort((a, b) => Number(b.key === preferDepartmentId) - Number(a.key === preferDepartmentId));
+    return groups;
+  }, [list, departments, preferDepartmentId]);
   return (
     <Select value={value || ""} onChange={(e) => onChange(e.target.value)} {...rest}>
       {allowEmpty && <option value="">{placeholder}</option>}
       {grouped.map((g) => (
-        <optgroup key={g.name} label={g.name}>
+        <optgroup key={g.key} label={g.name}>
           {g.people.map((p) => (
             <option key={p.id} value={p.id}>
               {p.full_name}{p.designation ? ` — ${p.designation}` : ""}

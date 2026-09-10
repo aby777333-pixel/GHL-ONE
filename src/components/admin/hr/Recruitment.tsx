@@ -37,7 +37,9 @@ export function RecruitmentView({ data, perms }: { data: HrData; perms: string[]
 
   const jobs = data.jobs.filter((j) => j.external);
   const openJobs = jobs.filter((j) => j.status === "open");
-  const visible = rows.filter((c) => !jobFilter || c.job_id === jobFilter);
+  /* "pool" is the deliberate no-opening bucket, so unassigned candidates can be found and given one
+     rather than sitting invisibly among everyone else. */
+  const visible = rows.filter((c) => !jobFilter || (jobFilter === "pool" ? !c.job_id : c.job_id === jobFilter));
   const byStage = React.useMemo(() => {
     const m = new Map<CandidateStage, Candidate[]>();
     for (const s of CANDIDATE_STAGES) m.set(s, []);
@@ -96,7 +98,7 @@ export function RecruitmentView({ data, perms }: { data: HrData; perms: string[]
       </Card>
 
       <div className="flex flex-wrap items-center gap-2">
-        <Select value={jobFilter} onChange={(e) => setJobFilter(e.target.value)} className="!w-auto"><option value="">All openings</option>{jobs.map((j) => <option key={j.id} value={j.id}>{j.title}</option>)}</Select>
+        <Select value={jobFilter} onChange={(e) => setJobFilter(e.target.value)} className="!w-auto"><option value="">All openings</option>{jobs.map((j) => <option key={j.id} value={j.id}>{j.title}</option>)}<option value="pool">Talent pool — no opening ({rows.filter((c) => !c.job_id).length})</option></Select>
         <span className="text-xs text-muted">Drag a card to move it through the pipeline.</span>
         <Button size="sm" variant="primary" className="ml-auto" onClick={() => setAddCand(true)}><UserPlus size={14} /> Add candidate</Button>
       </div>
@@ -120,7 +122,7 @@ export function RecruitmentView({ data, perms }: { data: HrData; perms: string[]
                         <GripVertical size={13} className="text-muted mt-0.5 shrink-0 hidden sm:block" />
                         <div className="min-w-0 flex-1">
                           <div className="text-sm font-medium leading-snug truncate">{c.full_name}</div>
-                          <div className="text-[11px] text-muted truncate">{jobs.find((j) => j.id === c.job_id)?.title || "No opening"}{c.source ? ` · ${humanize(c.source)}` : ""}</div>
+                          <div className="text-[11px] text-muted truncate">{jobs.find((j) => j.id === c.job_id)?.title || "Talent pool · no opening"}{c.source ? ` · ${humanize(c.source)}` : ""}</div>
                         </div>
                       </div>
                       <div className="flex items-center gap-1.5 mt-2">
@@ -187,7 +189,9 @@ function JobModal({ job, onClose }: { job: JobOpening | null; onClose: () => voi
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Field label="Title" className="sm:col-span-2"><Input value={title} onChange={(e) => setTitle(e.target.value)} autoFocus /></Field>
         <Field label="Department"><DepartmentPicker value={dept} onChange={setDept} placeholder="Any" /></Field>
-        <Field label="Hiring manager"><PersonPicker value={manager} onChange={setManager} placeholder="HR" /></Field>
+        {/* Every employee — interns and consultants included — used to be offered as hiring manager.
+            Managers and above only, with the opening's own department at the top of the list. */}
+        <Field label="Hiring manager" hint="Team leads and above"><PersonPicker value={manager} onChange={setManager} placeholder="HR" minRole="team_lead" preferDepartmentId={dept || null} /></Field>
         <Field label="Closes on"><Input type="date" value={closes} onChange={(e) => setCloses(e.target.value)} /></Field>
         <label className="flex items-center gap-2 text-sm self-end pb-2"><input type="checkbox" checked={internal} onChange={(e) => setInternal(e.target.checked)} className="accent-[var(--brand)]" /> Also post on the internal job board</label>
         <Field label="Description" className="sm:col-span-2"><Textarea rows={5} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Responsibilities, must-haves, location, compensation band…" /></Field>
@@ -205,14 +209,18 @@ function AddCandidateModal({ open, jobs, defaultJob, onClose }: { open: boolean;
   const [email, setEmail] = React.useState("");
   const [phone, setPhone] = React.useState("");
   const [source, setSource] = React.useState("referral");
+  const [referredBy, setReferredBy] = React.useState("");
   const [jobId, setJobId] = React.useState(defaultJob || "");
   const [owner, setOwner] = React.useState(profile.id);
   const [busy, setBusy] = React.useState(false);
+  const openJobs = jobs.filter((j) => j.status === "open");
 
   async function add() {
     if (!profile.org_id || !name.trim()) return;
     setBusy(true);
-    const { error } = await createClient().from("candidates").insert({ org_id: profile.org_id, full_name: name.trim(), email: email.trim().toLowerCase() || null, phone: phone.trim() || null, source, job_id: jobId || null, owner_id: owner || null });
+    // The referrer only belongs on a referral; switching the source afterwards must not leave a
+    // stale name attached to a candidate who came in through a job board.
+    const { error } = await createClient().from("candidates").insert({ org_id: profile.org_id, full_name: name.trim(), email: email.trim().toLowerCase() || null, phone: phone.trim() || null, source, referred_by: source === "referral" ? referredBy || null : null, job_id: jobId || null, owner_id: owner || null });
     setBusy(false);
     if (error) { toast.push(error.message, "danger"); return; }
     toast.push(`${name.trim()} added as applicant`, "success");
@@ -228,7 +236,21 @@ function AddCandidateModal({ open, jobs, defaultJob, onClose }: { open: boolean;
         <Field label="Email" hint="Needed to hire — becomes the invite email."><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
         <Field label="Phone"><Input value={phone} onChange={(e) => setPhone(e.target.value)} /></Field>
         <Field label="Source"><Select value={source} onChange={(e) => setSource(e.target.value)}>{CANDIDATE_SOURCES.map((s) => <option key={s} value={s}>{humanize(s)}</option>)}</Select></Field>
-        <Field label="Opening"><Select value={jobId} onChange={(e) => setJobId(e.target.value)}><option value="">None yet</option>{jobs.map((j) => <option key={j.id} value={j.id}>{j.title}</option>)}</Select></Field>
+        {/* "Referral" recorded that someone had referred them but never who, so there was nobody to
+            follow up with or thank. The field appears with the source that needs it. */}
+        {source === "referral" ? (
+          <Field label="Referred by" hint="Who put this candidate forward"><PersonPicker value={referredBy} onChange={setReferredBy} placeholder="Not recorded" /></Field>
+        ) : <span className="hidden sm:block" aria-hidden />}
+        {/*
+          A candidate with no opening is a talent-pool entry, not an application to a role that does
+          not exist. Say which one this is, and let the drawer's Opening field assign them later.
+        */}
+        <Field label="Opening" hint={jobId ? undefined : openJobs.length ? "Leave empty to add them to the talent pool" : "No openings are accepting candidates — they go to the talent pool"}>
+          <Select value={jobId} onChange={(e) => setJobId(e.target.value)}>
+            <option value="">No opening — talent pool</option>
+            {jobs.map((j) => <option key={j.id} value={j.id}>{j.title}{j.status !== "open" ? " (closed)" : ""}</option>)}
+          </Select>
+        </Field>
         <Field label="Owner" className="sm:col-span-2"><PersonPicker value={owner} onChange={setOwner} placeholder="Unowned" /></Field>
       </div>
     </Modal>
@@ -306,7 +328,9 @@ function CandidateDrawer({ candidate, jobs, interviews, isHr, onClose, onChange 
           <Field label="Email"><div className="relative"><Mail size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" /><Input type="email" value={c.email || ""} onChange={(e) => patch({ email: e.target.value })} className="pl-8" /></div></Field>
           <Field label="Phone"><div className="relative"><Phone size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" /><Input value={c.phone || ""} onChange={(e) => patch({ phone: e.target.value })} className="pl-8" /></div></Field>
           <Field label="Source"><Select value={c.source || ""} onChange={(e) => patch({ source: e.target.value || null })}><option value="">Unknown</option>{CANDIDATE_SOURCES.map((s) => <option key={s} value={s}>{humanize(s)}</option>)}</Select></Field>
-          <Field label="Opening"><Select value={c.job_id || ""} onChange={(e) => patch({ job_id: e.target.value || null })}><option value="">None</option>{jobs.map((j) => <option key={j.id} value={j.id}>{j.title}{j.status !== "open" ? " (closed)" : ""}</option>)}</Select></Field>
+          {/* Assigning an opening later is the workflow for a talent-pool candidate — this is it. */}
+          <Field label="Opening" hint={c.job_id ? undefined : "In the talent pool. Pick an opening to move them into that pipeline."}><Select value={c.job_id || ""} onChange={(e) => patch({ job_id: e.target.value || null })}><option value="">No opening — talent pool</option>{jobs.map((j) => <option key={j.id} value={j.id}>{j.title}{j.status !== "open" ? " (closed)" : ""}</option>)}</Select></Field>
+          {c.source === "referral" && <Field label="Referred by" className="sm:col-span-2" hint="Who put this candidate forward"><PersonPicker value={c.referred_by} onChange={(v) => patch({ referred_by: v || null })} placeholder="Not recorded" /></Field>}
           <Field label="Owner" className="sm:col-span-2"><PersonPicker value={c.owner_id} onChange={(v) => patch({ owner_id: v || null })} placeholder="Unowned" /></Field>
           <Field label="Notes" className="sm:col-span-2"><Textarea rows={4} value={c.notes || ""} onChange={(e) => patch({ notes: e.target.value })} placeholder="Screening notes, expectations, availability…" /></Field>
         </div>
@@ -466,7 +490,7 @@ function HireModal({ candidate, job, onClose, onHired }: { candidate: Candidate;
             <Field label="Role"><Select value={role} onChange={(e) => setRole(e.target.value as RoleLevel)}>{ROLES.map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}</Select></Field>
             <Field label="Designation"><Input value={designation} onChange={(e) => setDesignation(e.target.value)} /></Field>
             <Field label="Department"><DepartmentPicker value={dept} onChange={setDept} placeholder={job?.department_id ? "From the opening" : "None"} /></Field>
-            <Field label="Reports to"><PersonPicker value={manager} onChange={setManager} placeholder="No manager" /></Field>
+            <Field label="Reports to" hint="Team leads and above"><PersonPicker value={manager} onChange={setManager} placeholder="No manager" minRole="team_lead" preferDepartmentId={dept || null} /></Field>
           </div>
           <Note tone="info">An invite is created for <strong>{candidate.email}</strong>. Share the sign-in link with them; nothing else needs typing again.</Note>
         </div>

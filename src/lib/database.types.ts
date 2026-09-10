@@ -12111,6 +12111,7 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string | null
+          denied_permissions: string[]
           denied_screens: string[]
           description: string | null
           id: string
@@ -12125,6 +12126,7 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by?: string | null
+          denied_permissions?: string[]
           denied_screens?: string[]
           description?: string | null
           id?: string
@@ -12139,6 +12141,7 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string | null
+          denied_permissions?: string[]
           denied_screens?: string[]
           description?: string | null
           id?: string
@@ -12172,6 +12175,7 @@ export type Database = {
           base_level: Database["public"]["Enums"]["role_level"]
           created_at: string
           created_by: string | null
+          denied_permissions: string[]
           denied_screens: string[]
           description: string | null
           id: string
@@ -12186,6 +12190,7 @@ export type Database = {
           base_level?: Database["public"]["Enums"]["role_level"]
           created_at?: string
           created_by?: string | null
+          denied_permissions?: string[]
           denied_screens?: string[]
           description?: string | null
           id?: string
@@ -12200,6 +12205,7 @@ export type Database = {
           base_level?: Database["public"]["Enums"]["role_level"]
           created_at?: string
           created_by?: string | null
+          denied_permissions?: string[]
           denied_screens?: string[]
           description?: string | null
           id?: string

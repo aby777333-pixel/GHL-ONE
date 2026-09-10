@@ -11,11 +11,21 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Check, History, Minus, Plus, RotateCcw, Save, ShieldAlert, Users } from "lucide-react";
+import { AlertTriangle, Ban, Check, History, Minus, Plus, RotateCcw, Save, ShieldAlert, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Avatar, Button, Card, CardHeader, EmptyState, Modal, Pill, Spinner, useToast } from "@/components/ui";
 import { cn, fmtDate } from "@/lib/utils";
 import { byGroup, RISK_LABEL, RISK_TONE, type ChangeImpact, type PermissionRow } from "./lib";
+
+/**
+ * What each of the three states means, said plainly on hover. "Inherited" is the one people read
+ * as "no access" and it is not: the key can still arrive from a department, a level or another role.
+ */
+const STATE_HINT: Record<"allow" | "deny" | "inherit", string> = {
+  allow: "granted by this role. Click to deny it instead.",
+  deny: "taken away from everyone holding this role, beating an allow on any other role. Click to go back to inherited.",
+  inherit: "not set here. Holders may still get it from their department, their level or another role. Click to grant it.",
+};
 
 export type RoleRow = {
   id: string;
@@ -24,6 +34,8 @@ export type RoleRow = {
   description: string | null;
   base_level: string;
   permissions: string[];
+  /** Keys this role takes away from its holders. Beats an allow on any other role (0046). */
+  denied_permissions?: string[] | null;
   is_system: boolean;
 };
 
@@ -33,6 +45,7 @@ export function RoleMatrix({ role, catalogue, onSaved }: { role: RoleRow; catalo
   const router = useRouter();
   const toast = useToast();
   const [selected, setSelected] = React.useState<string[]>(role.permissions || []);
+  const [denied, setDenied] = React.useState<string[]>(role.denied_permissions || []);
   const [impact, setImpact] = React.useState<ChangeImpact | null>(null);
   const [checking, setChecking] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
@@ -40,16 +53,35 @@ export function RoleMatrix({ role, catalogue, onSaved }: { role: RoleRow; catalo
   const [historyOpen, setHistoryOpen] = React.useState(false);
 
   const original = React.useMemo(() => new Set(role.permissions || []), [role.permissions]);
+  const originalDenied = React.useMemo(() => new Set(role.denied_permissions || []), [role.denied_permissions]);
   const chosen = React.useMemo(() => new Set(selected), [selected]);
+  const denySet = React.useMemo(() => new Set(denied), [denied]);
   const dirty = React.useMemo(
-    () => selected.length !== original.size || selected.some((p) => !original.has(p)),
-    [selected, original]
+    () =>
+      selected.length !== original.size || selected.some((p) => !original.has(p)) ||
+      denied.length !== originalDenied.size || denied.some((p) => !originalDenied.has(p)),
+    [selected, original, denied, originalDenied]
   );
 
   const groups = React.useMemo(() => byGroup(catalogue.filter((p) => !p.platform_only && p.key !== "*")), [catalogue]);
 
-  const toggle = (key: string) =>
-    setSelected((s) => (s.includes(key) ? s.filter((k) => k !== key) : [...s, key]));
+  /**
+   * Three states, not two: inherit -> allow -> deny -> inherit.
+   *
+   * "Inherit" is not "no access" — the person may still get the key from their department, their
+   * level or another role. Deny is how you take it away from everyone holding this role, and it
+   * outranks an allow on any other role. A key is never in both lists at once.
+   */
+  const cycle = (key: string) => {
+    if (chosen.has(key)) {
+      setSelected((s) => s.filter((k) => k !== key));
+      setDenied((d) => (d.includes(key) ? d : [...d, key]));
+    } else if (denySet.has(key)) {
+      setDenied((d) => d.filter((k) => k !== key));
+    } else {
+      setSelected((s) => [...s, key]);
+    }
+  };
 
   /** Ask the database what this change would actually do, before offering to save it (§45, §46). */
   async function review() {
@@ -62,7 +94,10 @@ export function RoleMatrix({ role, catalogue, onSaved }: { role: RoleRow; catalo
 
   async function save() {
     setSaving(true);
-    const { error } = await createClient().from("system_roles").update({ permissions: selected }).eq("id", role.id);
+    const { error } = await createClient()
+      .from("system_roles")
+      .update({ permissions: selected, denied_permissions: denied })
+      .eq("id", role.id);
     setSaving(false);
     if (error) {
       // The grant-authority triggers speak in plain language; show what they said rather than "failed".
@@ -119,24 +154,35 @@ export function RoleMatrix({ role, catalogue, onSaved }: { role: RoleRow; catalo
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-1.5">
                 {g.items.map((p) => {
                   const on = chosen.has(p.key);
+                  const off = denySet.has(p.key);
                   const added = on && !original.has(p.key);
-                  const dropped = !on && original.has(p.key);
+                  const dropped = !on && !off && original.has(p.key);
+                  const state = on ? "allow" : off ? "deny" : "inherit";
                   return (
                     <button
                       key={p.key}
                       type="button"
-                      onClick={() => toggle(p.key)}
-                      aria-pressed={on}
-                      title={p.description || p.label}
+                      onClick={() => cycle(p.key)}
+                      aria-label={`${p.label} — ${state}. Click to change.`}
+                      title={`${p.description || p.label} — ${STATE_HINT[state]}`}
+                      data-state={state}
                       className={cn(
                         "flex items-start gap-2.5 text-left px-2.5 py-2 rounded-[var(--radius-sm)] border transition-colors min-w-0",
-                        on ? "border-[var(--brand)] bg-[color-mix(in_oklab,var(--brand)_8%,transparent)]" : "border-[var(--line)] hover:border-[var(--line-strong)]",
+                        on && "border-[var(--brand)] bg-[color-mix(in_oklab,var(--brand)_8%,transparent)]",
+                        off && "border-[var(--danger)] bg-[color-mix(in_oklab,var(--danger)_8%,transparent)]",
+                        !on && !off && "border-[var(--line)] hover:border-[var(--line-strong)]",
                         added && "ring-2 ring-[var(--success)]",
                         dropped && "ring-2 ring-[var(--danger)] opacity-70"
                       )}
                     >
-                      <span className={cn("w-4 h-4 rounded-[4px] shrink-0 mt-0.5 flex items-center justify-center border", on ? "bg-[var(--brand)] border-[var(--brand)] text-[var(--brand-fg)]" : "border-[var(--line-strong)]")}>
+                      <span className={cn(
+                        "w-4 h-4 rounded-[4px] shrink-0 mt-0.5 flex items-center justify-center border",
+                        on && "bg-[var(--brand)] border-[var(--brand)] text-[var(--brand-fg)]",
+                        off && "bg-[var(--danger)] border-[var(--danger)] text-white",
+                        !on && !off && "border-[var(--line-strong)]"
+                      )}>
                         {on && <Check size={11} />}
+                        {off && <Ban size={11} />}
                       </span>
                       <span className="min-w-0">
                         <span className="flex items-center gap-1.5 flex-wrap">

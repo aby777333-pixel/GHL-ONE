@@ -82,7 +82,7 @@ function RolesTab({ catalogue }: { catalogue: PermissionRow[] }) {
     let alive = true;
     createClient()
       .from("system_roles")
-      .select("id,key,name,description,base_level,permissions,is_system")
+      .select("id,key,name,description,base_level,permissions,denied_permissions,is_system")
       .order("name")
       .then(({ data }) => { if (alive) setRoles((data || []) as RoleRow[]); });
     return () => { alive = false; };

@@ -11325,6 +11325,7 @@ export type Database = {
           default_min_level: Database["public"]["Enums"]["role_level"]
           description: string | null
           external_ok: boolean
+          feature_key: string | null
           grp: string
           key: string
           label: string
@@ -11336,6 +11337,7 @@ export type Database = {
           default_min_level?: Database["public"]["Enums"]["role_level"]
           description?: string | null
           external_ok?: boolean
+          feature_key?: string | null
           grp?: string
           key: string
           label: string
@@ -11347,13 +11349,22 @@ export type Database = {
           default_min_level?: Database["public"]["Enums"]["role_level"]
           description?: string | null
           external_ok?: boolean
+          feature_key?: string | null
           grp?: string
           key?: string
           label?: string
           path?: string
           position?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "screens_feature_key_fkey"
+            columns: ["feature_key"]
+            isOneToOne: false
+            referencedRelation: "platform_features"
+            referencedColumns: ["key"]
+          },
+        ]
       }
       security_events: {
         Row: {
@@ -13767,6 +13778,7 @@ export type Database = {
         Args: { p_kind: string; p_user: string }
         Returns: string
       }
+      delegation_enforced_permissions: { Args: never; Returns: string[] }
       delete_collab_policy: { Args: { p_id: string }; Returns: undefined }
       department_availability: {
         Args: never
@@ -14666,6 +14678,8 @@ export type Database = {
       tenant_usage_snapshot: { Args: never; Returns: number }
       test_access_control: { Args: never; Returns: Json }
       test_automation: { Args: { p_id: string; p_task: string }; Returns: Json }
+      test_delegation: { Args: never; Returns: Json }
+      test_entitlements: { Args: never; Returns: Json }
       test_enum_casts: { Args: never; Returns: Json }
       test_function_volatility: { Args: never; Returns: Json }
       test_policy_recursion: { Args: never; Returns: Json }

@@ -5,6 +5,13 @@ export type Screen = {
   path: string;
   grp: string;
   allowed: boolean;
+  /**
+   * Why the screen is in the state it is in. Mostly prose meant for an administrator to read
+   * ("role rule", "department default"). `FEATURE_DISABLED` is the one machine-readable value,
+   * because it is the one case the UI must handle differently rather than merely display: nobody
+   * inside the company can grant a module the company has not got, so offering "Request access"
+   * would send the request to someone with no way to say yes.
+   */
   source: string;
   sort_order: number;
 };
@@ -33,3 +40,6 @@ export function isPathAllowed(screens: Screen[] | undefined, pathname: string): 
   const s = matchScreen(screens, pathname);
   return s ? s.allowed : true;
 }
+
+/** `effective_screens.source` when the company's plan does not include the module (schema 0053). */
+export const FEATURE_DISABLED = "feature_disabled";

@@ -9419,6 +9419,7 @@ export type Database = {
           created_at: string
           expires_at: string | null
           id: string
+          org_id: string
           perm: string
           reason: string | null
           set_by: string | null
@@ -9429,6 +9430,7 @@ export type Database = {
           created_at?: string
           expires_at?: string | null
           id?: string
+          org_id?: string
           perm: string
           reason?: string | null
           set_by?: string | null
@@ -9439,12 +9441,20 @@ export type Database = {
           created_at?: string
           expires_at?: string | null
           id?: string
+          org_id?: string
           perm?: string
           reason?: string | null
           set_by?: string | null
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "permission_overrides_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "permission_overrides_set_by_fkey"
             columns: ["set_by"]
@@ -12913,6 +12923,7 @@ export type Database = {
           expires_at: string | null
           granted_by: string | null
           id: string
+          org_id: string
           reason: string | null
           starts_at: string
           system_role_id: string
@@ -12924,6 +12935,7 @@ export type Database = {
           expires_at?: string | null
           granted_by?: string | null
           id?: string
+          org_id?: string
           reason?: string | null
           starts_at?: string
           system_role_id: string
@@ -12935,6 +12947,7 @@ export type Database = {
           expires_at?: string | null
           granted_by?: string | null
           id?: string
+          org_id?: string
           reason?: string | null
           starts_at?: string
           system_role_id?: string
@@ -12946,6 +12959,13 @@ export type Database = {
             columns: ["granted_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_roles_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
           {
@@ -13483,6 +13503,7 @@ export type Database = {
         Args: { p_department?: string; p_from: string; p_to: string }
         Returns: Json
       }
+      authority_tables: { Args: never; Returns: string[] }
       automation_ctx: { Args: { p_entity: string; p_row: Json }; Returns: Json }
       blocker_chain: { Args: { p_task: string }; Returns: Json }
       board_element_task: {

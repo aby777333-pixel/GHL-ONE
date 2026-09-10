@@ -328,6 +328,9 @@ const SCOPED_KEYS: { perm: string; label: string; hint: string }[] = [
   { perm: "people.edit",   label: "Editing people",  hint: "Whose employee records holders of this role may change." },
   { perm: "tasks.view",    label: "Seeing tasks",    hint: "Which tasks they can open, search and be shown." },
   { perm: "projects.view", label: "Seeing projects", hint: "Which projects they can open, search and be shown." },
+  { perm: "files.view",    label: "Seeing files",    hint: "Which files they can open, search and download. Their own are always theirs." },
+  { perm: "wiki.view",     label: "Seeing the wiki", hint: "Which pages they can read and search. Pages they wrote stay readable." },
+  { perm: "chat.view",     label: "Seeing chat",     hint: "Which channels they can browse. Channels they are a member of — and every direct message — are never narrowed away." },
 ];
 
 const SCOPE_CHOICES: { value: string; label: string }[] = [

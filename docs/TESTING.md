@@ -195,6 +195,25 @@ A table that can only reach its tenant through a parent is a deliberate
 exception: say so in the migration comment, and expect to see it in
 `tenant:no_org_column:review` on every run.
 
+The owner-branch half of that rule earned itself again in **0049**. Adding
+`file_in_scope(id)` to `files_read` — a predicate that already returns true for
+the owner — was enough to break `.insert().select()` on files, because the
+policy no longer *said so* anywhere the planner could see it: the helper is
+`STABLE`, so it reads a snapshot taken before the insert, finds no row, and
+returns false. `test_returning_policies` failed on the same migration that
+introduced it, before any of it reached a browser. The fix is always the same
+shape — put the owner branch in the policy text beside the helper, not only
+inside it:
+
+```sql
+and (owner_id = auth.uid() or file_in_scope(id))
+```
+
+`wiki_read` had the identical latent bug and went unflagged only because the
+check looks for `owner_id`/`created_by`/`user_id` and that table names the
+column `author_id`. **If a table spells its owner column something else, the
+lint cannot see it — check by hand.**
+
 And the two corollaries the other checks enforce:
 
 - A policy must never subquery a table whose own policy subqueries it back. Use a

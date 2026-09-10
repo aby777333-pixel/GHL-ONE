@@ -13614,6 +13614,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      channel_in_scope: {
+        Args: { p_channel: string; p_user?: string }
+        Returns: boolean
+      }
       claim_conversation: { Args: { p_id: string }; Returns: undefined }
       claim_help_request: { Args: { p_id: string }; Returns: undefined }
       clear_expired_dnd: { Args: never; Returns: number }
@@ -13841,6 +13845,10 @@ export type Database = {
       }
       feature_enabled: {
         Args: { p_feature: string; p_user?: string }
+        Returns: boolean
+      }
+      file_in_scope: {
+        Args: { p_file: string; p_user?: string }
         Returns: boolean
       }
       find_experts: {
@@ -14678,6 +14686,10 @@ export type Database = {
           owner_id: string
           owner_name: string
         }[]
+      }
+      wiki_in_scope: {
+        Args: { p_page: string; p_user?: string }
+        Returns: boolean
       }
       workflow_release_step: { Args: { p_step: string }; Returns: undefined }
       workflow_run_starter: { Args: { p_run: string }; Returns: string }

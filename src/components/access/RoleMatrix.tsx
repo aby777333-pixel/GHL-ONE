@@ -13,7 +13,8 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Ban, Check, History, Minus, Plus, RotateCcw, Save, ShieldAlert, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { Avatar, Button, Card, CardHeader, EmptyState, Modal, Pill, Spinner, useToast } from "@/components/ui";
+import { Avatar, Button, Card, CardHeader, EmptyState, Modal, Pill, Select, Spinner, useToast } from "@/components/ui";
+import { useSession } from "@/components/providers/SessionProvider";
 import { cn, fmtDate } from "@/lib/utils";
 import { byGroup, RISK_LABEL, RISK_TONE, type ChangeImpact, type PermissionRow } from "./lib";
 
@@ -140,7 +141,7 @@ export function RoleMatrix({ role, catalogue, onSaved }: { role: RoleRow; catalo
           action={
             <div className="flex items-center gap-2">
               <Button size="sm" variant="ghost" onClick={loadVersions}><History size={14} /> History</Button>
-              {dirty && <Button size="sm" variant="ghost" onClick={() => { setSelected(role.permissions || []); setImpact(null); }}><RotateCcw size={14} /> Reset</Button>}
+              {dirty && <Button size="sm" variant="ghost" onClick={() => { setSelected(role.permissions || []); setDenied(role.denied_permissions || []); setImpact(null); }}><RotateCcw size={14} /> Reset</Button>}
               <Button size="sm" variant={dirty ? "primary" : "secondary"} disabled={!dirty} loading={checking} onClick={review}>
                 Review change
               </Button>
@@ -201,6 +202,8 @@ export function RoleMatrix({ role, catalogue, onSaved }: { role: RoleRow; catalo
           ))}
         </div>
       </Card>
+
+      <RoleReach roleId={role.id} roleName={role.name} />
 
       {/* Before / after, and who it reaches — shown before the save, never after it (§45, §46, §57). */}
       <Modal
@@ -305,5 +308,110 @@ export function RoleMatrix({ role, catalogue, onSaved }: { role: RoleRow; catalo
         )}
       </Modal>
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------- reach */
+
+/**
+ * How far this role's permissions reach: own / team / department / everyone.
+ *
+ * Only the keys that a control actually consults are listed. Scope storage is generic, but a rule
+ * on a key nothing enforces would store a row, change nothing, and leave whoever set it believing
+ * access was narrowed — the worst kind of security control. Keep this list in step with
+ * `scope_enforced_permissions()` in the database, which the self test checks against.
+ *
+ * "Everyone" is the absence of a rule rather than a rule that says everyone, so choosing it
+ * deletes the row and returns the key to the system's default.
+ */
+const SCOPED_KEYS: { perm: string; label: string; hint: string }[] = [
+  { perm: "people.edit",   label: "Editing people",  hint: "Whose employee records holders of this role may change." },
+  { perm: "tasks.view",    label: "Seeing tasks",    hint: "Which tasks they can open, search and be shown." },
+  { perm: "projects.view", label: "Seeing projects", hint: "Which projects they can open, search and be shown." },
+];
+
+const SCOPE_CHOICES: { value: string; label: string }[] = [
+  { value: "company",    label: "Everyone in the company" },
+  { value: "department", label: "Their own department" },
+  { value: "team",       label: "Their own team" },
+  { value: "own",        label: "Only their own" },
+];
+
+function RoleReach({ roleId, roleName }: { roleId: string; roleName: string }) {
+  const { profile } = useSession();
+  const toast = useToast();
+  const [scopes, setScopes] = React.useState<Record<string, string> | null>(null);
+  const [busy, setBusy] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    let alive = true;
+    createClient()
+      .from("permission_scopes")
+      .select("perm,scope")
+      .eq("subject", "role")
+      .eq("subject_id", roleId)
+      .then(({ data }) => {
+        if (!alive) return;
+        setScopes(Object.fromEntries((data || []).map((r) => [r.perm, r.scope])));
+      });
+    return () => { alive = false; };
+  }, [roleId]);
+
+  async function set(perm: string, scope: string) {
+    if (!profile.org_id) return;
+    setBusy(perm);
+    const sb = createClient();
+    const { error } =
+      scope === "company"
+        ? await sb.from("permission_scopes").delete().eq("subject", "role").eq("subject_id", roleId).eq("perm", perm)
+        : await sb.from("permission_scopes").upsert(
+            { org_id: profile.org_id, subject: "role", subject_id: roleId, perm, scope },
+            { onConflict: "org_id,subject,subject_id,perm" }
+          );
+    setBusy(null);
+    if (error) { toast.push(error.message, "danger"); return; }
+    setScopes((s) => {
+      const next = { ...(s || {}) };
+      if (scope === "company") delete next[perm]; else next[perm] = scope;
+      return next;
+    });
+    const label = SCOPE_CHOICES.find((c) => c.value === scope)?.label.toLowerCase();
+    toast.push(`“${roleName}” now reaches ${label}`, "success");
+  }
+
+  return (
+    <Card>
+      <CardHeader
+        title="Reach"
+        subtitle="These permissions decide what someone may do. Reach decides who and what they may do it to."
+      />
+      <div className="px-[var(--s4)] pb-[var(--s4)] space-y-[var(--s3)]">
+        {scopes === null ? (
+          <div className="flex justify-center py-4"><Spinner /></div>
+        ) : (
+          SCOPED_KEYS.map((k) => (
+            <div key={k.perm} className="flex flex-wrap items-center gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium">{k.label}</div>
+                <div className="text-[11px] text-muted">{k.hint}</div>
+              </div>
+              <Select
+                value={scopes[k.perm] || "company"}
+                onChange={(e) => set(k.perm, e.target.value)}
+                disabled={busy === k.perm}
+                className="!w-auto min-w-[210px]"
+                aria-label={k.label}
+              >
+                {SCOPE_CHOICES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+              </Select>
+            </div>
+          ))
+        )}
+        <p className="text-[11px] text-muted pt-1 border-t">
+          Narrowing reach never grants anything, and work addressed to someone personally always stays
+          within their reach — a department-scoped reviewer still sees a task assigned to them.
+        </p>
+      </div>
+    </Card>
   );
 }

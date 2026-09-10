@@ -17,7 +17,15 @@ import { Avatar, Button, Card, CardHeader, EmptyState, Field, Input, Modal, Pill
 import { cn, fmtDate, ROLE_LABEL, type RoleLevel } from "@/lib/utils";
 import { byGroup, RISK_LABEL, RISK_TONE, type Explanation, type PermissionRow, type PreviewUser } from "./lib";
 
-export function PersonAccess({ userId, catalogue }: { userId: string; catalogue: PermissionRow[] }) {
+export function PersonAccess({ userId, catalogue, canManage = true }: {
+  userId: string;
+  catalogue: PermissionRow[];
+  /* §15: writing an individual allow or deny is `access_control.manage`. Reading this screen —
+     what this person can do, and why — is `access_control.view`, deliberately a different key, so
+     a reviewer can audit somebody's access without being able to change it. "Why?" stays open to
+     everyone who can see the screen; only "Change" is gated. */
+  canManage?: boolean;
+}) {
   const router = useRouter();
   const toast = useToast();
   const [data, setData] = React.useState<PreviewUser | null>(null);
@@ -148,7 +156,16 @@ export function PersonAccess({ userId, catalogue }: { userId: string; catalogue:
                         <button type="button" className="text-[11px] text-muted hover:text-[var(--fg)] inline-flex items-center gap-1 shrink-0" onClick={() => explain(p.key)}>
                           <HelpCircle size={12} /> Why?
                         </button>
-                        <Button size="xs" variant="ghost" className="shrink-0" onClick={() => setEditing(p)}>Change</Button>
+                        <Button
+                          size="xs"
+                          variant="ghost"
+                          className="shrink-0"
+                          disabled={!canManage}
+                          title={canManage ? undefined : "Changing someone's access needs the access_control.manage permission."}
+                          onClick={() => setEditing(p)}
+                        >
+                          Change
+                        </Button>
                       </div>
                     );
                   })}

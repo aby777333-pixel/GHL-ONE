@@ -24,14 +24,29 @@ import { useSecurityRoles } from "@/components/people/useSecurityRoles";
 import { useSession } from "@/components/providers/SessionProvider";
 import { ADMIN_TEMPLATES, byGroup, RISK_LABEL, RISK_TONE, type PermissionRow, type ReviewBoard } from "./lib";
 
+/**
+ * What the viewer may actually change here.
+ *
+ * §15: being an administrator is not one capability. Creating a role, editing one, deleting one,
+ * assigning one to a person and writing an individual override are five separate permissions, and
+ * somebody may hold `access_control.view` and none of them. The studio disables what the viewer
+ * cannot do and says why, rather than offering a Save that the database will refuse — a refusal
+ * with no explanation reads as a bug instead of as the rule it is.
+ *
+ * These flags are a courtesy to the person using the screen. They are NOT the control: every write
+ * below goes through RLS, which asks the same question again in Postgres.
+ */
+export type AccessCaps = { create: boolean; edit: boolean; remove: boolean; assign: boolean; manage: boolean };
+
 type Company = { id: string; name: string; tenant_code: string | null; status: string };
 type Person = { id: string; full_name: string; role: string; designation: string | null; department_id: string | null; is_active: boolean };
 type Tab = "roles" | "people" | "permissions" | "companies" | "review";
 
 export function AccessStudio({
-  isOwner, companies, catalogue, initialTab,
+  isOwner, can, companies, catalogue, initialTab,
 }: {
   isOwner: boolean;
+  can: AccessCaps;
   companies: Company[];
   catalogue: PermissionRow[];
   initialTab?: string;
@@ -63,8 +78,21 @@ export function AccessStudio({
         className="mb-[var(--s3)]"
       />
 
-      {tab === "roles" && <RolesTab catalogue={catalogue} />}
-      {tab === "people" && <PeopleTab catalogue={catalogue} />}
+      {!can.create && !can.edit && !can.remove && !can.assign && !can.manage && (
+        <Card className="mb-[var(--s3)]">
+          <div className="flex items-start gap-2.5 px-[var(--s4)] py-[var(--s3)]">
+            <ShieldAlert size={15} className="mt-0.5 shrink-0 text-[var(--warn)]" />
+            <p className="text-sm text-muted">
+              You can review access here but not change it. Creating, editing and assigning roles are
+              separate permissions from reading this screen — ask whoever administers security for
+              <code className="mx-1">roles.edit</code> or <code className="mx-1">roles.assign</code> if you need them.
+            </p>
+          </div>
+        </Card>
+      )}
+
+      {tab === "roles" && <RolesTab catalogue={catalogue} can={can} />}
+      {tab === "people" && <PeopleTab catalogue={catalogue} can={can} />}
       {tab === "permissions" && <PermissionsTab catalogue={catalogue} />}
       {tab === "companies" && isOwner && <CompaniesTab companies={companies} catalogue={catalogue} />}
       {tab === "review" && <ReviewTab />}
@@ -73,7 +101,7 @@ export function AccessStudio({
 }
 
 /* ------------------------------------------------------------------- Roles */
-function RolesTab({ catalogue }: { catalogue: PermissionRow[] }) {
+function RolesTab({ catalogue, can }: { catalogue: PermissionRow[]; can: AccessCaps }) {
   const [roles, setRoles] = React.useState<RoleRow[] | null>(null);
   const [selected, setSelected] = React.useState<string | null>(null);
   const [q, setQ] = React.useState("");
@@ -104,7 +132,17 @@ function RolesTab({ catalogue }: { catalogue: PermissionRow[] }) {
         <CardHeader
           title="Roles"
           subtitle={`${roles.length} in this company`}
-          action={<Button size="sm" variant="primary" onClick={() => setCreating({ from: "template" })}><Plus size={14} /> New</Button>}
+          action={
+            <Button
+              size="sm"
+              variant="primary"
+              disabled={!can.create}
+              title={can.create ? undefined : "Creating a role needs the roles.create permission."}
+              onClick={() => setCreating({ from: "template" })}
+            >
+              <Plus size={14} /> New
+            </Button>
+          }
         />
         <div className="px-[var(--s3)] pb-[var(--s3)]">
           <SearchInput placeholder="Search roles…" value={q} onChange={(e) => setQ(e.target.value)} className="mb-2" />
@@ -130,13 +168,19 @@ function RolesTab({ catalogue }: { catalogue: PermissionRow[] }) {
       {current ? (
         <div className="space-y-[var(--s3)]">
           <div className="flex justify-end">
-            <Button size="sm" variant="secondary" onClick={() => setCreating({ from: "duplicate", sourceId: current.id })}>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={!can.create}
+              title={can.create ? undefined : "Duplicating a role creates one, which needs the roles.create permission."}
+              onClick={() => setCreating({ from: "duplicate", sourceId: current.id })}
+            >
               <Copy size={14} /> Duplicate this role
             </Button>
           </div>
           {/* Keyed on the role: picking another one remounts the grid, so it re-seeds from props
               instead of resetting its own state in an effect. */}
-          <RoleMatrix key={current.id} role={current} catalogue={catalogue} onSaved={load} />
+          <RoleMatrix key={current.id} role={current} catalogue={catalogue} canEdit={can.edit} onSaved={load} />
         </div>
       ) : (
         <Card>
@@ -158,7 +202,7 @@ function RolesTab({ catalogue }: { catalogue: PermissionRow[] }) {
 }
 
 /* ------------------------------------------------------------------ People */
-function PeopleTab({ catalogue }: { catalogue: PermissionRow[] }) {
+function PeopleTab({ catalogue, can }: { catalogue: PermissionRow[]; can: AccessCaps }) {
   const { departments } = useSession();
   const { byUser: securityRoles } = useSecurityRoles();
   const [people, setPeople] = React.useState<Person[] | null>(null);
@@ -221,7 +265,7 @@ function PeopleTab({ catalogue }: { catalogue: PermissionRow[] }) {
       </Card>
 
       {selected ? (
-        <PersonAccess userId={selected} catalogue={catalogue} />
+        <PersonAccess userId={selected} catalogue={catalogue} canManage={can.manage} />
       ) : (
         <Card>
           <EmptyState icon={<Users size={18} />} title="Pick a person" hint="See exactly what they can do, why each answer is what it is, and grant, deny or time-box any single permission." className="py-[var(--s6)]" />

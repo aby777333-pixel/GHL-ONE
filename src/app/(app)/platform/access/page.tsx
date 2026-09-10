@@ -27,10 +27,25 @@ export default async function AccessControlPage({ searchParams }: { searchParams
     existing security administrator still resolves it (0040) — but a company can now hand out the
     ability to *read* who holds what without handing over the ability to change it.
   */
-  const [{ data: isOwner }, { data: canSecurity }, { data: canRead }] = await Promise.all([
+  const [
+    { data: isOwner }, { data: canSecurity }, { data: canRead },
+    { data: canCreate }, { data: canEdit }, { data: canDelete }, { data: canAssign }, { data: canManage },
+  ] = await Promise.all([
     supabase.rpc("is_platform_owner"),
     supabase.rpc("has_perm", { p_perm: "security.manage" }),
     supabase.rpc("has_perm", { p_perm: "access_control.view" }),
+    /*
+      §15: administering roles is four separate capabilities, not one. Reading this screen and
+      changing what it shows are different permissions, so the studio has to be told which the
+      viewer holds — otherwise it offers Save to somebody RLS will refuse, and the refusal reads
+      as a bug rather than as the rule it is. The controls are still not the control: every one of
+      these is re-checked in Postgres on the write itself.
+    */
+    supabase.rpc("has_perm", { p_perm: "roles.create" }),
+    supabase.rpc("has_perm", { p_perm: "roles.edit" }),
+    supabase.rpc("has_perm", { p_perm: "roles.delete" }),
+    supabase.rpc("has_perm", { p_perm: "roles.assign" }),
+    supabase.rpc("has_perm", { p_perm: "access_control.manage" }),
   ]);
   if (!isOwner && !canSecurity && !canRead) notFound();
 
@@ -44,6 +59,13 @@ export default async function AccessControlPage({ searchParams }: { searchParams
   return (
     <AccessStudio
       isOwner={!!isOwner}
+      can={{
+        create: !!isOwner || !!canCreate,
+        edit:   !!isOwner || !!canEdit,
+        remove: !!isOwner || !!canDelete,
+        assign: !!isOwner || !!canAssign,
+        manage: !!isOwner || !!canManage,
+      }}
       companies={companies || []}
       catalogue={(catalogue || []) as PermissionRow[]}
       initialTab={typeof sp.tab === "string" ? sp.tab : undefined}

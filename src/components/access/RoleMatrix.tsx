@@ -42,7 +42,15 @@ export type RoleRow = {
 
 type Version = { version: number; name: string | null; permissions: string[]; created_at: string; created_by: string | null };
 
-export function RoleMatrix({ role, catalogue, onSaved }: { role: RoleRow; catalogue: PermissionRow[]; onSaved?: () => void }) {
+export function RoleMatrix({ role, catalogue, canEdit = true, onSaved }: {
+  role: RoleRow;
+  catalogue: PermissionRow[];
+  /* §15: editing a role is `roles.edit`, which is not implied by being able to read this screen.
+     Read-only viewers still see the full matrix and the Reach card — seeing what a role means is
+     the point of the screen — they simply cannot change it. RLS refuses either way. */
+  canEdit?: boolean;
+  onSaved?: () => void;
+}) {
   const router = useRouter();
   const toast = useToast();
   const [selected, setSelected] = React.useState<string[]>(role.permissions || []);
@@ -142,7 +150,14 @@ export function RoleMatrix({ role, catalogue, onSaved }: { role: RoleRow; catalo
             <div className="flex items-center gap-2">
               <Button size="sm" variant="ghost" onClick={loadVersions}><History size={14} /> History</Button>
               {dirty && <Button size="sm" variant="ghost" onClick={() => { setSelected(role.permissions || []); setDenied(role.denied_permissions || []); setImpact(null); }}><RotateCcw size={14} /> Reset</Button>}
-              <Button size="sm" variant={dirty ? "primary" : "secondary"} disabled={!dirty} loading={checking} onClick={review}>
+              <Button
+                size="sm"
+                variant={dirty ? "primary" : "secondary"}
+                disabled={!dirty || !canEdit}
+                loading={checking}
+                title={canEdit ? undefined : "Changing a role needs the roles.edit permission."}
+                onClick={review}
+              >
                 Review change
               </Button>
             </div>
@@ -163,9 +178,14 @@ export function RoleMatrix({ role, catalogue, onSaved }: { role: RoleRow; catalo
                     <button
                       key={p.key}
                       type="button"
-                      onClick={() => cycle(p.key)}
-                      aria-label={`${p.label} — ${state}. Click to change.`}
-                      title={`${p.description || p.label} — ${STATE_HINT[state]}`}
+                      onClick={() => canEdit && cycle(p.key)}
+                      disabled={!canEdit}
+                      aria-label={canEdit ? `${p.label} — ${state}. Click to change.` : `${p.label} — ${state}.`}
+                      title={
+                        canEdit
+                          ? `${p.description || p.label} — ${STATE_HINT[state]}`
+                          : `${p.description || p.label} — ${STATE_HINT[state]} (you cannot change this: it needs roles.edit)`
+                      }
                       data-state={state}
                       className={cn(
                         "flex items-start gap-2.5 text-left px-2.5 py-2 rounded-[var(--radius-sm)] border transition-colors min-w-0",

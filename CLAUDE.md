@@ -368,6 +368,12 @@ Positioning: *One Company. One Workspace. One Source of Truth.*
 ### A trap worth remembering
 - **A fix applied in the same statement batch as a `raise exception` test is rolled back with it.** The `related_to` column fix was applied, verified by a test in the same call, reported as passing — and lost, because the exception that carried the results out also undid the `create or replace`. It resurfaced an hour later as the same error. **Apply a fix in one call; prove it in another.** CLAUDE.md already recorded the temp-table version of this from 0059; it applies to DDL just as much.
 
+## /profile was a 404 that notifications linked to
+
+- **`notify_account_change()` has sent people to a page that does not exist** since 0052: "Your account has been reactivated" / "deactivated", and since 0060 "Your account has been approved", all carry `link = '/profile'`. There was no `/profile` route — clicking the notification about your own account gave a 404. `screens.ts` has always listed `/profile` among the ungoverned paths, so the route was clearly meant to exist.
+- A person's profile **is** `/people/<their id>` — the same page everybody else sees, which is the point: there is no separate private version, and the Privacy Center (and now the Buddy memory card) lives inside it. So `/profile` redirects there rather than rendering a second copy, and every link already sent in a notification starts working without rewriting history.
+- Found by clicking through the signed-in app, not by reading code — the link was correct-looking in three migrations and wrong in all of them.
+
 ## Read aloud stopped after the first answer
 
 - **`speechSynthesis.speaking` is not trustworthy, and the toggle was built on it.** `speak()` began with `if (synth.speaking) { synth.cancel(); return; }` — meant as "press again to stop". Chrome leaves `speaking === true` after `cancel()` (it frequently never fires `onend` for a cancelled utterance), and an utterance whose language has no installed voice reports `start` and then hangs forever. Once the flag sticks, **every later press takes the stop branch and returns, so nothing is ever spoken again** until the page is reloaded.

@@ -75,7 +75,7 @@ export async function POST(req: Request) {
       recallMemory(ctx, { projectId: scope.projectId, departmentId: ctx.departmentId }),
     ]);
 
-    const state: BuddyToolState = { used: [], proposals: [], restricted: [], sources: new Map(), conversationId: convId };
+    const state: BuddyToolState = { used: [], proposals: [], restricted: [], sources: new Map(), conversationId: convId, tools: [] };
     const isManager = isManagerPlus(ctx.role);
     const isLead = isLeadPlus(ctx.role);
     const tools = buildTools(ctx, assistant, state, { departmentId: ctx.departmentId, isManager, isLead });
@@ -139,7 +139,7 @@ export async function POST(req: Request) {
     const attMeta = attachments.map((a) => ({ kind: a.kind, name: a.name, size: "data" in a ? a.data.length : a.text.length }));
     const { data: inserted } = await ctx.db.from("ai_messages").insert([
       { conversation_id: convId, role: "user", content: message || `(attachment: ${attachments.map((a) => a.name).join(", ")})`, mode, attachments: attMeta.length ? attMeta : null },
-      { conversation_id: convId, role: "assistant", content: answer, proposals: state.proposals.length ? (state.proposals as never) : null, sources: [...state.sources.entries()].slice(0, 12).map(([link, title]) => ({ link, title })) as never, confidence, context: state.used as never, mode, routing: { intent: routing.intent, mode, assistant: assistant.key, source: routing.source, confidence: routing.confidence, signals: routing.signals } as never },
+      { conversation_id: convId, role: "assistant", content: answer, proposals: state.proposals.length ? (state.proposals as never) : null, sources: [...state.sources.entries()].slice(0, 12).map(([link, title]) => ({ link, title })) as never, confidence, context: state.used as never, mode, routing: { intent: routing.intent, mode, assistant: assistant.key, source: routing.source, confidence: routing.confidence, signals: routing.signals, tools: state.tools } as never },
     ]).select("id,role");
     const messageId = (inserted || []).find((m) => m.role === "assistant")?.id || null;
     if (state.proposals.length) {

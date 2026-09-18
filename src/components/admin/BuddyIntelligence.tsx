@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Activity, AlertTriangle, BookOpen, Coins, Gauge, RefreshCw } from "lucide-react";
+import { Activity, AlertTriangle, BookOpen, Bot, Coins, Gauge, RefreshCw, Wrench } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button, Card, CardHeader, EmptyState, Pill, Select, Skeleton, Stat } from "@/components/ui";
 import { ago, humanize } from "@/lib/utils";
@@ -39,6 +39,8 @@ type Cost = {
   by_model: { model: string; requests: number; input_tokens: number; output_tokens: number; cache_read_tokens: number; cache_write_tokens: number }[];
   by_feature: { feature: string; requests: number; input_tokens: number; output_tokens: number; cache_read_tokens: number; cache_write_tokens: number; model: string | null }[];
 };
+type Persona = { key: string; name: string; answers: number; grounded_rate: number; insufficient_rate: number; proposals: number; flags: number };
+type ToolRow = { name: string; calls: number; errors: number; empty: number; error_rate: number; empty_rate: number; p50_ms: number | null };
 type Verification = { performed: number; verified: number; failed: number; unchecked: number; failures: { kind: string; entity: string | null; id: string | null; when: string | null }[] };
 type Health = {
   id: string; title: string; kind: string; department: string | null; owner: string | null;
@@ -53,6 +55,8 @@ export function BuddyIntelligence() {
   const [cost, setCost] = React.useState<Cost | null>(null);
   const [health, setHealth] = React.useState<Health | null>(null);
   const [verif, setVerif] = React.useState<Verification | null>(null);
+  const [personas, setPersonas] = React.useState<Persona[] | null>(null);
+  const [toolRows, setToolRows] = React.useState<ToolRow[] | null>(null);
 
   React.useEffect(() => {
     let alive = true;
@@ -62,17 +66,21 @@ export function BuddyIntelligence() {
       if (!alive) return;
       setAllowed(!!may);
       if (!may) return;
-      const [q, c, h, v] = await Promise.all([
+      const [q, c, h, v, ap, th] = await Promise.all([
         supabase.rpc("answer_quality", { p_days: days }),
         supabase.rpc("ai_cost_summary", { p_days: days }),
         supabase.rpc("knowledge_health", { p_days: Math.max(days, 90) }),
         supabase.rpc("action_verification", { p_days: days }),
+        supabase.rpc("assistant_performance", { p_days: days }),
+        supabase.rpc("tool_health", { p_days: days }),
       ]);
       if (!alive) return;
       setQuality((q.data || null) as unknown as Quality | null);
       setCost((c.data || null) as unknown as Cost | null);
       setHealth((h.data || []) as unknown as Health);
       setVerif((v.data || null) as unknown as Verification | null);
+      setPersonas((ap.data || []) as unknown as Persona[]);
+      setToolRows((th.data || []) as unknown as ToolRow[]);
     })();
     return () => { alive = false; };
   }, [days, tick]);
@@ -93,6 +101,9 @@ export function BuddyIntelligence() {
 
   const struggling = (quality?.by_intent || []).filter((i) => i.answers >= 1 && (i.insufficient > 0 || i.flags > 0));
   const rotting = (health || []).filter((k) => k.flags > 0 || k.outdated);
+  // Approved, permission-cleared, and never once used to answer anything in the period.
+  const unused = (health || []).filter((k) => k.cited === 0 && k.flags === 0 && !k.outdated);
+  const troubled = (toolRows || []).filter((t) => t.errors > 0 || (t.calls >= 3 && t.empty_rate >= 80));
 
   return (
     <Card>
@@ -243,6 +254,73 @@ export function BuddyIntelligence() {
                 removes the warning.
               </div>
             </div>
+
+            {/* Which persona is answering, and how well (§15 — per persona, never per person) */}
+            {!!personas?.length && (
+              <div>
+                <div className="eyebrow mb-2 inline-flex items-center gap-1.5"><Bot size={12} /> By assistant</div>
+                <div className="overflow-x-auto rounded-[var(--radius-sm)] border">
+                  <table className="w-full text-sm min-w-[520px]">
+                    <thead>
+                      <tr className="text-left text-[11px] uppercase tracking-wider text-muted">
+                        <th className="px-3 py-2 font-medium">Assistant</th>
+                        <th className="px-3 py-2 font-medium">Answers</th>
+                        <th className="px-3 py-2 font-medium">Grounded</th>
+                        <th className="px-3 py-2 font-medium">Couldn&apos;t answer</th>
+                        <th className="px-3 py-2 font-medium">Proposed</th>
+                        <th className="px-3 py-2 font-medium">Flagged</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {personas.map((p) => (
+                        <tr key={p.key} className="row-hover">
+                          <td className="px-3 py-2">{p.name}</td>
+                          <td className="px-3 py-2 num">{p.answers}</td>
+                          <td className="px-3 py-2 num">{p.grounded_rate}%</td>
+                          <td className="px-3 py-2"><Pill tone={p.insufficient_rate >= 50 ? "tone-danger" : p.insufficient_rate > 0 ? "tone-warn" : "tone-success"}>{p.insufficient_rate}%</Pill></td>
+                          <td className="px-3 py-2 num">{p.proposals || "—"}</td>
+                          <td className="px-3 py-2 num">{p.flags || "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Tools that error, or that never find anything */}
+            {!!troubled.length && (
+              <div>
+                <div className="eyebrow mb-2 inline-flex items-center gap-1.5"><Wrench size={12} /> Tools needing a look</div>
+                <ul className="rounded-[var(--radius-sm)] border divide-y">
+                  {troubled.slice(0, 6).map((t) => (
+                    <li key={t.name} className="flex items-center gap-3 px-3 py-2 text-sm">
+                      <code className="text-xs">{t.name}</code>
+                      <span className="text-muted text-xs flex-1 truncate">
+                        {t.calls} call{t.calls === 1 ? "" : "s"}
+                        {t.errors > 0 ? ` · ${t.errors} errored` : ""}
+                        {t.empty_rate >= 80 ? ` · came back empty ${t.empty_rate}% of the time` : ""}
+                        {t.p50_ms !== null ? ` · median ${t.p50_ms}ms` : ""}
+                      </span>
+                      <Pill tone={t.errors > 0 ? "tone-danger" : "tone-warn"} className="shrink-0">{t.errors > 0 ? "erroring" : "always empty"}</Pill>
+                    </li>
+                  ))}
+                </ul>
+                <div className="text-[11px] text-muted mt-1.5">
+                  A tool that is always empty is usually a permission or data problem rather than a broken tool — the
+                  data it reads may not exist yet, or the assistant&apos;s data scopes may exclude it.
+                </div>
+              </div>
+            )}
+
+            {/* Approved knowledge nobody is using */}
+            {unused.length > 0 && (
+              <div className="text-[11px] text-muted">
+                <span className="font-medium text-[var(--fg)]">{unused.length}</span> approved article{unused.length === 1 ? " has" : "s have"} not been
+                used to answer anything in this period. Not necessarily a problem — but if people keep asking what they
+                cover, the wording is probably not matching the words they use.
+              </div>
+            )}
 
             {/* What it costs, by what */}
             {cost && cost.by_feature.length > 0 && (

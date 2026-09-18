@@ -124,6 +124,8 @@ export type BuddyToolState = {
   sources: Map<string, string>;
   /** The conversation a remembered thing came from, so memory can say where it was learnt (0062). */
   conversationId?: string | null;
+  /** One entry per tool call: what ran, how it went, how long it took (§15, schema 0065). */
+  tools: { name: string; outcome: "ok" | "empty" | "error"; ms: number }[];
 };
 
 export function buildTools(ctx: Ctx, assistant: AssistantRow, state: BuddyToolState, opts: { departmentId: string | null; isManager: boolean; isLead: boolean }) {
@@ -131,14 +133,44 @@ export function buildTools(ctx: Ctx, assistant: AssistantRow, state: BuddyToolSt
   const allow = (s: string) => scopes.size === 0 || scopes.has(s);
   const push = (item: BuddyContextItem) => { if (!state.used.some((u) => u.kind === item.kind && u.id === item.id)) state.used.push(item); };
 
+  /*
+    Every tool is built through this instead of `betaZodTool` directly, so each call records what
+    ran and how it went (§15 asks the console to report failed tool calls). The tool definition is
+    constructed exactly as before — only `run` is wrapped — and the wrapper returns and rethrows
+    whatever the tool did, so nothing about the agent loop changes.
+
+    "empty" is not a failure: a tool that correctly reports it found nothing is working. It is
+    tracked separately because a tool that is *always* empty is usually a permission or data
+    problem, which is precisely what an administrator wants to see.
+  */
+  const tool = <S extends z.ZodType>(def: { name: string; description: string; inputSchema: S; run: (args: z.output<S>) => string | Promise<string> }) => {
+    const inner = def.run;
+    return betaZodTool({
+      ...def,
+      run: async (args: z.output<S>) => {
+        const started = Date.now();
+        try {
+          const out = await inner(args);
+          const text = typeof out === "string" ? out.trim() : "";
+          const empty = /^(not available|no results|nothing|no approved knowledge|no one matched|could not|there was nothing|fewer than two)/i.test(text) || /not found or not accessible/i.test(text);
+          state.tools.push({ name: def.name, outcome: empty ? "empty" : "ok", ms: Date.now() - started });
+          return out;
+        } catch (e) {
+          state.tools.push({ name: def.name, outcome: "error", ms: Date.now() - started });
+          throw e;
+        }
+      },
+    });
+  };
+
   const tools = [
-    betaZodTool({
+    tool({
       name: "get_my_work",
       description: "This person's own tasks, what waits on them, approvals for them, meetings this week, mentions, projects and delegated work. Use for what should I do / what am I waiting for / my day / end of day.",
       inputSchema: z.object({}),
       run: async () => { if (!allow("tasks")) return "not available"; const c = await myWorkContext(ctx.db, ctx.userId); push({ kind: "my_work", title: "Your work", link: "/my-work" }); return c.text; },
     }),
-    betaZodTool({
+    tool({
       name: "get_my_hr",
       description: "This person's own HR self-service data: leave balances, today's attendance, open help requests they raised, assets assigned, training assigned, goals, next 1-on-1. Use for 'how many leaves do I have', 'am I clocked in', 'what training must I complete'.",
       inputSchema: z.object({}),
@@ -165,7 +197,7 @@ export function buildTools(ctx: Ctx, assistant: AssistantRow, state: BuddyToolSt
         return lines.join("\n");
       },
     }),
-    betaZodTool({
+    tool({
       name: "search_knowledge",
       description: "Search APPROVED company knowledge (SOPs, policies, FAQs, scripts, objection handling, guides, incident learnings) — prefer this over chat history for 'how do we', 'what is the policy', 'is there an SOP'. Flags outdated documents.",
       inputSchema: z.object({ query: z.string().describe("2-5 keywords") }),
@@ -196,7 +228,7 @@ export function buildTools(ctx: Ctx, assistant: AssistantRow, state: BuddyToolSt
           : body;
       },
     }),
-    betaZodTool({
+    tool({
       name: "compare_sources",
       description: "Read 2–4 approved knowledge articles in full, side by side, with who owns each, when each was last updated and when it is next due for review. Use when search_knowledge returns more than one article that could answer the same question — especially if they might disagree. Never resolve a disagreement silently by taking the first one.",
       inputSchema: z.object({ ids: z.array(z.string()).min(2).max(4).describe("knowledge article ids from search_knowledge") }),
@@ -220,7 +252,7 @@ export function buildTools(ctx: Ctx, assistant: AssistantRow, state: BuddyToolSt
         ].join("\n")).join("\n\n---\n\n");
       },
     }),
-    betaZodTool({
+    tool({
       name: "search_company",
       description: "Universal permission-filtered search across people, tasks, projects, messages, files, decisions, meetings, wiki, approvals. Short keyword queries; call again with other keywords if needed.",
       inputSchema: z.object({ query: z.string() }),
@@ -231,7 +263,7 @@ export function buildTools(ctx: Ctx, assistant: AssistantRow, state: BuddyToolSt
         return rows.length ? rows.map((r) => `- ${r.kind}: [${r.title}](${r.link}) — ${r.subtitle || ""}`).join("\n") : "No results.";
       },
     }),
-    betaZodTool({
+    tool({
       name: "search_restricted",
       description: "Check whether there is relevant material the person is NOT allowed to see (projects, files, pages, rooms). Use when a search comes back empty for something that plausibly exists. Returns only labels, never contents.",
       inputSchema: z.object({ query: z.string() }),
@@ -242,7 +274,7 @@ export function buildTools(ctx: Ctx, assistant: AssistantRow, state: BuddyToolSt
         return rows.length ? `Restricted matches (do not describe contents): ${rows.map((r) => `${r.resource_type} "${r.label}"`).join("; ")}. Tell the person you found relevant information they don't have permission to view and offer an access_request proposal (resource_type + resource_id from: ${rows.map((r) => `${r.resource_type}:${r.resource_id}`).join(", ")}).` : "Nothing restricted matches.";
       },
     }),
-    betaZodTool({
+    tool({
       name: "find_people",
       description: "Who can help: people by skill, designation, responsibility or department, with availability and open work; plus each department's status, on-duty person and open requests. Use for 'who knows X', 'who is on duty in IT', 'who handles video'.",
       inputSchema: z.object({ query: z.string().describe("skill / topic / department name") }),
@@ -258,7 +290,7 @@ export function buildTools(ctx: Ctx, assistant: AssistantRow, state: BuddyToolSt
         ].filter(Boolean).join("\n");
       },
     }),
-    betaZodTool({
+    tool({
       name: "get_help_catalog",
       description: "Departments and the services they publish in the Help Desk (service ids, SLA, form fields). Use to route a problem to the right department and propose a help_request with service_id.",
       inputSchema: z.object({ department: z.string().nullable().optional().describe("department name or slug to narrow") }),
@@ -272,43 +304,43 @@ export function buildTools(ctx: Ctx, assistant: AssistantRow, state: BuddyToolSt
         return dl.map((d) => `## ${d.name} (id ${d.id}, ${d.status})\n` + (svcs || []).filter((s) => s.department_id === d.id).map((s) => `- ${s.name} (service_id ${s.id}, ack SLA ${s.sla_ack_minutes} min, priority ${s.default_priority}) — ${s.description || ""}; fields: ${((s.form_schema as { key: string; label: string; required?: boolean }[]) || []).map((f) => `${f.label}${f.required ? "*" : ""}`).join(", ")}`).join("\n")).join("\n");
       },
     }),
-    betaZodTool({
+    tool({
       name: "explain_blocker",
       description: "Trace why a task is blocked/late: dependency chain, who is waiting on whom for how long, pending approvals and handoffs.",
       inputSchema: z.object({ task_id: z.string() }),
       run: async ({ task_id }) => { const { data } = await ctx.db.rpc("blocker_chain", { p_task: task_id }); push({ kind: "task", id: task_id, title: "Blocker chain", link: `/tasks/${task_id}` }); return JSON.stringify(data); },
     }),
-    betaZodTool({
+    tool({
       name: "get_task",
       description: "Details, comments and history of one task.",
       inputSchema: z.object({ task_id: z.string() }),
       run: async ({ task_id }) => { const c = await taskContext(ctx.db, task_id); if (!c) return "Task not found or not accessible."; push({ kind: "task", id: task_id, title: c.task.title, link: `/tasks/${task_id}` }); return c.text; },
     }),
-    betaZodTool({
+    tool({
       name: "get_project",
       description: "Full state of one project: tasks, milestones, team, decisions, approvals, meetings, files, risks, recent chat.",
       inputSchema: z.object({ project_id: z.string() }),
       run: async ({ project_id }) => { if (!allow("projects")) return "not available"; const c = await projectContext(ctx.db, project_id); if (!c) return "Project not found or not accessible."; push({ kind: "project", id: project_id, title: c.project.name, link: `/projects/${project_id}` }); return c.text; },
     }),
-    betaZodTool({
+    tool({
       name: "get_channel_messages",
       description: "Recent messages of a chat channel, optionally since an ISO timestamp. Use to summarise, find unresolved questions, or answer @GHLBuddy in a room.",
       inputSchema: z.object({ channel_id: z.string(), since_iso: z.string().nullable().optional() }),
       run: async ({ channel_id, since_iso }) => { if (!allow("chat")) return "not available"; const c = await channelContext(ctx.db, channel_id, since_iso || undefined, 120); if (!c) return "Channel not found or not accessible."; push({ kind: "channel", id: channel_id, title: `#${c.channel.name}`, link: `/chat/${channel_id}` }); return c.text; },
     }),
-    betaZodTool({
+    tool({
       name: "get_decisions",
       description: "Decision register entries, optionally for one project or a keyword.",
       inputSchema: z.object({ project_id: z.string().nullable().optional(), keyword: z.string().nullable().optional() }),
       run: async ({ project_id, keyword }) => { if (!allow("decisions")) return "not available"; return decisionsContext(ctx.db, project_id || null, keyword || undefined); },
     }),
-    betaZodTool({
+    tool({
       name: "list_people",
       description: "Directory of active people with ids, designations and departments. Use before proposing assignments or bring_in.",
       inputSchema: z.object({}),
       run: async () => (await peopleDirectory(ctx.db)).text,
     }),
-    betaZodTool({
+    tool({
       name: "remember",
       description: "Save a small personal working-context note for this person (e.g. 'usually works on frontend', 'current focus: Careers website'). Personal memory only — never company policy, and never anything about another person. Always set `kind` honestly: 'fact' only for something they stated, 'inference' when you worked it out yourself, 'uncertain' when you are not sure, 'instruction' for a standing instruction they gave you ('always answer in Tamil'), 'preference' for how they like to work. Saving an existing key corrects it and keeps the old value in their history.",
       inputSchema: z.object({
@@ -341,7 +373,7 @@ export function buildTools(ctx: Ctx, assistant: AssistantRow, state: BuddyToolSt
           : "Remembered (personal memory). Mention briefly that you have noted it.";
       },
     }),
-    betaZodTool({
+    tool({
       name: "recall",
       description: "Search this person's own memory for something you were told earlier but is not in the context above — past focus, standing instructions, preferences. Their memory only; it can never return anything about anybody else.",
       inputSchema: z.object({ query: z.string().max(60).describe("A word or two, or leave empty for their most relevant notes") }),
@@ -353,7 +385,7 @@ export function buildTools(ctx: Ctx, assistant: AssistantRow, state: BuddyToolSt
         return rows.map((r) => `- ${r.key}: ${r.text} [${r.kind}, from ${r.source}, ${r.updated_at.slice(0, 10)}]`).join("\n");
       },
     }),
-    betaZodTool({
+    tool({
       name: "why_you_know_that",
       description: "Where a remembered thing came from: who said it, when, how sure, and what it said before it was corrected. Use whenever the person asks 'how do you know that', 'where did you get that', or disputes something you said from memory.",
       inputSchema: z.object({ key: z.string().max(60).describe("The memory's name, as shown in the brackets") }),
@@ -364,7 +396,7 @@ export function buildTools(ctx: Ctx, assistant: AssistantRow, state: BuddyToolSt
         return JSON.stringify(p);
       },
     }),
-    betaZodTool({
+    tool({
       name: "forget_that",
       description: "Delete one of this person's memories, with its history. Use when they say it is wrong, out of date, or ask you to forget it. Confirm in one line afterwards.",
       inputSchema: z.object({ key: z.string().max(60) }),
@@ -374,7 +406,7 @@ export function buildTools(ctx: Ctx, assistant: AssistantRow, state: BuddyToolSt
         return (data as { forgotten?: boolean })?.forgotten ? `Forgotten, along with its history.` : `There was nothing remembered under "${key}".`;
       },
     }),
-    betaZodTool({
+    tool({
       name: "propose_actions",
       description: "Propose actions for the person to confirm — nothing happens until they confirm in the UI. Kinds: task, decision, meeting, help_request (department_id + service_id + title + description + priority + due_date), leave_request (fields.leave_type, fields.from, fields.to, fields.half_day, fields.backup_id, reason), bug_report (title + fields.steps/expected/actual/severity/environment, department_id of IT), message_draft (channel_id + body), knowledge_article (title + body + department_id), access_request (resource_type + resource_id + reason + fields.level/duration), bring_in (channel_id + person_id + reason), escalation (department_id + title + body with customer issue/troubleshooting/impact/priority), war_room (title + department_id + fields.severity + description), focus (title of task + assignee = self), learning (title = topic to learn), commitment (a promise the person is making: title = what, person_id = to whom (or fields.to_label for an outside party), due_date), request (self-service request: fields.kind = expense|travel|purchase|wfh|field_duty|late_explanation|overtime|comp_off|training|other, title, description, fields.amount, fields.from, fields.to), admin_action (ONLY for managers/admins — an organisational change to be reviewed by a human in Organization Control, never executed by you: fields.action = change_manager|change_department|change_role|freeze_user|unfreeze_user|set_status|grant_screen|revoke_screen|delegate|set_backup, person_id = the person affected, fields.target = new manager/department/role/screen/backup id or name, reason). Include ids from tools.",
       inputSchema: z.object({ actions: z.array(ProposalSchema).min(1).max(12) }),
@@ -388,7 +420,7 @@ export function buildTools(ctx: Ctx, assistant: AssistantRow, state: BuddyToolSt
   ];
 
   const leadTools = opts.isManager || opts.isLead ? [
-    betaZodTool({
+    tool({
       name: "get_department_brief",
       description: "Department morning brief: status, on duty, present today, who is on leave, critical requests, requests over SLA, overdue/blocked tasks, today's events, pending approvals.",
       inputSchema: z.object({ department_id: z.string().nullable().optional().describe("defaults to the person's department") }),
@@ -396,7 +428,7 @@ export function buildTools(ctx: Ctx, assistant: AssistantRow, state: BuddyToolSt
     }),
   ] : [];
   const managerTools = opts.isManager ? [
-    betaZodTool({
+    tool({
       name: "get_company_overview",
       description: "Company-wide pulse: department health, workload per person, critical/overdue/blocked tasks, projects, approvals, risks. Management only.",
       inputSchema: z.object({}),
@@ -405,37 +437,37 @@ export function buildTools(ctx: Ctx, assistant: AssistantRow, state: BuddyToolSt
   ] : [];
 
   const orgTools = [
-    betaZodTool({
+    tool({
       name: "org_who_reports_to",
       description: "Reporting lines: direct and indirect reports of a person (use list_people for ids). Answers who reports to X, who is X's manager, how big is Y's team.",
       inputSchema: z.object({ person_id: z.string(), depth: z.number().int().min(1).max(4).optional() }),
       run: async ({ person_id, depth }) => { const { data, error } = await ctx.db.rpc("reports_of", { p_user: person_id, p_depth: depth ?? 2 } as never); if (error) return "not available: " + error.message; push({ kind: "org", id: person_id, title: "Reporting lines", link: `/people/${person_id}` }); return JSON.stringify(data); },
     }),
-    betaZodTool({
+    tool({
       name: "org_who_owns",
       description: "Who owns a responsibility, process, system or area (responsibilities register + glossary + department services). Answers who owns invoicing, who handles the website, who approves X.",
       inputSchema: z.object({ query: z.string().max(120) }),
       run: async ({ query }) => { const { data, error } = await ctx.db.rpc("who_owns", { q: query } as never); if (error) return "not available: " + error.message; push({ kind: "org", title: `Ownership: ${query}`, link: "/admin/organization?tab=responsibilities" }); return JSON.stringify(data); },
     }),
-    betaZodTool({
+    tool({
       name: "org_what_if_absent",
       description: "What breaks if a person is away between two dates: responsibilities without backup, tasks due, people they block, meetings, approvals, suggested backup. Allowed for yourself, your reports (managers) or management.",
       inputSchema: z.object({ person_id: z.string(), from: z.string().describe("YYYY-MM-DD"), to: z.string().describe("YYYY-MM-DD") }),
       run: async ({ person_id, from, to }) => { const { data, error } = await ctx.db.rpc("what_if_absent", { p_user: person_id, p_from: from, p_to: to } as never); if (error) return "not available: " + error.message; push({ kind: "org", id: person_id, title: "What-if absence", link: `/people/${person_id}` }); return JSON.stringify(data); },
     }),
-    betaZodTool({
+    tool({
       name: "get_waiting_on_me",
       description: "Everything that is waiting on this person right now: tasks waiting, approvals, leave to approve, help requests, access requests, self-service requests, promises, delegation acknowledgements, workflow steps.",
       inputSchema: z.object({}),
       run: async () => { const { data, error } = await ctx.db.rpc("waiting_on_me", {} as never); if (error) return "not available: " + error.message; push({ kind: "my_work", title: "Waiting on you", link: "/my-work" }); return JSON.stringify(data); },
     }),
-    betaZodTool({
+    tool({
       name: "who_has_the_ball",
       description: "For a task, project, help request, approval or request id: who it is currently with and why (waiting, approval, dependency, handoff).",
       inputSchema: z.object({ type: z.enum(["task", "project", "help_request", "approval", "request"]), id: z.string() }),
       run: async ({ type, id }) => { const { data, error } = await ctx.db.rpc("who_has_ball", { p_type: type, p_id: id } as never); if (error) return "not available: " + error.message; return JSON.stringify(data); },
     }),
-    betaZodTool({
+    tool({
       name: "get_my_attendance",
       description: "This person's own attendance: recent days, hours, late marks, break minutes, and their own attendance exceptions (late/early/missing check-out/short day). Their own data only — the same thing they see in Privacy Center.",
       inputSchema: z.object({ days: z.number().int().min(1).max(60).optional() }),
@@ -448,7 +480,7 @@ export function buildTools(ctx: Ctx, assistant: AssistantRow, state: BuddyToolSt
         return JSON.stringify({ from: f, to: t, days: att, exceptions: exc });
       },
     }),
-    betaZodTool({
+    tool({
       name: "get_my_commitments",
       description: "Promises this person made and promises made to them (with due dates and overdue flags), plus their GHL Connect follow-ups/callbacks if they use Connect.",
       inputSchema: z.object({}),
@@ -456,19 +488,19 @@ export function buildTools(ctx: Ctx, assistant: AssistantRow, state: BuddyToolSt
     }),
   ];
   const orgManagerTools = opts.isManager ? [
-    betaZodTool({
+    tool({
       name: "org_health",
       description: "Organisation health: people without managers, teams without leads, groups without owners, unowned tasks, critical responsibilities without backup, probation overdue, contracts ending, floating users. Management only. Use before proposing admin_action fixes.",
       inputSchema: z.object({}),
       run: async () => { const { data, error } = await ctx.db.rpc("org_health", {} as never); if (error) return "not available: " + error.message; push({ kind: "org", title: "Organisation health", link: "/admin/organization" }); return JSON.stringify(data); },
     }),
-    betaZodTool({
+    tool({
       name: "org_change_impact",
       description: "Preview (read-only) what changes if a person gets a new manager / department / role: reports, approvals, grants, channels affected. Use before proposing an admin_action; the human applies it in Organization Control.",
       inputSchema: z.object({ person_id: z.string(), new_manager_id: z.string().nullable().optional(), new_department_id: z.string().nullable().optional(), new_role: z.string().nullable().optional() }),
       run: async ({ person_id, new_manager_id, new_department_id, new_role }) => { const { data, error } = await ctx.db.rpc("change_impact", { p_user: person_id, p_new_manager: new_manager_id ?? null, p_new_department: new_department_id ?? null, p_new_role: new_role ?? null } as never); if (error) return "not available: " + error.message; return JSON.stringify(data); },
     }),
-    betaZodTool({
+    tool({
       name: "workforce_now",
       description: "Live workforce picture for the departments this manager may see: present, remote, on break, not clocked in, missing check-outs, coverage gaps, operational inactivity (no task/message activity — never device monitoring). Never rank or judge people from it.",
       inputSchema: z.object({}),

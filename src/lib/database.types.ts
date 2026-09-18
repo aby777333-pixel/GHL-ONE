@@ -13663,6 +13663,7 @@ export type Database = {
         Returns: Json
       }
       attendance_auto_checkout: { Args: never; Returns: number }
+      assistant_performance: { Args: { p_days?: number }; Returns: Json }
       attendance_board: {
         Args: { p_day?: string }
         Returns: {
@@ -14943,6 +14944,7 @@ export type Database = {
       test_rls_role_sweep: { Args: never; Returns: Json }
       test_tenant_scoping: { Args: never; Returns: Json }
       timesheet_suggestions: { Args: { p_day: string }; Returns: Json }
+      tool_health: { Args: { p_days?: number }; Returns: Json }
       touch_module: { Args: { p_module: string }; Returns: undefined }
       training_gate_ok: { Args: { p_user?: string }; Returns: boolean }
       transfer_work: {

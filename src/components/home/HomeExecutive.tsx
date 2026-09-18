@@ -6,7 +6,7 @@ import { AlertTriangle, Gauge } from "lucide-react";
 import { Card, CardHeader, EmptyState, PageHeader, Pill, Button } from "@/components/ui";
 import { PersonChip } from "@/components/tasks/TaskBits";
 import { useSession } from "@/components/providers/SessionProvider";
-import { ago, fmtDate, greeting, humanize, PRIORITY_TONE, PROJECT_STATUS_LABEL, PROJECT_STATUS_TONE, relDate, type ProjectStatus, type TaskPriority } from "@/lib/utils";
+import { ago, greeting, humanize, todayLabel, PRIORITY_TONE, PROJECT_STATUS_LABEL, PROJECT_STATUS_TONE, relDate, type ProjectStatus, type TaskPriority } from "@/lib/utils";
 import { AnnouncementsCard, ApprovalsCard, MeetingsCard, MessagesCard, SectionLink, TodayCard, personalBrief, type Personal } from "./shared";
 import { PulseStrip, DepartmentHealthGrid, HealthRing, computeHealth, type Pulse, type DeptHealth } from "@/components/command/CommandBits";
 import { BriefCard } from "@/components/ai/BriefCard";
@@ -28,7 +28,7 @@ export function HomeExecutive({ personal, pulse, departments, projects, pendingA
   return (
     <div className="page page-wide">
       <PageHeader
-        eyebrow={fmtDate(new Date())}
+        eyebrow={todayLabel()}
         title={greeting(profile.full_name)}
         subtitle={execBrief + " " + personalBrief(personal)}
         actions={

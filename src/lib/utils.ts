@@ -153,8 +153,48 @@ export function dueTone(due?: string | null, status?: TaskStatus | null) {
   return "text-muted";
 }
 
+/**
+ * The wall clock this product renders "now" by.
+ *
+ * A client component is server-rendered too, so `new Date().getHours()` runs twice: once on the
+ * server and once in the browser. The server runs in UTC and the people using this run in IST, so
+ * `greeting()` produced "Good afternoon" in the HTML and "Good evening" after hydration — a text
+ * mismatch React reports as error #418 on every home and My work page load.
+ *
+ * Reading the hour in one named zone makes both runtimes compute the same answer, which fixes it
+ * in the code rather than in the deployment: `TZ` on the server is still set to the same zone (so
+ * server-side date windows are right), but forgetting it in a new environment can no longer bring
+ * the error back. `NEXT_PUBLIC_` because this value must be identical on both sides.
+ */
+export const APP_TIME_ZONE = process.env.NEXT_PUBLIC_APP_TIMEZONE || "Asia/Kolkata";
+
+/**
+ * `new Date()` as it reads on the wall in `APP_TIME_ZONE`, as a plain local Date so `date-fns`
+ * formats it exactly as it formats every other date here. Only for "what is the time right now" —
+ * a timestamp that came from the database is still shown in the viewer's own local time.
+ */
+export function zonedNow(timeZone: string = APP_TIME_ZONE): Date {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date());
+  const n = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? 0);
+  return new Date(n("year"), n("month") - 1, n("day"), n("hour"), n("minute"), n("second"));
+}
+
+/** Today's date, in the company's timezone — the page-header eyebrow on Home and My work. */
+export function todayLabel() {
+  return fmtDate(zonedNow());
+}
+
 export function greeting(name?: string | null) {
-  const h = new Date().getHours();
+  const h = zonedNow().getHours();
   const g = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
   const first = name?.split(" ")[0];
   return first ? `${g}, ${first}` : g;

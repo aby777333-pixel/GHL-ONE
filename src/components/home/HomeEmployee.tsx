@@ -2,7 +2,7 @@
 
 import { PageHeader } from "@/components/ui";
 import { useSession } from "@/components/providers/SessionProvider";
-import { fmtDate, greeting } from "@/lib/utils";
+import { greeting, todayLabel } from "@/lib/utils";
 import { AnnouncementsCard, ApprovalsCard, MeetingsCard, MessagesCard, ProjectsCard, TodayCard, personalBrief, type Personal } from "./shared";
 import { Card, CardHeader, EmptyState } from "@/components/ui";
 import { TaskRow } from "@/components/tasks/TaskBits";
@@ -17,7 +17,7 @@ export function HomeEmployee({ personal }: { personal: Personal }) {
   const { profile } = useSession();
   return (
     <div className="page">
-      <PageHeader eyebrow={fmtDate(new Date())} title={greeting(profile.full_name)} subtitle={personalBrief(personal)} />
+      <PageHeader eyebrow={todayLabel()} title={greeting(profile.full_name)} subtitle={personalBrief(personal)} />
       <div className="grid lg:grid-cols-3 gap-[var(--s3)] stagger">
         <div className="min-w-0 lg:col-span-2 space-y-[var(--s3)]">
           <WhileYouWereAway />

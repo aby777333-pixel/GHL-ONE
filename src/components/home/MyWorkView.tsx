@@ -9,7 +9,7 @@ import { Button, Card, CardHeader, EmptyState, Modal, PageHeader, Pill, Progress
 import { TaskRow, PersonChip, type TaskRowData } from "@/components/tasks/TaskBits";
 import { QuickTaskForm } from "@/components/tasks/QuickTaskForm";
 import { useSession, usePerson } from "@/components/providers/SessionProvider";
-import { ago, fmtDate, fmtTime, greeting, humanize, isManagerPlus, isAdminRole, PROJECT_STATUS_LABEL, PROJECT_STATUS_TONE, relDate, cn } from "@/lib/utils";
+import { ago, fmtTime, greeting, humanize, todayLabel, isManagerPlus, isAdminRole, PROJECT_STATUS_LABEL, PROJECT_STATUS_TONE, relDate, cn } from "@/lib/utils";
 import { BriefCard } from "@/components/ai/BriefCard";
 import { MyCommitments } from "@/components/commitments/MyCommitments";
 import { Standup } from "@/components/standups/Standup";
@@ -56,7 +56,7 @@ export function MyWorkView({ userId, tasks, waitingOnMe, approvals, mentions, pr
   return (
     <div className="page">
       <PageHeader
-        eyebrow={fmtDate(new Date())}
+        eyebrow={todayLabel()}
         title={greeting(profile.full_name)}
         subtitle={brief}
         actions={

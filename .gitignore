@@ -42,3 +42,7 @@ next-env.d.ts
 
 # Local Netlify folder
 .netlify
+# Netlify CLI artifact. `deno.lock` here pins edge.netlify.com/bootstrap/*, which the CLI
+# fetches when it runs locally — it is not a project dependency. There is no deno.json, no
+# Deno source and no supabase/functions in this repo, so nothing builds from it.
+deno.lock

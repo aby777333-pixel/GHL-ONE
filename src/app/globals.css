@@ -253,6 +253,24 @@ body {
 }
 .textarea { height: auto; padding: 9px 11px; min-height: 89px; resize: vertical; line-height: 1.5; }
 .input:focus, .select:focus, .textarea:focus { border-color: var(--brand-2); box-shadow: 0 0 0 3px color-mix(in oklab, var(--brand-2) 22%, transparent); }
+
+/*
+  Keyboard focus, everywhere else.
+
+  Only the form controls above had a focus style. Tailwind's preflight removes the browser's own
+  outline, so every button, link, tab, menu item and toggle in the product focused *invisibly*: a
+  person navigating by keyboard could tab through a whole screen with no idea where they were.
+  That is WCAG 2.4.7 (Focus Visible, AA), and it applied to every screen.
+
+  `:focus-visible` rather than `:focus`, so a mouse click never draws a ring — nothing changes for
+  pointer users. `:where()` keeps the specificity at zero, so any component that wants its own
+  treatment still wins without `!important`. The ring matches the one the inputs already use.
+*/
+:where(a, button, summary, [role="button"], [role="tab"], [role="menuitem"], [role="switch"], [tabindex]:not([tabindex="-1"])):focus-visible {
+  outline: 2px solid var(--brand-2);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
 .input::placeholder, .textarea::placeholder { color: var(--fg-muted); }
 /*
   Icon padding for inputs. `@import "tailwindcss"` puts the padding utilities in @layer utilities, and an

@@ -368,6 +368,14 @@ Positioning: *One Company. One Workspace. One Source of Truth.*
 ### A trap worth remembering
 - **A fix applied in the same statement batch as a `raise exception` test is rolled back with it.** The `related_to` column fix was applied, verified by a test in the same call, reported as passing — and lost, because the exception that carried the results out also undid the `create or replace`. It resurfaced an hour later as the same error. **Apply a fix in one call; prove it in another.** CLAUDE.md already recorded the temp-table version of this from 0059; it applies to DDL just as much.
 
+## UI/UX audit — keyboard focus was invisible everywhere (WCAG 2.4.7)
+
+- **Only form controls had a focus style.** `globals.css` defined `.input:focus / .select:focus / .textarea:focus` and nothing else, while Tailwind's preflight removes the browser's own outline — so every button, link, tab, menu item and toggle in the product focused **invisibly**. Somebody navigating by keyboard could tab through an entire screen with no idea where they were. Measured on the live site: a focused button reported `outline-style: none` with no ring of any kind.
+- The fix is one rule, using `:focus-visible` so **a mouse click never draws a ring** — verified: clicking leaves `outline: none`, tabbing gives `solid 2px`. `:where()` keeps specificity at zero so any component can still override it without `!important`, and the colour is the existing `--brand-2` token, which is already lighter in dark mode (`#60a5fa` vs `#2563eb`) — both verified in the browser.
+- The rest of the audit came back clean: no hard-coded greys (0 instances), no `<img>` without `alt`, no table missing a horizontal scroll wrapper, no horizontal overflow at 375px, `Field` associates its label by wrapping the control, and every new component has loading, empty and error states. `body` still has no `overflow` (the 0055 rule) and light mode keeps the login scrim dark so the white text outside the card stays legible.
+- **Noted, not changed** — two design trade-offs rather than defects: the login hero is a 1942×809 photo in a 375×812 viewport, so on a phone `object-cover` shows about a fifth of its width and Next serves a 375px-wide variant that is then scaled to ~1950px (visible softness; fixing it means shipping a much larger image for something behind a 70% scrim); and the "Create an account" text link is a 20px-high tap target, under the 24px pointer-target guideline, which cannot be enlarged without breaking the sentence it sits in.
+- **What this audit could not cover**: everything behind the sign-in. Entering a password is not something I do, so the authenticated screens — the shell, nav, all 89 pages, the new `/people/requests`, the Privacy Center memory card, the Buddy panel and the admin console — were verified by build, types and database tests but **not looked at**. They need a human-driven pass.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know

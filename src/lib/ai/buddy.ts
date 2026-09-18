@@ -514,7 +514,10 @@ export function buildTools(ctx: Ctx, assistant: AssistantRow, state: BuddyToolSt
       name: "org_who_owns",
       description: "Who owns a responsibility, process, system or area (responsibilities register + glossary + department services). Answers who owns invoicing, who handles the website, who approves X.",
       inputSchema: z.object({ query: z.string().max(120) }),
-      run: async ({ query }) => { const { data, error } = await ctx.db.rpc("who_owns", { q: query } as never); if (error) return "not available: " + error.message; push({ kind: "org", title: `Ownership: ${query}`, link: "/admin/organization?tab=responsibilities" }); return JSON.stringify(data); },
+      // `p_q`, not `q`: PostgREST resolves an RPC by its parameter NAMES, so `{ q }` returned
+      // PGRST202 "no matches were found in the schema cache" and this tool always answered "not
+      // available". The `as never` cast was what hid it — the generated type says `p_q`.
+      run: async ({ query }) => { const { data, error } = await ctx.db.rpc("who_owns", { p_q: query }); if (error) return "not available: " + error.message; push({ kind: "org", title: `Ownership: ${query}`, link: "/admin/organization?tab=responsibilities" }); return JSON.stringify(data); },
     }),
     tool({
       name: "org_what_if_absent",

@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "verify": "node scripts/verify.mjs",
+    "test:router": "node --conditions=react-server scripts/router-cases.mjs",
     "check": "tsc --noEmit && eslint src --max-warnings=0 && npm run verify"
   },
   "dependencies": {

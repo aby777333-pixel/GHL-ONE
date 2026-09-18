@@ -78,5 +78,10 @@ export async function proxy(request: NextRequest) {
 export const config = {
   // `sw.js` must be served straight from /public: a redirect to /login (or a screen-governance
   // round trip) would break service-worker registration and every push with it.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.json|sw.js|icons|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
+  //
+  // `offline.html` for the same reason, one step further along: the worker precaches it at
+  // install time, and `cache.add` throws on a redirect. Governed, it would never be stored, and
+  // the fallback would silently not exist on the one occasion it is needed. It carries no company
+  // data — it is a static "you are offline" card — so there is nothing for the proxy to protect.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.json|sw.js|offline.html|icons|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
 };

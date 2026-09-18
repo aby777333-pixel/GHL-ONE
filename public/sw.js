@@ -13,12 +13,63 @@ const DEFAULT_ICON = "/icon-192.png";
 const DEFAULT_BADGE = "/badge-96.png";
 const LOUD_KINDS = ["critical", "action_required"];
 
-self.addEventListener("install", () => {
+/* The ONLY thing this worker ever caches. Not a page of the app — a static "you are offline"
+ * card, so a hard navigation with no network lands somewhere that looks like GHL ONE instead of
+ * the browser's error page. Bump the version to force it to be re-fetched. */
+const OFFLINE_URL = "/offline.html";
+const SHELL_CACHE = "ghl-one-shell-v1";
+
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    caches
+      .open(SHELL_CACHE)
+      .then((cache) => cache.add(new Request(OFFLINE_URL, { cache: "reload" })))
+      .catch(() => {
+        /* the fallback is a nicety — never let it fail an install */
+      })
+  );
   self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    (async () => {
+      // Drop our own superseded shell caches only. Anything another origin feature put in
+      // CacheStorage is none of this worker's business.
+      const keys = await caches.keys();
+      await Promise.all(
+        keys.filter((k) => k.indexOf("ghl-one-") === 0 && k !== SHELL_CACHE).map((k) => caches.delete(k))
+      );
+      await self.clients.claim();
+    })()
+  );
+});
+
+/**
+ * Navigations only, network first, no cache on success.
+ *
+ * Two reasons this handler exists, and neither is offline support:
+ *  1. Chrome will not treat a site as installable — no `beforeinstallprompt`, no install button in
+ *     the omnibox, no "Install app" in the browser menu — unless its worker handles `fetch`.
+ *  2. A standalone window has no address bar, so a failed navigation there is a dead end.
+ *
+ * Everything that is not a top-level navigation returns without calling `respondWith`, which hands
+ * the request straight back to the browser untouched: API calls, RSC payloads, Next.js chunks,
+ * images and Supabase traffic never pass through this worker. That is deliberate — see the note at
+ * the top of this file. `event.request` is forwarded verbatim rather than rebuilt, so its
+ * `redirect: "manual"` mode survives and the proxy's auth redirects are still followed by the
+ * browser itself.
+ */
+self.addEventListener("fetch", (event) => {
+  const req = event.request;
+  if (req.method !== "GET" || req.mode !== "navigate") return;
+
+  event.respondWith(
+    fetch(req).catch(async () => {
+      const cached = await caches.match(OFFLINE_URL);
+      return cached || Response.error();
+    })
+  );
 });
 
 self.addEventListener("message", (event) => {

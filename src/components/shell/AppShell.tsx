@@ -21,6 +21,7 @@ import { ClockWidget } from "@/components/attendance";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 import { BreakGlassBanner } from "@/components/platform/BreakGlassDialog";
 import { PushRegistrar } from "@/components/notifications/PushOptIn";
+import { InstallAppMenuItem, InstallPrompt } from "@/components/shell/InstallApp";
 
 export type Counts = { inbox: number; approvals: number; chat: number };
 
@@ -333,6 +334,8 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
                 </div>
                 <MenuItem icon={<User size={14} />} onClick={() => router.push(`/people/${profile.id}?from=nav`)}>My profile</MenuItem>
                 <MenuItem icon={<Settings size={14} />} onClick={() => router.push(`/people/${profile.id}?edit=1&from=nav`)}>Settings & status</MenuItem>
+                {/* Renders nothing at all unless this browser can install right now. */}
+                <InstallAppMenuItem />
                 <div className="px-2.5 pt-2 pb-1.5 border-t mt-1">
                   <div className={cn("flex items-center gap-1.5 text-[11px] mb-1.5", dndActive ? "text-violet font-medium" : "text-muted")}>
                     <MoonStar size={12} /> Do not disturb{dndActive && dndUntil ? ` · until ${fmtTime(dndUntil)}` : ""}
@@ -361,6 +364,7 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
           */}
           <main className="flex-1 min-w-0 pb-16 lg:pb-0 overflow-x-clip">
             {platformAdmin && <BreakGlassBanner className="mx-[var(--s3)] mt-[var(--s3)]" />}
+            <InstallPrompt className="mx-[var(--s3)] mt-[var(--s3)]" />
             {children}
           </main>
 

@@ -1,9 +1,10 @@
 /**
  * Reading the Web Speech API without duplicating what was said.
  *
- * The transcript logic lives here, apart from React and from any timer, because it cannot be
+ * Shared by both surfaces that listen: GHL Buddy dictation (`BuddyComposer`) and the live meeting
+ * transcript (`useRecorder`). It lives apart from React and from any timer because it cannot be
  * verified by reading it: two browsers deliver the same sentence in two different shapes and only
- * replaying both proves the reader handles them. `scripts/dictation-cases.mjs` does exactly that.
+ * replaying both proves the reader handles them. `scripts/speech-cases.mjs` does exactly that.
  *
  * THE DEFECT THIS EXISTS TO PREVENT. The composer used to set `continuous = true` and build the
  * text by concatenating every entry of `event.results` — which is what the spec implies, since a
@@ -18,7 +19,9 @@
  * works on Android), and only the LAST entry is read. That is correct under both behaviours: an
  * engine that replaces in place has exactly one entry, and an engine that appends puts its most
  * complete hypothesis last. Nothing accumulates inside a session, so no engine quirk can duplicate
- * anything; sentences accumulate across sessions in `done`, which we control.
+ * anything; sentences accumulate across sessions in state the caller controls.
+ *
+ * `utteranceText` IS that rule, in one place, so the two surfaces cannot drift apart on it.
  */
 
 export type SpeechResultEvent = { resultIndex: number; results: ArrayLike<ArrayLike<{ transcript: string }> & { isFinal: boolean }> };
@@ -60,10 +63,17 @@ export function newDictation(existing: string): Dictation {
   return { base: existing ? `${existing.replace(/\s+$/, "")} ` : "", done: "", live: "" };
 }
 
-/** The sentence currently being spoken — the last entry, never the concatenation. */
-export function readResult(state: Dictation, e: SpeechResultEvent): Dictation {
+/**
+ * The sentence currently being spoken: the LAST entry, never the concatenation of the list.
+ * The one rule both listening surfaces share — see the note at the top of this file.
+ */
+export function utteranceText(e: SpeechResultEvent): string {
   const last = e.results[e.results.length - 1];
-  return { ...state, live: (last?.[0]?.transcript || "").trim() };
+  return (last?.[0]?.transcript || "").trim();
+}
+
+export function readResult(state: Dictation, e: SpeechResultEvent): Dictation {
+  return { ...state, live: utteranceText(e) };
 }
 
 /** The engine ended the session: fold the sentence it heard into the accumulated text. */

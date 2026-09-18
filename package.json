@@ -9,9 +9,9 @@
     "lint": "eslint",
     "verify": "node scripts/verify.mjs",
     "test:router": "node --conditions=react-server scripts/router-cases.mjs",
-    "test:dictation": "node --conditions=react-server scripts/dictation-cases.mjs",
+    "test:speech": "node --conditions=react-server scripts/speech-cases.mjs",
     "system-map": "node scripts/system-map.mjs",
-    "check": "tsc --noEmit && eslint src --max-warnings=0 && npm run test:contract && npm run test:router && npm run test:dictation && npm run verify",
+    "check": "tsc --noEmit && eslint src --max-warnings=0 && npm run test:contract && npm run test:router && npm run test:speech && npm run verify",
     "test:contract": "node scripts/db-contract.mjs"
   },
   "dependencies": {

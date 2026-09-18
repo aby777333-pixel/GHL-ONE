@@ -8,6 +8,7 @@
 
 import * as React from "react";
 import type { RecordingKind } from "@/lib/live/types";
+import { recognizerCtor, speechSupported, utteranceText, type Recognizer } from "@/lib/speech";
 
 /** What the browser captures. `voice` is used for audio-only replies / voice notes. */
 export type CaptureMode = "screen" | "screen_voice" | "screen_cam" | "camera" | "voice";
@@ -70,30 +71,12 @@ export function extForMime(mime: string) {
 
 /* --------------------------------------------------------- speech capture */
 
-type SpeechAlternative = { transcript: string };
-type SpeechResult = { isFinal: boolean; length: number; [index: number]: SpeechAlternative };
-type SpeechEvent = { resultIndex: number; results: { length: number; [index: number]: SpeechResult } };
-type Recognizer = {
-  lang: string;
-  continuous: boolean;
-  interimResults: boolean;
-  maxAlternatives: number;
-  start: () => void;
-  stop: () => void;
-  abort: () => void;
-  onresult: ((e: SpeechEvent) => void) | null;
-  onend: (() => void) | null;
-  onerror: (() => void) | null;
-};
-type RecognizerCtor = new () => Recognizer;
-
-function recognizerCtor(): RecognizerCtor | null {
-  if (typeof window === "undefined") return null;
-  const w = window as unknown as { SpeechRecognition?: RecognizerCtor; webkitSpeechRecognition?: RecognizerCtor };
-  return w.SpeechRecognition || w.webkitSpeechRecognition || null;
-}
-
-export const speechSupported = () => typeof window !== "undefined" && !!recognizerCtor();
+/*
+  The recognizer plumbing and the one rule for reading a result live in `@/lib/speech`, shared with
+  GHL Buddy dictation. `speechSupported` is re-exported because `components/recordings/index.ts`
+  has always taken it from here.
+*/
+export { speechSupported } from "@/lib/speech";
 
 /* ------------------------------------------------------------ video utils */
 
@@ -194,6 +177,8 @@ export function useRecorder(opts: { lang?: string; speakerName?: string | null; 
   const drawRafRef = React.useRef(0);
   const recogRef = React.useRef<Recognizer | null>(null);
   const recogOnRef = React.useRef(false);
+  const speechRestartRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const speechEmptyRef = React.useRef(0); // consecutive sessions that ended instantly with nothing
   const videosRef = React.useRef<HTMLVideoElement[]>([]);
   const startedAtRef = React.useRef(0);
   const accRef = React.useRef(0);
@@ -235,6 +220,10 @@ export function useRecorder(opts: { lang?: string; speakerName?: string | null; 
     });
     videosRef.current = [];
     recogOnRef.current = false;
+    if (speechRestartRef.current) {
+      clearTimeout(speechRestartRef.current);
+      speechRestartRef.current = null;
+    }
     try {
       recogRef.current?.abort();
     } catch {
@@ -252,48 +241,103 @@ export function useRecorder(opts: { lang?: string; speakerName?: string | null; 
   React.useEffect(() => () => teardown(false), [teardown]);
 
   /* ------------------------------------------------------------ speech */
-  const startSpeech = React.useCallback(() => {
+  /*
+    One session is one sentence (`continuous` off) and only the LAST entry of `event.results` is
+    read — `utteranceText`, the same rule Buddy dictation uses, for the same reason. Chrome on
+    Android delivers every hypothesis of one sentence as a NEW entry, so the previous loop over
+    `resultIndex … length` committed a transcript LINE per hypothesis as soon as more than one came
+    back final: "we" / "we need" / "we need to ship" as three lines instead of one. An engine that
+    reports `resultIndex` as 0 — several do — made it worse, re-committing every already-final
+    entry on every event.
+
+    Two further faults in the same block, both about the restart. `onerror` was empty and `onend`
+    restarted unconditionally, so a denied or missing microphone became an endless restart loop for
+    the whole length of the recording. And the restart was `r.start()` called synchronously inside
+    `onend` with `catch {}` and a comment saying the next tick recovers — there is no next tick:
+    once it threw, the transcript stopped for the rest of the recording and nothing said so.
+    Restarts are now scheduled, fatal errors stop trying, and a run of instantly-empty sessions
+    gives up rather than spinning.
+  */
+  const beginSpeechRef = React.useRef<(() => void) | null>(null);
+
+  const beginSpeech = React.useCallback(() => {
     const Ctor = recognizerCtor();
     if (!Ctor) return;
+    let r: Recognizer;
     try {
-      const r = new Ctor();
-      r.lang = langRef.current;
-      r.continuous = true;
-      r.interimResults = true;
-      r.maxAlternatives = 1;
-      r.onresult = (e) => {
-        let live = "";
-        for (let i = e.resultIndex; i < e.results.length; i++) {
-          const res = e.results[i];
-          if (!res) continue;
-          const text = (res[0]?.transcript || "").trim();
-          if (!text) continue;
-          if (res.isFinal) {
-            const at = (accRef.current + (phaseRef.current === "recording" ? Date.now() - startedAtRef.current : 0)) / 1000;
-            setLines((prev) => [...prev, { t: Math.max(0, Math.round(at * 10) / 10), text, speaker: speakerName }]);
-          } else live = text;
-        }
-        setInterim(live);
-      };
-      r.onerror = () => {};
-      r.onend = () => {
-        if (!recogOnRef.current) return;
-        try {
-          r.start();
-        } catch {
-          /* Chrome throws if restarted too fast; the next tick recovers */
-        }
-      };
-      recogRef.current = r;
-      recogOnRef.current = true;
+      r = new Ctor();
+    } catch {
+      recogOnRef.current = false;
+      return;
+    }
+    r.lang = langRef.current;
+    r.continuous = false;
+    r.interimResults = true;
+    r.maxAlternatives = 1;
+
+    /** Where we are in the recording, in ms — paused time excluded. */
+    const elapsedMs = () => accRef.current + (phaseRef.current === "recording" ? Date.now() - startedAtRef.current : 0);
+    const startedAt = Date.now();
+    let heard = "";
+    let heardAt = 0; // when this sentence STARTED, so the line seeks to the right moment
+
+    r.onresult = (e) => {
+      const text = utteranceText(e);
+      if (text && !heardAt) heardAt = elapsedMs();
+      heard = text;
+      setInterim(text);
+    };
+    r.onerror = (e) => {
+      // A pause for thought is not a failure and the next session picks it up. A blocked or
+      // missing microphone is, and must not be retried — retrying it was the endless loop.
+      if (e.error === "no-speech" || e.error === "aborted") return;
+      recogOnRef.current = false;
+    };
+    r.onend = () => {
+      recogRef.current = null;
+      setInterim("");
+      if (heard) {
+        speechEmptyRef.current = 0;
+        const at = (heardAt || elapsedMs()) / 1000;
+        setLines((prev) => [...prev, { t: Math.max(0, Math.round(at * 10) / 10), text: heard, speaker: speakerName }]);
+      } else if (Date.now() - startedAt < 400) {
+        speechEmptyRef.current += 1;
+      }
+      if (!recogOnRef.current || speechEmptyRef.current >= 4) {
+        recogOnRef.current = false;
+        return;
+      }
+      // start() inside onend throws InvalidStateError in some browsers — schedule it.
+      speechRestartRef.current = setTimeout(() => {
+        speechRestartRef.current = null;
+        if (recogOnRef.current) beginSpeechRef.current?.();
+      }, 150);
+    };
+
+    try {
       r.start();
+      recogRef.current = r;
     } catch {
       recogOnRef.current = false;
     }
   }, [speakerName]);
+  React.useEffect(() => {
+    beginSpeechRef.current = beginSpeech;
+  }, [beginSpeech]);
+
+  const startSpeech = React.useCallback(() => {
+    if (!recognizerCtor()) return;
+    recogOnRef.current = true;
+    speechEmptyRef.current = 0;
+    beginSpeech();
+  }, [beginSpeech]);
 
   const stopSpeech = React.useCallback(() => {
     recogOnRef.current = false;
+    if (speechRestartRef.current) {
+      clearTimeout(speechRestartRef.current);
+      speechRestartRef.current = null;
+    }
     setInterim("");
     try {
       recogRef.current?.stop();

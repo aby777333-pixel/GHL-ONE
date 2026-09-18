@@ -6,7 +6,7 @@ import { Button, Kbd, Modal, Select, Textarea, useToast } from "@/components/ui"
 import type { BuddyAttachment, BuddyMode, BuddyRequest, BuddyScope } from "@/lib/ai/types";
 import { bytes, cn } from "@/lib/utils";
 import { BAR_MODES, LANGUAGES, MODE_META, TONES } from "./buddyModes";
-import { dictationText, endSession, newDictation, readResult, recognizerCtor, speechSupported, synthesisSupported, type Dictation, type Recognizer } from "./dictation";
+import { dictationText, endSession, newDictation, readResult, recognizerCtor, speechSupported, synthesisSupported, type Dictation, type Recognizer } from "@/lib/speech";
 
 /* ------------------------------------------------------------------ attachments ---- */
 
@@ -57,8 +57,8 @@ export async function fileToAttachment(file: File): Promise<PendingAttachment | 
 /* ------------------------------------------------------------------ speech ---- */
 
 /*
-  The transcript logic lives in `./dictation` — apart from React and from any timer, because it
-  cannot be verified by reading it. `npm run test:dictation` replays both engine behaviours
+  The transcript logic lives in `@/lib/speech` — apart from React and from any timer, because it
+  cannot be verified by reading it. `npm run test:speech` replays both engine behaviours
   against it. Re-exported here because callers already import these two from the composer.
 */
 export { speechSupported, synthesisSupported };
@@ -130,7 +130,7 @@ export function BuddyComposer({ value, onChange, onSend, pending, mode, onMode, 
     Voice dictation. The session machine is here; how a result is READ is in `./dictation`, which
     carries the full account of the defect this replaced (Chrome on Android delivers every
     hypothesis of one sentence as a new entry, so concatenating them glued the sentence to itself)
-    and is covered by `npm run test:dictation`.
+    and is covered by `npm run test:speech`.
 
     `continuous` is off — one session is one sentence — so this component starts the next session
     itself. That is also the only thing that works on Android, where `continuous` is not honoured.

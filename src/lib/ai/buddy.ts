@@ -117,7 +117,14 @@ const ProposalSchema = z.object({
   reason: z.string().nullable().optional(),
 });
 
-export type BuddyToolState = { used: BuddyContextItem[]; proposals: BuddyProposal[]; restricted: BuddyRestrictedHit[]; sources: Map<string, string> };
+export type BuddyToolState = {
+  used: BuddyContextItem[];
+  proposals: BuddyProposal[];
+  restricted: BuddyRestrictedHit[];
+  sources: Map<string, string>;
+  /** The conversation a remembered thing came from, so memory can say where it was learnt (0062). */
+  conversationId?: string | null;
+};
 
 export function buildTools(ctx: Ctx, assistant: AssistantRow, state: BuddyToolState, opts: { departmentId: string | null; isManager: boolean; isLead: boolean }) {
   const scopes = new Set(assistant.data_scopes || []);
@@ -261,9 +268,69 @@ export function buildTools(ctx: Ctx, assistant: AssistantRow, state: BuddyToolSt
     }),
     betaZodTool({
       name: "remember",
-      description: "Save a small personal working-context note for this person (e.g. 'usually works on frontend', 'current focus: Careers website'). Personal memory only — never company policy.",
-      inputSchema: z.object({ key: z.string().max(40), value: z.string().max(300) }),
-      run: async ({ key, value }) => { await ctx.db.from("ai_memory").upsert({ user_id: ctx.userId, key, value: { text: value }, updated_at: new Date().toISOString() }, { onConflict: "user_id,key" }); return "Remembered (personal memory)."; },
+      description: "Save a small personal working-context note for this person (e.g. 'usually works on frontend', 'current focus: Careers website'). Personal memory only — never company policy, and never anything about another person. Always set `kind` honestly: 'fact' only for something they stated, 'inference' when you worked it out yourself, 'uncertain' when you are not sure, 'instruction' for a standing instruction they gave you ('always answer in Tamil'), 'preference' for how they like to work. Saving an existing key corrects it and keeps the old value in their history.",
+      inputSchema: z.object({
+        key: z.string().max(40),
+        value: z.string().max(300),
+        kind: z.enum(["fact", "preference", "instruction", "decision", "inference", "uncertain"]).optional(),
+        relates_to_project_id: z.string().nullable().optional().describe("Tag it to a project so it surfaces when they work on that project. Never a grant — memory stays private to them."),
+        expires_in_days: z.number().int().min(1).max(365).nullable().optional().describe("For something temporary, e.g. 'out of office until Friday'."),
+      }),
+      run: async ({ key, value, kind, relates_to_project_id, expires_in_days }) => {
+        // Through the RPC rather than a raw upsert, so the memory carries where it came from: 0062
+        // records kind, source, confidence, the conversation and a version history.
+        const { data, error } = await ctx.db.rpc("remember_fact", {
+          p_key: key,
+          p_value: value,
+          p_kind: kind || "preference",
+          p_source_type: kind === "inference" ? "inference" : "buddy",
+          p_source_label: kind === "inference" ? "worked out by me" : "this conversation",
+          p_project: relates_to_project_id || undefined,
+          p_department: opts.departmentId || undefined,
+          p_confidence: kind === "fact" ? 0.9 : kind === "uncertain" || kind === "inference" ? 0.4 : 0.7,
+          p_expires_at: expires_in_days ? new Date(Date.now() + expires_in_days * 86_400_000).toISOString() : undefined,
+          p_conversation: state.conversationId || undefined,
+        });
+        if (error) return `Could not save that: ${error.message}`;
+        const r = (data || {}) as { replaced?: boolean; previous?: string | null; version?: number };
+        push({ kind: "memory", title: key });
+        return r.replaced
+          ? `Corrected (personal memory, version ${r.version}). It used to say: "${r.previous}". Tell them you have updated it.`
+          : "Remembered (personal memory). Mention briefly that you have noted it.";
+      },
+    }),
+    betaZodTool({
+      name: "recall",
+      description: "Search this person's own memory for something you were told earlier but is not in the context above — past focus, standing instructions, preferences. Their memory only; it can never return anything about anybody else.",
+      inputSchema: z.object({ query: z.string().max(60).describe("A word or two, or leave empty for their most relevant notes") }),
+      run: async ({ query }) => {
+        const { data } = await ctx.db.rpc("recall_memory", { p_query: query || undefined, p_department: opts.departmentId || undefined, p_limit: 12 });
+        const rows = (Array.isArray(data) ? data : []) as unknown as { key: string; text: string; kind: string; source: string; updated_at: string }[];
+        if (!rows.length) return "Nothing in their memory matches. Do not invent one — ask them.";
+        for (const r of rows) push({ kind: "memory", title: r.key });
+        return rows.map((r) => `- ${r.key}: ${r.text} [${r.kind}, from ${r.source}, ${r.updated_at.slice(0, 10)}]`).join("\n");
+      },
+    }),
+    betaZodTool({
+      name: "why_you_know_that",
+      description: "Where a remembered thing came from: who said it, when, how sure, and what it said before it was corrected. Use whenever the person asks 'how do you know that', 'where did you get that', or disputes something you said from memory.",
+      inputSchema: z.object({ key: z.string().max(60).describe("The memory's name, as shown in the brackets") }),
+      run: async ({ key }) => {
+        const { data } = await ctx.db.rpc("memory_provenance", { p_key: key });
+        const p = (data || {}) as { found?: boolean };
+        if (!p.found) return `Nothing is remembered under "${key}". Say so plainly rather than guessing where it came from.`;
+        return JSON.stringify(p);
+      },
+    }),
+    betaZodTool({
+      name: "forget_that",
+      description: "Delete one of this person's memories, with its history. Use when they say it is wrong, out of date, or ask you to forget it. Confirm in one line afterwards.",
+      inputSchema: z.object({ key: z.string().max(60) }),
+      run: async ({ key }) => {
+        const { data, error } = await ctx.db.rpc("forget_memory", { p_key: key });
+        if (error) return `Could not forget that: ${error.message}`;
+        return (data as { forgotten?: boolean })?.forgotten ? `Forgotten, along with its history.` : `There was nothing remembered under "${key}".`;
+      },
     }),
     betaZodTool({
       name: "propose_actions",

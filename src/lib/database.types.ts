@@ -949,25 +949,64 @@ export type Database = {
       }
       ai_memory: {
         Row: {
+          confidence: number
+          conversation_id: string | null
+          created_at: string
+          department_id: string | null
+          expires_at: string | null
           key: string
+          kind: string
           org_id: string | null
+          project_id: string | null
+          sensitivity: string
+          source_label: string | null
+          source_link: string | null
+          source_type: string
           updated_at: string
           user_id: string
           value: Json
+          verified_at: string | null
+          version: number
         }
         Insert: {
+          confidence?: number
+          conversation_id?: string | null
+          created_at?: string
+          department_id?: string | null
+          expires_at?: string | null
           key: string
+          kind?: string
           org_id?: string | null
+          project_id?: string | null
+          sensitivity?: string
+          source_label?: string | null
+          source_link?: string | null
+          source_type?: string
           updated_at?: string
           user_id: string
           value: Json
+          verified_at?: string | null
+          version?: number
         }
         Update: {
+          confidence?: number
+          conversation_id?: string | null
+          created_at?: string
+          department_id?: string | null
+          expires_at?: string | null
           key?: string
+          kind?: string
           org_id?: string | null
+          project_id?: string | null
+          sensitivity?: string
+          source_label?: string | null
+          source_link?: string | null
+          source_type?: string
           updated_at?: string
           user_id?: string
           value?: Json
+          verified_at?: string | null
+          version?: number
         }
         Relationships: [
           {
@@ -979,6 +1018,63 @@ export type Database = {
           },
           {
             foreignKeyName: "ai_memory_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_memory_history: {
+        Row: {
+          confidence: number | null
+          id: string
+          key: string
+          kind: string | null
+          org_id: string
+          replaced_at: string
+          source_label: string | null
+          source_type: string | null
+          user_id: string
+          value: Json
+          version: number
+        }
+        Insert: {
+          confidence?: number | null
+          id?: string
+          key: string
+          kind?: string | null
+          org_id: string
+          replaced_at?: string
+          source_label?: string | null
+          source_type?: string | null
+          user_id: string
+          value: Json
+          version: number
+        }
+        Update: {
+          confidence?: number | null
+          id?: string
+          key?: string
+          kind?: string | null
+          org_id?: string
+          replaced_at?: string
+          source_label?: string | null
+          source_type?: string | null
+          user_id?: string
+          value?: Json
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_memory_history_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_memory_history_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -14033,6 +14129,7 @@ export type Database = {
         Args: { p_entity: string; p_event: string; p_old?: Json; p_row: Json }
         Returns: number
       }
+      forget_memory: { Args: { p_key: string }; Returns: Json }
       freeze_department: {
         Args: { p_department: string; p_frozen: boolean; p_reason?: string }
         Returns: number
@@ -14300,6 +14397,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      memory_provenance: { Args: { p_key: string }; Returns: Json }
       meeting_cost: { Args: { p_meeting: string }; Returns: Json }
       meeting_load: { Args: { p_day?: string; p_user?: string }; Returns: Json }
       meeting_org: { Args: { p_meeting: string }; Returns: string }
@@ -14353,6 +14451,7 @@ export type Database = {
           used: number
         }[]
       }
+      my_memory: { Args: never; Returns: Json }
       my_pending_policies: {
         Args: never
         Returns: {
@@ -14467,7 +14566,32 @@ export type Database = {
         }
         Returns: Json
       }
+      recall_memory: {
+        Args: {
+          p_department?: string
+          p_limit?: number
+          p_project?: string
+          p_query?: string
+        }
+        Returns: Json
+      }
       related_to: { Args: { eid: string; entity: string }; Returns: Json }
+      remember_fact: {
+        Args: {
+          p_confidence?: number
+          p_conversation?: string
+          p_department?: string
+          p_expires_at?: string
+          p_key: string
+          p_kind?: string
+          p_project?: string
+          p_source_label?: string
+          p_source_link?: string
+          p_source_type?: string
+          p_value: string
+        }
+        Returns: Json
+      }
       remove_push_subscription: {
         Args: { p_endpoint: string }
         Returns: number

@@ -6,6 +6,7 @@ import { BUDDY_MODES, BUDDY_SYSTEM, BUDDY_TONES } from "@/lib/ai/buddyPrompts";
 import { todayIST } from "@/lib/ai/context";
 import { attachmentBlocks, buildTools, loadAssistants, nextSuggestions, parseConfidence, pickAssistant, scopeContext, type BuddyToolState } from "@/lib/ai/buddy";
 import { maxEffort, routeBuddy } from "@/lib/ai/orchestrator";
+import { recallMemory, renderMemory } from "@/lib/ai/memory";
 import { isManagerPlus, isLeadPlus } from "@/lib/utils";
 import type { BuddyAssistantKey, BuddyAttachment, BuddyMode, BuddyRequest, BuddyResponse, BuddyScope } from "@/lib/ai/types";
 
@@ -62,17 +63,23 @@ export async function POST(req: Request) {
       const { data: conv } = await ctx.db.from("ai_conversations").insert({ org_id: ctx.orgId, user_id: ctx.userId, title: (message || attachments[0]?.name || "Buddy").slice(0, 80), scope: scope as never, assistant_key: assistant.key, mode }).select("id").single();
       convId = conv!.id;
     }
-    const [{ data: history }, { data: memory }] = await Promise.all([
+    /*
+      Memory now comes back ranked for the work in front of them and carrying its provenance (0062).
+      The old read was `select key,value limit 12` with no ordering — the twelve it happened to
+      return had nothing to do with what the person was doing, and none of them said where they came
+      from, so an inference Buddy made in passing read exactly like a stated fact.
+    */
+    const [{ data: history }, memory] = await Promise.all([
       ctx.db.from("ai_messages").select("role,content").eq("conversation_id", convId).order("created_at").limit(16),
-      ctx.db.from("ai_memory").select("key,value").eq("user_id", ctx.userId).limit(12),
+      recallMemory(ctx, { projectId: scope.projectId, departmentId: ctx.departmentId }),
     ]);
 
-    const state: BuddyToolState = { used: [], proposals: [], restricted: [], sources: new Map() };
+    const state: BuddyToolState = { used: [], proposals: [], restricted: [], sources: new Map(), conversationId: convId };
     const isManager = isManagerPlus(ctx.role);
     const isLead = isLeadPlus(ctx.role);
     const tools = buildTools(ctx, assistant, state, { departmentId: ctx.departmentId, isManager, isLead });
     const pageNote = await scopeContext(ctx, scope, state.used);
-    const memNote = (memory || []).map((m) => `- ${m.key}: ${(m.value as { text?: string })?.text || JSON.stringify(m.value)}`).join("\n");
+    const memNote = renderMemory(memory);
 
     const system: Anthropic.Beta.BetaTextBlockParam[] = [
       { type: "text", text: BUDDY_SYSTEM, cache_control: { type: "ephemeral" } },
@@ -86,7 +93,7 @@ export async function POST(req: Request) {
       `Signed-in person: ${me?.full_name || ctx.name} (id ${ctx.userId}) · ${me?.designation || ctx.role} · role ${ctx.role} · department ${dept?.name || "none"}${ctx.departmentId ? ` (id ${ctx.departmentId})` : ""}. Today (IST): ${todayIST()}.`,
       scope.path ? `Current page: ${scope.path}` : "",
       pageNote,
-      memNote ? `PERSONAL WORKING CONTEXT (their own notes, not company policy):\n${memNote}` : "",
+      memNote,
       routing.plan.focus ? `INTENT (auto-detected from the question — trust their words over this): ${routing.intent}. ${routing.plan.focus}` : "",
       modeNote, toneNote, langNote,
     ].filter(Boolean).join("\n\n");

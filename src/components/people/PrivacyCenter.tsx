@@ -8,6 +8,7 @@ import { Button, Field, Input, Pill, Skeleton, Textarea, useToast } from "@/comp
 import { useSession } from "@/components/providers/SessionProvider";
 import { ago, cn, fmtDate, type Tables } from "@/lib/utils";
 import { MyExceptions } from "@/components/attendance/MyExceptions";
+import { MyBuddyMemory } from "@/components/ai/MyBuddyMemory";
 import { addDays, istDay } from "@/components/attendance/attendanceUtils";
 
 type PrivateRow = Tables<"profiles_private">;
@@ -182,6 +183,9 @@ export function PrivacyCenter() {
         <MyExceptions from={addDays(istDay(), -30)} to={istDay()} compact />
         <div className="text-[11px] text-muted mt-2">Late, early leave, missing check-out, short day, long breaks and absent days. Managers and HR see exactly this list on Workforce Live — nothing more. <Link href="/attendance?tab=corrections" className="link">Request a correction</Link> if something is wrong.</div>
       </div>
+
+      {/* What the AI holds about you — same principle as everything else on this page (0062) */}
+      <MyBuddyMemory />
 
       {/* Access log — who-opened-what events recorded under your name */}
       <div>

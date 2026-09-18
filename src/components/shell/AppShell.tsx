@@ -280,9 +280,14 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
               <Button variant="ghost" size="sm" onClick={() => setAskOpen(true)} className="hidden sm:inline-flex" title="GHL Buddy (Ctrl+J)">
                 <Sparkles size={15} className="text-[var(--violet)]" /> Buddy
               </Button>
-              <Button variant="ghost" size="sm" icon onClick={() => setAskOpen(true)} className="sm:hidden" aria-label="GHL Buddy">
-                <Sparkles size={16} className="text-[var(--violet)]" />
-              </Button>
+              {/*
+                No Buddy icon in the top bar on a phone. Below `lg` the floating Buddy button is on
+                screen already (44px, bottom right) — so this was a second, smaller control for the
+                same thing, and it was the 34px that pushed the whole bar past the viewport: at
+                398px the cluster measured 235px in 208px of space, so the avatar hung 27px off the
+                right edge and every page scrolled sideways. The rule is no horizontal overflow on
+                mobile; this is the item that costs nothing to drop.
+              */}
               <CollaborateButton ctx={{}} size="sm" variant="ghost" className="hidden sm:inline-flex" />
               <Button variant="ghost" size="sm" icon onClick={toggle} aria-label="Toggle theme">
                 {dark ? <Sun size={16} /> : <Moon size={16} />}

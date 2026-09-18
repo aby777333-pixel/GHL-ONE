@@ -6,6 +6,7 @@ import type { Ctx } from "./route";
 import { companyContext, decisionsContext, myWorkContext, projectContext, taskContext, channelContext, meetingContext, peopleDirectory, todayIST } from "./context";
 import { isManagerPlus, isLeadPlus } from "@/lib/utils";
 import type { BuddyAssistantKey, BuddyAttachment, BuddyContextItem, BuddyMode, BuddyProposal, BuddyRestrictedHit, BuddyScope } from "./types";
+import { SYSTEM_MAP } from "./systemMap";
 
 /* ------------------------------------------------------------------ assistant selection ---- */
 
@@ -126,9 +127,23 @@ export type BuddyToolState = {
   conversationId?: string | null;
   /** One entry per tool call: what ran, how it went, how long it took (§15, schema 0065). */
   tools: { name: string; outcome: "ok" | "empty" | "error"; ms: number }[];
+  /** How many specialists have been consulted for this one answer (§12). Hard-capped at one. */
+  consults?: number;
 };
 
-export function buildTools(ctx: Ctx, assistant: AssistantRow, state: BuddyToolState, opts: { departmentId: string | null; isManager: boolean; isLead: boolean }) {
+export function buildTools(ctx: Ctx, assistant: AssistantRow, state: BuddyToolState, opts: {
+  departmentId: string | null;
+  isManager: boolean;
+  isLead: boolean;
+  /** True inside a consulted specialist: read and reason only (§12). */
+  nested?: boolean;
+  /**
+   * Builds the reduced toolset a consulted specialist gets. Passed in by the caller rather than
+   * called recursively here — a function that references itself cannot infer its own return type,
+   * and the SDK's tool type is a union no hand-written alias reproduces faithfully.
+   */
+  makeNested?: (assistant: AssistantRow) => Parameters<Anthropic["beta"]["messages"]["toolRunner"]>[0]["tools"];
+}) {
   const scopes = new Set(assistant.data_scopes || []);
   const allow = (s: string) => scopes.size === 0 || scopes.has(s);
   const push = (item: BuddyContextItem) => { if (!state.used.some((u) => u.kind === item.kind && u.id === item.id)) state.used.push(item); };
@@ -229,6 +244,30 @@ export function buildTools(ctx: Ctx, assistant: AssistantRow, state: BuddyToolSt
       },
     }),
     tool({
+      name: "system_map",
+      description: "Where something lives in GHL ONE itself: which screen, which API endpoint, which database table, which function, which scheduled job, which environment variable. Use for questions about the product's own structure — 'where is attendance handled', 'is there an endpoint for X', 'what runs on a schedule'. It is an index, not source code: it can tell you that something exists and where, never how it behaves. Say which it is when you answer.",
+      inputSchema: z.object({ query: z.string().max(60).describe("A word or two — 'attendance', 'push', 'leave', 'cron'") }),
+      run: ({ query }) => {
+        const q = query.trim().toLowerCase();
+        if (!q) return SYSTEM_MAP.slice(0, 1200);
+        const lines = SYSTEM_MAP.split("\n");
+        const out: string[] = [];
+        let section = "";
+        for (const line of lines) {
+          if (line.startsWith("## ")) section = line;
+          else if (line.toLowerCase().includes(q)) {
+            if (section && out[out.length - 1] !== section) out.push(section);
+            // A comma-joined catalogue line (tables, functions) is long; keep only the matches.
+            out.push(line.length > 400 ? line.split(", ").filter((x) => x.toLowerCase().includes(q)).join(", ") : line);
+          }
+          if (out.length > 60) break;
+        }
+        return out.length
+          ? `From the GHL ONE system map (structure only — it does not say how any of this behaves):\n${out.join("\n")}`
+          : `Nothing in the system map matches "${query}". It may not exist, or it may be called something else — say that rather than guessing at a file or a table name.`;
+      },
+    }),
+    tool({
       name: "compare_sources",
       description: "Read 2–4 approved knowledge articles in full, side by side, with who owns each, when each was last updated and when it is next due for review. Use when search_knowledge returns more than one article that could answer the same question — especially if they might disagree. Never resolve a disagreement silently by taking the first one.",
       inputSchema: z.object({ ids: z.array(z.string()).min(2).max(4).describe("knowledge article ids from search_knowledge") }),
@@ -302,6 +341,34 @@ export function buildTools(ctx: Ctx, assistant: AssistantRow, state: BuddyToolSt
         const dl = (depts || []).filter((d) => !department || d.name.toLowerCase().includes(department.toLowerCase()) || d.slug === department);
         for (const d of dl) push({ kind: "department", id: d.id, title: d.name, link: `/departments/${d.slug}` });
         return dl.map((d) => `## ${d.name} (id ${d.id}, ${d.status})\n` + (svcs || []).filter((s) => s.department_id === d.id).map((s) => `- ${s.name} (service_id ${s.id}, ack SLA ${s.sla_ack_minutes} min, priority ${s.default_priority}) — ${s.description || ""}; fields: ${((s.form_schema as { key: string; label: string; required?: boolean }[]) || []).map((f) => `${f.label}${f.required ? "*" : ""}`).join(", ")}`).join("\n")).join("\n");
+      },
+    }),
+    tool({
+      name: "why_delayed",
+      description: "Why a project is behind: what is overdue and by how many days, what is waiting and on whom, which approvals have been sitting, what is unassigned, when anything last moved. Returns EVIDENCE, not a verdict — read it and say what appears to be causing the delay, marking the causal part as your reading rather than a fact. Use for 'why is this project late / stuck / not moving'.",
+      inputSchema: z.object({ project_id: z.string() }),
+      run: async ({ project_id }) => {
+        if (!allow("projects")) return "not available";
+        const { data } = await ctx.db.rpc("why_delayed", { p_project: project_id });
+        const d = (data || {}) as { allowed?: boolean };
+        if (!d.allowed) return "Not accessible — do not describe this project.";
+        push({ kind: "project", id: project_id, title: "Delay analysis", link: `/projects/${project_id}` });
+        return JSON.stringify(d);
+      },
+    }),
+    tool({
+      name: "map_around",
+      description: "What is connected to one thing: for a project (tasks, files, decisions, meetings, approvals), a task (subtasks, what it depends on, what it blocks, approvals), a person (manager, reports, department, projects, responsibilities), a department (people, projects, open requests, services) or a decision (the tasks it produced, what it supersedes). Use to answer 'what does this affect', 'what is this connected to', 'what came out of that decision'. Permission-filtered: anything not accessible is simply absent.",
+      inputSchema: z.object({
+        type: z.enum(["project", "task", "person", "department", "decision"]),
+        id: z.string(),
+      }),
+      run: async ({ type, id }) => {
+        const { data } = await ctx.db.rpc("related_to", { entity: type, eid: id });
+        const s = JSON.stringify(data || {});
+        if (s === "{}") return "Nothing connected is accessible to this person. Say so rather than guessing at what might be there.";
+        push({ kind: type === "person" ? "person" : type === "department" ? "department" : type === "task" ? "task" : type === "decision" ? "decision" : "project", id, title: `Connected to this ${type}` });
+        return s;
       },
     }),
     tool({
@@ -507,7 +574,75 @@ export function buildTools(ctx: Ctx, assistant: AssistantRow, state: BuddyToolSt
       run: async () => { const { data, error } = await ctx.db.rpc("workforce_live", {} as never); if (error) return "not available: " + error.message; push({ kind: "attendance", title: "Workforce live", link: "/workforce" }); return JSON.stringify(data); },
     }),
   ] : [];
-  return [...tools, ...orgTools, ...leadTools, ...managerTools, ...orgManagerTools];
+  /*
+    §12 — one Buddy, specialists underneath it.
+
+    The person talks to GHL Buddy; when a question lands outside the answering persona's area, it
+    can put the question to another persona and use the reply. Four things keep this from becoming
+    an expensive way to get the same answer twice:
+
+      * **One consult per answer.** Hard-capped in `state.consults`, not left to the model's
+        judgement.
+      * **The specialist inherits the caller's own database client**, so it sees exactly what the
+        person may see. A consult can never be a way around a permission.
+      * **It cannot act.** Its toolset is built with `nested: true`, which removes `propose_actions`,
+        memory writes and consulting again — so it can read and reason, and that is all. No
+        recursion, and no proposals arriving from a persona the person never chose.
+      * **It is cheap by construction**: a short question, a small answer, low effort.
+
+    The interface does not change. There is no agent picker, and the person never sees this happen
+    except as a line in the answer saying who was consulted.
+  */
+  const specialistTools = opts.nested ? [] : [
+    tool({
+      name: "consult_specialist",
+      description: "Put one specific question to another department's assistant and use its answer — for example an IT question arriving in a Sales conversation, or an HR policy question during a project discussion. Use it ONLY when the question is genuinely outside your own area and the answer would otherwise be a guess; you may consult at most once per answer, and you must say in your reply which specialist you consulted. The specialist reads only what this person is allowed to see and cannot create anything.",
+      inputSchema: z.object({
+        specialist: z.enum(["it", "hr", "sales", "support", "design", "content"]),
+        question: z.string().max(400).describe("One self-contained question. The specialist cannot see this conversation, so include what it needs."),
+      }),
+      run: async ({ specialist, question }) => {
+        if ((state.consults || 0) >= 1) return "You have already consulted a specialist for this question. Answer with what you have, or hand the person to a human.";
+        const rows = await loadAssistants(ctx);
+        const chosen = pickAssistant(rows, { override: specialist as BuddyAssistantKey, role: ctx.role, departmentId: opts.departmentId, departmentSlug: null, joinedAt: null });
+        if (chosen.key !== specialist) return `The ${specialist} specialist is not available to this person. Answer from what you know, and offer the human route instead.`;
+        state.consults = (state.consults || 0) + 1;
+
+        const nested = opts.makeNested?.(chosen);
+        if (!nested) return "Consulting is not available here. Answer from what you know, and offer the human route.";
+        const { getAI, logUsage } = await import("./client");
+        const { pickModel, outputConfig } = await import("./models");
+        const model = pickModel("chat", { override: chosen.model }).model;
+        const started = Date.now();
+        try {
+          const res = await getAI().beta.messages.toolRunner({
+            model,
+            max_tokens: 1200,
+            system: [{ type: "text", text: `You are ${chosen.name}, the ${specialist} specialist inside GHL ONE. ${chosen.personality}
+
+Another assistant is asking you one question on behalf of a colleague. Answer it directly and briefly (under 120 words) from the tools, which are already limited to what that colleague may see. If you do not have an approved answer, say so plainly — do not guess, and do not propose actions; you cannot create anything.` }],
+            output_config: outputConfig(model, "low"),
+            tools: nested,
+            messages: [{ role: "user", content: question }],
+            max_iterations: 4,
+          });
+          await logUsage(ctx.db, { orgId: ctx.orgId, userId: ctx.userId, feature: `buddy:consult:${specialist}`, usage: res.usage, latencyMs: Date.now() - started, model });
+          const text = res.content.filter((x): x is Anthropic.Beta.BetaTextBlock => x.type === "text").map((x) => x.text).join("\n").trim();
+          if (!text) return `${chosen.name} had nothing to add. Say so rather than inventing an answer.`;
+          push({ kind: "memory", title: `Consulted ${chosen.name}` });
+          return `${chosen.name} says:\n${text}\n\n(Attribute this to ${chosen.name} in your reply.)`;
+        } catch {
+          return "The specialist could not be reached. Answer with what you have, and offer the human route.";
+        }
+      },
+    }),
+  ];
+
+  const all = [...tools, ...orgTools, ...leadTools, ...managerTools, ...orgManagerTools, ...specialistTools];
+  // A consulted specialist reads and reasons; it never writes, never remembers and never consults
+  // again. Filtering here rather than at each definition keeps one list of what "nested" means.
+  const NESTED_BLOCKED = new Set(["propose_actions", "remember", "forget_that", "consult_specialist"]);
+  return opts.nested ? all.filter((t) => !NESTED_BLOCKED.has((t as { name: string }).name)) : all;
 }
 
 /* ------------------------------------------------------------------ answer post-processing ---- */

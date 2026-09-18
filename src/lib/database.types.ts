@@ -13804,6 +13804,8 @@ export type Database = {
       }
       ai_cost_summary: { Args: { p_days?: number }; Returns: Json }
       can_see_ai_console: { Args: never; Returns: boolean }
+      buddy_scan: { Args: { p_max?: number; p_user: string }; Returns: number }
+      buddy_scan_all: { Args: never; Returns: number }
       can_approve_account: {
         Args: { p_department?: string; p_user: string }
         Returns: boolean
@@ -14001,6 +14003,7 @@ export type Database = {
         Args: { p_reason?: string; p_user: string }
         Returns: Json
       }
+      dismiss_nudge: { Args: { p_id: string; p_snooze_hours?: number }; Returns: Json }
       delete_collab_policy: { Args: { p_id: string }; Returns: undefined }
       department_availability: {
         Args: never
@@ -14459,6 +14462,7 @@ export type Database = {
         }[]
       }
       my_memory: { Args: never; Returns: Json }
+      my_nudges: { Args: never; Returns: Json }
       my_pending_policies: {
         Args: never
         Returns: {
@@ -14771,6 +14775,7 @@ export type Database = {
       selftest_jwt_role: { Args: never; Returns: string }
       selftest_platform_only_tables: { Args: never; Returns: string[] }
       selftest_result: { Args: { p_checks: Json }; Returns: Json }
+      seen_nudges: { Args: never; Returns: Json }
       set_active_workspace: {
         Args: { p_org: string; p_reason?: string }
         Returns: Json
@@ -14970,6 +14975,7 @@ export type Database = {
       while_you_were_away: { Args: { p_since: string }; Returns: Json }
       who_can_see: { Args: { p_id: string; p_type: string }; Returns: Json }
       who_has_ball: { Args: { p_id: string; p_type: string }; Returns: Json }
+      why_delayed: { Args: { p_project: string }; Returns: Json }
       who_owns: {
         Args: { p_q: string }
         Returns: {

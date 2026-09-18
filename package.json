@@ -9,6 +9,7 @@
     "lint": "eslint",
     "verify": "node scripts/verify.mjs",
     "test:router": "node --conditions=react-server scripts/router-cases.mjs",
+    "system-map": "node scripts/system-map.mjs",
     "check": "tsc --noEmit && eslint src --max-warnings=0 && npm run verify"
   },
   "dependencies": {

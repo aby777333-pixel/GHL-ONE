@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { AtSign, Compass, LifeBuoy, Lock, Sparkles, Users, X, Clock } from "lucide-react";
+import { AlertTriangle, AtSign, CalendarClock, Compass, LifeBuoy, Lock, Sparkles, Users, X, Clock } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useSession } from "@/components/providers/SessionProvider";
 import { Button, Card } from "@/components/ui";
@@ -11,7 +11,26 @@ import { openBuddy } from "./buddyStore";
 import { useAIStatus } from "./useAIStatus";
 import { AIDisabledNote } from "./AIDisabledNote";
 
-type Nudge = { id: string; icon: React.ReactNode; title: string; why: string; cta: string; mode: BuddyMode; message?: string; taskId?: string; link?: string };
+type Nudge = { id: string; icon: React.ReactNode; title: string; why: string; cta: string; mode: BuddyMode; message?: string; taskId?: string; link?: string; serverId?: string; high?: boolean };
+
+/**
+ * Server-side nudges (§10, schema 0066). The three computed in the browser below look at what is
+ * on this page; these come from `buddy_scan`, which runs twice a day over things nobody is looking
+ * at — work that has gone past its date, approvals sitting on someone, a promise that has come due,
+ * a meeting tomorrow with no agenda. They are deduplicated per person per day in the database and
+ * dismissed there too, so dismissing one on a laptop also dismisses it on a phone.
+ *
+ * Deliberately in-app only: no notification row, so no push. A proactive layer that can reach
+ * somebody's phone needs to earn that, and this one has not been watched in the wild yet.
+ */
+const SERVER_NUDGE: Record<string, { icon: React.ReactNode; cta: string; mode: BuddyMode; message?: string }> = {
+  overdue: { icon: <AlertTriangle size={14} />, cta: "Help me re-plan", mode: "what_next", message: "Some of my tasks are past their due date. Help me re-plan them and say what to tell the people waiting." },
+  deadline: { icon: <CalendarClock size={14} />, cta: "What should I do first?", mode: "what_next" },
+  stalled_approval: { icon: <Clock size={14} />, cta: "Show me what's waiting", mode: "what_next", message: "What is waiting on my approval, and what happens if I keep holding it?" },
+  forgotten_commitment: { icon: <AlertTriangle size={14} />, cta: "Help me catch up", mode: "what_next", message: "I have promises that are past due. Help me work out what to do and what to tell people." },
+  waiting_on_others: { icon: <Lock size={14} />, cta: "Why is this stuck?", mode: "why_blocked" },
+  meeting_prep: { icon: <CalendarClock size={14} />, cta: "Prepare me", mode: "prepare" },
+};
 
 const DAY = 86400e3;
 const dismissKey = () => `ghl.buddy.nudges.${new Date().toISOString().slice(0, 10)}`;
@@ -52,9 +71,29 @@ export function BuddyHomeCard({ className }: { className?: string }) {
       supabase.from("tasks").select("id,title,status,updated_at,waiting_on,waiting_on_user_id").eq("assignee_id", profile.id).in("status", ["blocked", "waiting"]).lte("updated_at", twoDaysAgo).order("updated_at").limit(5),
       supabase.from("tasks").select("id,title,due_date,assignee_id").eq("waiting_on_user_id", profile.id).not("status", "in", "(done,cancelled)").gte("due_date", startOfDay).lte("due_date", endOfDay).limit(5),
       supabase.from("notifications").select("id,title,link,created_at,actor_id").eq("user_id", profile.id).eq("kind", "mention").is("read_at", null).lte("created_at", dayAgo).order("created_at", { ascending: false }).limit(5),
-    ]).then(([blocked, waited, mentions]) => {
+      supabase.rpc("my_nudges"),
+    ]).then(([blocked, waited, mentions, server]) => {
       if (!alive) return;
       const out: Nudge[] = [];
+      // Server nudges first: they are about things that have already gone wrong, and the high ones
+      // are somebody else being blocked.
+      const rows = (Array.isArray(server.data) ? server.data : []) as unknown as { id: string; kind: string; severity: string; title: string; body: string | null; link: string | null }[];
+      for (const r of rows) {
+        const meta = SERVER_NUDGE[r.kind];
+        if (!meta) continue;
+        out.push({
+          id: `server:${r.id}`,
+          serverId: r.id,
+          high: r.severity === "high",
+          icon: meta.icon,
+          title: r.title,
+          why: r.body || "",
+          cta: meta.cta,
+          mode: meta.mode,
+          message: meta.message,
+          link: r.link || undefined,
+        });
+      }
       for (const t of blocked.data || []) {
         out.push({
           id: `blocked:${t.id}`,
@@ -100,11 +139,18 @@ export function BuddyHomeCard({ className }: { className?: string }) {
     };
   }, [profile.id, people]);
 
-  const visible = (nudges || []).filter((n) => !dismissed.includes(n.id)).slice(0, 3);
+  const visible = (nudges || [])
+    .filter((n) => !dismissed.includes(n.id))
+    .sort((a, b) => Number(!!b.high) - Number(!!a.high))
+    .slice(0, 3);
   const dismiss = (id: string) => {
     const next = [...dismissed, id];
     setDismissed(next);
     writeDismissed(next);
+    // A server nudge is dismissed in the database as well, so it does not come back on another
+    // device. Best effort: the local dismissal has already hidden it either way.
+    const serverId = (nudges || []).find((n) => n.id === id)?.serverId;
+    if (serverId) void createClient().rpc("dismiss_nudge", { p_id: serverId });
   };
 
   if (!ai.loading && !ai.enabled) return <AIDisabledNote compact className={className} />;

@@ -5,7 +5,7 @@ import { getAI, logUsage } from "@/lib/ai/client";
 import { outputConfig, pickModel } from "@/lib/ai/models";
 import { BUDDY_MODES, BUDDY_SYSTEM, BUDDY_TONES } from "@/lib/ai/buddyPrompts";
 import { todayIST } from "@/lib/ai/context";
-import { attachmentBlocks, buildTools, loadAssistants, nextSuggestions, parseConfidence, pickAssistant, scopeContext, type BuddyToolState } from "@/lib/ai/buddy";
+import { attachmentBlocks, buildTools, loadAssistants, nextSuggestions, parseConfidence, pickAssistant, scopeContext, type AssistantRow, type BuddyToolState } from "@/lib/ai/buddy";
 import { maxEffort, routeBuddy } from "@/lib/ai/orchestrator";
 import { recallMemory, renderMemory } from "@/lib/ai/memory";
 import { isManagerPlus, isLeadPlus } from "@/lib/utils";
@@ -78,7 +78,13 @@ export async function POST(req: Request) {
     const state: BuddyToolState = { used: [], proposals: [], restricted: [], sources: new Map(), conversationId: convId, tools: [] };
     const isManager = isManagerPlus(ctx.role);
     const isLead = isLeadPlus(ctx.role);
-    const tools = buildTools(ctx, assistant, state, { departmentId: ctx.departmentId, isManager, isLead });
+    /*
+      §12: the reduced toolset a consulted specialist gets is built here and handed in, rather than
+      `buildTools` calling itself — the loop is the same, but a self-referencing function cannot
+      infer its own return type and the SDK's tool type is a union no hand-written alias reproduces.
+    */
+    const makeNested = (a: AssistantRow) => buildTools(ctx, a, state, { departmentId: ctx.departmentId, isManager, isLead, nested: true });
+    const tools = buildTools(ctx, assistant, state, { departmentId: ctx.departmentId, isManager, isLead, makeNested });
     const pageNote = await scopeContext(ctx, scope, state.used);
     const memNote = renderMemory(memory);
 

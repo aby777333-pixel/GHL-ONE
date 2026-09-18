@@ -390,6 +390,28 @@ Positioning: *One Company. One Workspace. One Source of Truth.*
 - **Noted, not changed** — two design trade-offs rather than defects: the login hero is a 1942×809 photo in a 375×812 viewport, so on a phone `object-cover` shows about a fifth of its width and Next serves a 375px-wide variant that is then scaled to ~1950px (visible softness; fixing it means shipping a much larger image for something behind a 70% scrim); and the "Create an account" text link is a 20px-high tap target, under the 24px pointer-target guideline, which cannot be enlarged without breaking the sentence it sits in.
 - **What this audit could not cover**: everything behind the sign-in. Entering a password is not something I do, so the authenticated screens — the shell, nav, all 89 pages, the new `/people/requests`, the Privacy Center memory card, the Buddy panel and the admin console — were verified by build, types and database tests but **not looked at**. They need a human-driven pass.
 
+## Mobile: `overflow-x: clip` was hiding missing content, not preventing it
+
+- **How this was measured.** The device toolbar is DevTools and cannot be scripted, and resizing a maximised Chrome window does nothing. A **popup window** opened from the page with `window.open(url, '_blank', 'width=390,height=844')` — triggered by a real click, so the popup blocker allows it — gives a genuine 398 × 806 CSS viewport that shares the session. It sits outside the extension's tab group so it cannot be screenshotted, but it is same-origin, so the opener can read `w.document` and measure everything. `main.scrollWidth - main.clientWidth` is the honest number: **how much of the page is cut off**.
+- **Three separate blowouts, one cause.** A grid or flex item defaults to `min-width: auto` and will not shrink below its content's intrinsic width. Every `lg:grid-cols-*` grid collapses to a single implicit `auto` track on a phone, so one wide child sizes the whole track:
+
+  | page | clipped | culprit |
+  |---|---|---|
+  | `/` | **317px** | `lg:col-span-2` dashboard column at 684px in a 346px track |
+  | `/command` | **93px** | four `ListCard`s sharing one track, all taking the widest one's 460px |
+  | `/admin?tab=ai` | **364px** | a `.card` holding a `min-w-[640px]` table, at 731px |
+
+- **And `main`'s `overflow-x: clip` hid all of it.** That rule is right (0055 moved the guard off `body`, where it had broken sticky app-wide) — but `clip` does not scroll. There was no scrollbar, no horizontal overflow, no symptom: a third of the home page simply did not exist on a phone. `scrollWidth` on the document stayed equal to the viewport, which is why an overflow check alone reports everything as fine. **Measure `main.scrollWidth` against `main.clientWidth`, not `documentElement.scrollWidth` against the viewport.**
+- **Fixed in the design system**, after fixing two instances by hand made it obvious it was a class rather than a bug: `min-width: 0` on `.card`. It removes the automatic floor, changes nothing for a card that is an ordinary block or at any width where the track is already wide enough, and lets the `overflow-x-auto` wrapper around a wide table do the scrolling — which is what should scroll on a narrow screen. The three dashboard columns keep their own `min-w-0` as well, since they are grid items in their own right.
+- **Every fix was proven in the live page before it was written**: setting `min-width: 0` on the element in the running document collapsed the track (684 → 346, 460 → 346) and took `main`'s clipping to zero. Then the same measurement after deploying confirmed it.
+- **Verified clean afterwards at 398px** — 0px clipped on `/`, `/my-work`, `/command`, `/admin?tab=ai`, `/admin?tab=people`, `/people`, `/people/[id]`, `/people/requests`, `/tasks`, `/projects`, `/attendance`, `/inbox`, `/chat`, `/connect`, `/leave`, `/workforce`.
+
+## The top bar overflowed the viewport on a phone
+
+- The right-hand cluster needed **235px in 208px of space**, so the avatar hung 27px off the right edge and every page scrolled sideways — the one thing `CLAUDE.md` says must never happen on mobile. The cluster is `shrink-0` and its children are fixed-size icons, so something had to give.
+- The Buddy icon button was the item that costs nothing: below `lg` the **floating Buddy button is already on screen** at 44px, bottom right, so the 28px copy in the top bar was a second, smaller control for the same action. Removing it frees 34px — more than the 27px overflow — and no control is lost at any width. Clock widget, New, theme, notifications and the avatar all stay.
+- The mobile bottom nav measures **57px** and is present throughout; a detector that expects it flush against `innerHeight` will miss it, because of `env(safe-area-inset-bottom)`.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know

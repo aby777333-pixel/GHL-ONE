@@ -164,6 +164,20 @@ body {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   box-shadow: var(--shadow-sm);
+  /*
+    A card is nearly always a grid or flex item, and such an item defaults to `min-width: auto`,
+    which refuses to shrink below its content's intrinsic width. On a phone every `lg:grid-cols-*`
+    grid collapses to one implicit `auto` track, so one card holding a `min-w-[640px]` table sized
+    its whole track to 731px inside 346px — and `main`'s `overflow-x: clip` (0055, which keeps
+    sticky working) then hid the difference *silently*: no scrollbar, no overflow, just content
+    gone. Measured at 398px: 317px missing from Home, 93px from Command Center, 364px from Admin.
+
+    `min-width: 0` removes that automatic floor. It changes nothing for a card that is an ordinary
+    block, and nothing at any width where the track is already wide enough — it only stops a card
+    from forcing its container open. Tables that need room keep their own `overflow-x-auto`
+    wrapper, which is what should be scrolling on a narrow screen, and now does.
+  */
+  min-width: 0;
 }
 .card-hover { transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
 .card-hover:hover { transform: translateY(-1px); box-shadow: var(--shadow); border-color: var(--line-strong); }

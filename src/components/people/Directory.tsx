@@ -13,6 +13,7 @@ import { cn, ROLE_LABEL, type RoleLevel } from "@/lib/utils";
 import type { DirectoryPerson } from "./types";
 import { AccessRoles, AssignTaskButton, ChatButton, RolePill } from "./PeopleBits";
 import { useSecurityRoles, type SecurityRole } from "./useSecurityRoles";
+import { AccountRequestsLink } from "./AccountRequestsLink";
 import { OrgChart } from "./OrgChart";
 
 const ROLES: RoleLevel[] = ["super_admin", "director", "executive", "department_head", "manager", "team_lead", "employee", "intern", "consultant", "vendor", "guest"];
@@ -60,10 +61,13 @@ export function Directory({ people, initial }: { people: DirectoryPerson[]; init
         title="People"
         subtitle={`${people.length} active member${people.length === 1 ? "" : "s"} across ${departments.length} departments`}
         actions={
+          <>
+          <AccountRequestsLink />
           <div className="inline-flex rounded-[var(--radius-sm)] border overflow-hidden">
             <button className={cn("btn btn-sm rounded-none border-0", view === "grid" ? "btn-primary" : "btn-ghost")} aria-pressed={view === "grid"} onClick={() => setView("grid")}><LayoutGrid size={14} /> Directory</button>
             <button className={cn("btn btn-sm rounded-none border-0", view === "org" ? "btn-primary" : "btn-ghost")} aria-pressed={view === "org"} onClick={() => setView("org")}><Network size={14} /> Org chart</button>
           </div>
+          </>
         }
       />
 

@@ -6724,6 +6724,76 @@ export type Database = {
           },
         ]
       }
+      join_requests: {
+        Row: {
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decided_label: string | null
+          decision_note: string | null
+          department_id: string | null
+          designation: string | null
+          id: string
+          note: string | null
+          org_id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decided_label?: string | null
+          decision_note?: string | null
+          department_id?: string | null
+          designation?: string | null
+          id?: string
+          note?: string | null
+          org_id?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decided_label?: string | null
+          decision_note?: string | null
+          department_id?: string | null
+          designation?: string | null
+          id?: string
+          note?: string | null
+          org_id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "join_requests_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "join_requests_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "join_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_openings: {
         Row: {
           closes_on: string | null
@@ -13409,6 +13479,10 @@ export type Database = {
       access_event_summary: { Args: { p_days?: number }; Returns: Json }
       access_findings: { Args: never; Returns: Json }
       access_review_board: { Args: { p_org?: string }; Returns: Json }
+      account_approvers: {
+        Args: { p_department?: string; p_org: string }
+        Returns: string[]
+      }
       ack_task: {
         Args: { p_note?: string; p_status: string; p_task: string }
         Returns: undefined
@@ -13464,6 +13538,17 @@ export type Database = {
       }
       apply_role_change: { Args: { p_change: string }; Returns: undefined }
       apply_transfer: { Args: { p_transfer: string }; Returns: undefined }
+      approve_account: {
+        Args: {
+          p_department?: string
+          p_designation?: string
+          p_manager?: string
+          p_note?: string
+          p_role?: Database["public"]["Enums"]["role_level"]
+          p_user: string
+        }
+        Returns: Json
+      }
       approve_message: {
         Args: { p_approve: boolean; p_message: string; p_note?: string }
         Returns: undefined
@@ -13615,6 +13700,11 @@ export type Database = {
         Args: { p_user: string; p_video?: boolean }
         Returns: string
       }
+      can_approve_account: {
+        Args: { p_department?: string; p_user: string }
+        Returns: boolean
+      }
+      can_approve_accounts: { Args: never; Returns: boolean }
       can_assign: {
         Args: { p_assignee: string; p_assigner?: string }
         Returns: boolean
@@ -13803,6 +13893,10 @@ export type Database = {
         Returns: string
       }
       delegation_enforced_permissions: { Args: never; Returns: string[] }
+      decline_account: {
+        Args: { p_reason?: string; p_user: string }
+        Returns: Json
+      }
       delete_collab_policy: { Args: { p_id: string }; Returns: undefined }
       department_availability: {
         Args: never
@@ -14303,6 +14397,7 @@ export type Database = {
         Args: { p_perm: string; p_user?: string }
         Returns: Json
       }
+      pending_accounts: { Args: never; Returns: Json }
       person_name: { Args: { uid: string }; Returns: string }
       pick_agent: { Args: { p_inbox: string }; Returns: string }
       platform_can_touch: {
@@ -14388,6 +14483,10 @@ export type Database = {
           role: Database["public"]["Enums"]["role_level"]
           status: string
         }[]
+      }
+      request_account_activation: {
+        Args: { p_department?: string; p_designation?: string; p_note?: string }
+        Returns: Json
       }
       request_federation: {
         Args: { p_days?: number; p_other_org: string; p_purpose: string }

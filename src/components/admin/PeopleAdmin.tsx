@@ -45,7 +45,13 @@ export function PeopleAdmin({ people }: { people: AdminPerson[] }) {
     <div className="space-y-[var(--s4)]">
       {pending.length > 0 && (
         <Card className="border-[var(--warn)]">
-          <CardHeader title={<span className="inline-flex items-center gap-2"><UserCheck size={16} className="text-warn" /> Pending activation</span>} subtitle={`${pending.length} account${pending.length > 1 ? "s" : ""} signed up without an invite and ${pending.length > 1 ? "are" : "is"} waiting for approval.`} />
+          <CardHeader
+            title={<span className="inline-flex items-center gap-2"><UserCheck size={16} className="text-warn" /> Pending activation</span>}
+            subtitle={`${pending.length} account${pending.length > 1 ? "s" : ""} signed up without an invite and ${pending.length > 1 ? "are" : "is"} waiting for approval.`}
+            /* The same people, with the department they asked for and a note from them. Department
+               heads work from there; this card stays for administrators already on this page. */
+            action={<Link href="/people/requests" className="btn btn-sm btn-secondary">Open account requests</Link>}
+          />
           <div className="divide-y border-t">
             {pending.map((p) => (
               <div key={p.id} className="flex items-center gap-3 px-[var(--s4)] py-2.5">

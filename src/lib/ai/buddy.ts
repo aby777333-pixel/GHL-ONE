@@ -175,7 +175,49 @@ export function buildTools(ctx: Ctx, assistant: AssistantRow, state: BuddyToolSt
         const rows = (data || []) as { id: string; title: string; kind: string; snippet: string; review_at: string | null; outdated: boolean }[];
         if (!rows.length) return "No approved knowledge matches. Say so plainly and offer who to ask.";
         for (const r of rows) { push({ kind: "knowledge", id: r.id, title: r.title, link: `/wiki/knowledge/${r.id}` }); state.sources.set(`/wiki/knowledge/${r.id}`, r.title); }
-        return rows.map((r) => `### [${r.title}](/wiki/knowledge/${r.id}) (${r.kind}${r.outdated ? ", ⚠ past review date — may be outdated" : ""})\n${r.snippet}`).join("\n\n");
+        /*
+          The loop closing (0063). Feedback was collected and read by nobody, so an article three
+          people had marked wrong was handed over exactly as confidently as one nobody had ever
+          questioned. `knowledge_signal` returns counts only — never who said it, never the note.
+        */
+        const { data: sig } = await ctx.db.rpc("knowledge_signal", { p_ids: rows.map((r) => r.id) });
+        const signals = new Map(((Array.isArray(sig) ? sig : []) as unknown as { id: string; flags: number; helpful: number }[]).map((s) => [s.id, s]));
+        const body = rows.map((r) => {
+          const s = signals.get(r.id);
+          const warn = [
+            r.outdated ? "⚠ past its review date — may be outdated" : "",
+            s && s.flags > 0 ? `⚠ ${s.flags} unresolved report${s.flags === 1 ? "" : "s"} that this is wrong or out of date — say so if you rely on it, and suggest they check with the owner` : "",
+            s && s.helpful > 0 && !(s.flags > 0) ? `${s.helpful} found this helpful` : "",
+          ].filter(Boolean).join("; ");
+          return `### [${r.title}](/wiki/knowledge/${r.id}) (${r.kind}${warn ? `, ${warn}` : ""})\n${r.snippet}`;
+        }).join("\n\n");
+        return rows.length > 1
+          ? `${body}\n\n(If two of these disagree, do not simply take the first: use compare_sources to read them, then say plainly that they disagree, which is newer and who owns each.)`
+          : body;
+      },
+    }),
+    betaZodTool({
+      name: "compare_sources",
+      description: "Read 2–4 approved knowledge articles in full, side by side, with who owns each, when each was last updated and when it is next due for review. Use when search_knowledge returns more than one article that could answer the same question — especially if they might disagree. Never resolve a disagreement silently by taking the first one.",
+      inputSchema: z.object({ ids: z.array(z.string()).min(2).max(4).describe("knowledge article ids from search_knowledge") }),
+      run: async ({ ids }) => {
+        if (!allow("knowledge")) return "not available";
+        // The caller's own client, so `aik_read` decides what comes back: an article they may not
+        // see is simply absent rather than summarised for them.
+        const { data } = await ctx.db
+          .from("ai_knowledge")
+          .select("id,title,body,kind,department_id,owner_id,updated_at,approved_at,review_at")
+          .in("id", ids.slice(0, 4));
+        const rows = data || [];
+        if (rows.length < 2) return "Fewer than two of those are readable by this person — do not compare, and do not describe one they cannot see.";
+        const { data: sig } = await ctx.db.rpc("knowledge_signal", { p_ids: rows.map((r) => r.id) });
+        const flags = new Map(((Array.isArray(sig) ? sig : []) as unknown as { id: string; flags: number }[]).map((s) => [s.id, s.flags]));
+        const depts = new Map(((await ctx.db.from("departments").select("id,name")).data || []).map((d) => [d.id, d.name]));
+        return rows.map((r) => [
+          `### [${r.title}](/wiki/knowledge/${r.id})`,
+          `owner: ${r.owner_id ? "set" : "none"} · department: ${depts.get(r.department_id || "") || "company-wide"} · last updated ${String(r.updated_at).slice(0, 10)} · approved ${r.approved_at ? String(r.approved_at).slice(0, 10) : "—"} · review due ${r.review_at || "not set"}${(flags.get(r.id) || 0) > 0 ? ` · ⚠ ${flags.get(r.id)} unresolved reports` : ""}`,
+          (r.body || "").slice(0, 4000),
+        ].join("\n")).join("\n\n---\n\n");
       },
     }),
     betaZodTool({

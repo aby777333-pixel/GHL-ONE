@@ -9,6 +9,7 @@ import { PersonPicker } from "@/components/pickers";
 import { ago, cn, humanize, isAdminRole, type Tables } from "@/lib/utils";
 import { KnowledgeEditor, emptyKnowledge, type KnowledgeDraft } from "@/components/ai/KnowledgeEditor";
 import { Note, PersonLine, Switch } from "./AdminBits";
+import { BuddyIntelligence } from "./BuddyIntelligence";
 
 type Assistant = Tables<"ai_assistants">;
 type Owner = Tables<"ai_knowledge_owners">;
@@ -154,9 +155,12 @@ export function BuddyControlCenter() {
         </div>
       </div>
 
+      {/* How well it is answering, before how it is configured (0063) */}
+      <BuddyIntelligence />
+
       {/* Assistants */}
       <Card>
-        <CardHeader title="Assistants" subtitle="Role-aware personas. Auto-selection: new joiner → department head → manager → department persona → general." />
+        <CardHeader title="Assistants" subtitle="Role-aware personas. Auto-selection reads the question too: intent → persona, then new joiner → department head → manager → department persona → general." />
         {!assistants ? (
           <div className="p-[var(--s4)] space-y-2"><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /></div>
         ) : assistants.length === 0 ? (

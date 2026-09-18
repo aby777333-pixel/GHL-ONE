@@ -141,6 +141,28 @@ function previewLine(drafts: Draft[]) {
 
 /* ------------------------------------------------------------------ component ---- */
 
+/**
+ * Which proposal kinds create a row that can be read back, and in which table (schema 0064).
+ * A kind that is absent is not verified rather than reported as verified — silence must never be
+ * able to read as success. `bring_in` and `focus` act on something that already exists, and
+ * `war_room` fans out across several tables, so none of them has one row to check.
+ */
+const VERIFIABLE: Partial<Record<BuddyProposal["kind"], string>> = {
+  task: "task",
+  bug_report: "task",
+  decision: "decision",
+  meeting: "meeting",
+  help_request: "help_request",
+  escalation: "help_request",
+  leave_request: "leave",
+  message_draft: "message",
+  knowledge_article: "knowledge",
+  access_request: "access_request",
+  learning: "learning",
+  commitment: "commitment",
+  request: "request",
+};
+
 export function BuddyProposals({ proposals, conversationId, actionLevel, onNavigate, className }: {
   proposals: BuddyProposal[];
   conversationId: string | null;
@@ -192,7 +214,17 @@ export function BuddyProposals({ proposals, conversationId, actionLevel, onNavig
   const update = React.useCallback((i: number, patch: Partial<Draft>) => setDrafts((s) => s.map((d, j) => (j === i ? { ...d, ...patch } : d))), []);
   const setStatus = React.useCallback((i: number, status: DraftStatus, extra: Partial<Draft> = {}) => update(i, { status, ...extra }), [update]);
 
-  /** Mirror the confirmation into the AI action log (best effort — never blocks the user). */
+  /**
+   * Mirror the confirmation into the AI action log, then **verify** it (§11, schema 0064).
+   *
+   * "Performed" used to mean "we called the API and it did not throw". In this codebase that is not
+   * the same as "it exists": an RLS-refused write returns no error and matches zero rows, a trigger
+   * can rewrite a column, and a row can land where its creator cannot see it. `verify_ai_action`
+   * re-reads the created row under the person's own permissions and says whether it is really
+   * there — and if it is not, they are told rather than left with a success toast.
+   *
+   * Logging is still best effort and never blocks the person.
+   */
   const markAction = React.useCallback(async (d: Draft, status: "performed" | "dismissed", result?: Record<string, string | null>) => {
     if (!conversationId) return;
     try {
@@ -202,10 +234,19 @@ export function BuddyProposals({ proposals, conversationId, actionLevel, onNavig
       if (!row) return;
       const now = new Date().toISOString();
       await supabase.from("ai_actions").update(status === "performed" ? { status, confirmed_at: now, performed_at: now, result: (result || {}) as Json } : { status }).eq("id", row.id);
+
+      const entity = VERIFIABLE[d.kind];
+      const entityId = result?.id;
+      if (status === "performed" && entity && entityId) {
+        const { data: v } = await supabase.rpc("verify_ai_action", { p_action: row.id, p_entity: entity, p_id: entityId });
+        if ((v as { found?: boolean | null } | null)?.found === false) {
+          toast.push("Created — but I could not read it back. Check it exists before relying on it.", "danger");
+        }
+      }
     } catch {
       /* logging only */
     }
-  }, [conversationId]);
+  }, [conversationId, toast]);
 
   const dismiss = (i: number) => {
     const d = drafts[i];

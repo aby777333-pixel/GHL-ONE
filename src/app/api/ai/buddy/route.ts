@@ -1,7 +1,8 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 import { withAI, str } from "@/lib/ai/route";
-import { AI_MODEL, getAI, logUsage } from "@/lib/ai/client";
+import { getAI, logUsage } from "@/lib/ai/client";
+import { outputConfig, pickModel } from "@/lib/ai/models";
 import { BUDDY_MODES, BUDDY_SYSTEM, BUDDY_TONES } from "@/lib/ai/buddyPrompts";
 import { todayIST } from "@/lib/ai/context";
 import { attachmentBlocks, buildTools, loadAssistants, nextSuggestions, parseConfidence, pickAssistant, scopeContext, type BuddyToolState } from "@/lib/ai/buddy";
@@ -104,14 +105,21 @@ export async function POST(req: Request) {
       { role: "user", content },
     ];
 
+    /*
+      §16: which model answers is resolved in one place (`models.ts`). `ai_assistants.model` is an
+      administrator's explicit choice for one persona and still outranks everything; the class
+      default is `AI_MODEL`, so this picks exactly the model it always picked — while a company that
+      wants incidents and blocker traces on a different model now has somewhere to say so.
+    */
+    const pick = pickModel(routing.plan.effort === "high" ? "reasoning" : "chat", { override: assistant.model });
     const ai = getAI();
     const final = await ai.beta.messages.toolRunner({
-      model: assistant.model || AI_MODEL,
+      model: pick.model,
       max_tokens: 3000,
       system,
       // The per-mode floor is exactly what it was; routing may raise it for work that deserves more
       // thinking (an incident, a blocker trace), never lower it.
-      output_config: { effort: maxEffort(mode === "debug" || mode === "check" || mode === "incident" ? "medium" : "low", routing.plan.effort) },
+      output_config: outputConfig(pick.model, maxEffort(mode === "debug" || mode === "check" || mode === "incident" ? "medium" : "low", routing.plan.effort)),
       tools,
       messages,
       max_iterations: 7,
@@ -138,7 +146,7 @@ export async function POST(req: Request) {
       await ctx.db.from("ai_actions").insert(state.proposals.map((p) => ({ org_id: ctx.orgId, user_id: ctx.userId, conversation_id: convId, message_id: messageId, kind: p.kind, payload: p as never, status: "proposed" })));
     }
     await ctx.db.from("ai_conversations").update({ updated_at: new Date().toISOString() }).eq("id", convId);
-    await logUsage(ctx.db, { orgId: ctx.orgId, userId: ctx.userId, feature: `buddy:${mode}`, usage: final.usage, latencyMs: Date.now() - started, model: assistant.model || AI_MODEL });
+    await logUsage(ctx.db, { orgId: ctx.orgId, userId: ctx.userId, feature: `buddy:${mode}`, usage: final.usage, latencyMs: Date.now() - started, model: pick.model });
 
     const res: BuddyResponse = {
       conversationId: convId,

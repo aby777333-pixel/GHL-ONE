@@ -180,10 +180,12 @@ async function classifyWithModel(message: string, scopePath: string | null): Pro
     // Imported here rather than at the top so the rules path — which settles most questions — pulls
     // in no client at all, and so the routing decision can be exercised on its own.
     const { getAI } = await import("./client");
+    const { pickModel } = await import("./models");
+    const routerModel = pickModel("router").model;
     const ai = getAI();
     const res = await ai.messages.parse(
       {
-        model: process.env.AI_ROUTER_MODEL || "claude-haiku-4-5",
+        model: routerModel,
         max_tokens: 256,
         system: ROUTER_SYSTEM,
         output_config: { format: zodOutputFormat(RouterSchema) },

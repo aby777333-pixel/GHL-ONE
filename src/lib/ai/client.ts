@@ -4,6 +4,7 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import type { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
+import { outputConfig, pickModel, type TaskClass } from "./models";
 
 /** Model is configurable; defaults to Claude Opus 5. */
 export const AI_MODEL = process.env.AI_MODEL || "claude-opus-5";
@@ -50,36 +51,45 @@ export async function logUsage(supabase: SupabaseClient<Database>, params: { org
   }
 }
 
-/** Plain text completion with a cached, stable system prompt. */
-export async function complete(params: { system: string; user: string; effort?: Effort; maxTokens?: number }) {
+/**
+ * Plain text completion with a cached, stable system prompt.
+ *
+ * `task` resolves the model through `models.ts` instead of reaching for `AI_MODEL` directly. Every
+ * class still defaults to `AI_MODEL`, so no model in use today changes — but effort is now only
+ * sent to models that accept it, and Haiku 4.5 answers a request carrying it with a 400 rather than
+ * a worse answer.
+ */
+export async function complete(params: { system: string; user: string; effort?: Effort; maxTokens?: number; task?: TaskClass; model?: string | null }) {
   const ai = getAI();
   const started = Date.now();
+  const { model } = pickModel(params.task ?? "summary", { override: params.model });
   const res = await ai.messages.create({
-    model: AI_MODEL,
+    model,
     max_tokens: params.maxTokens ?? 4000,
     system: [{ type: "text", text: params.system, cache_control: { type: "ephemeral" } }],
-    output_config: { effort: params.effort ?? "medium" },
+    output_config: outputConfig(model, params.effort ?? "medium"),
     messages: [{ role: "user", content: params.user }],
   });
   if (res.stop_reason === "refusal") throw new Error("The assistant declined this request.");
   const text = res.content.filter((b): b is Anthropic.TextBlock => b.type === "text").map((b) => b.text).join("\n").trim();
-  return { text, usage: res.usage, latencyMs: Date.now() - started };
+  return { text, usage: res.usage, latencyMs: Date.now() - started, model };
 }
 
 /** Structured extraction validated against a Zod schema. */
-export async function extract<T extends z.ZodType>(params: { schema: T; system: string; user: string; effort?: Effort; maxTokens?: number }): Promise<{ data: z.infer<T>; usage: Anthropic.Usage; latencyMs: number }> {
+export async function extract<T extends z.ZodType>(params: { schema: T; system: string; user: string; effort?: Effort; maxTokens?: number; task?: TaskClass; model?: string | null }): Promise<{ data: z.infer<T>; usage: Anthropic.Usage; latencyMs: number; model: string }> {
   const ai = getAI();
   const started = Date.now();
+  const { model } = pickModel(params.task ?? "extract", { override: params.model });
   const res = await ai.messages.parse({
-    model: AI_MODEL,
+    model,
     max_tokens: params.maxTokens ?? 6000,
     system: [{ type: "text", text: params.system, cache_control: { type: "ephemeral" } }],
-    output_config: { effort: params.effort ?? "medium", format: zodOutputFormat(params.schema) },
+    output_config: outputConfig(model, params.effort ?? "medium", { format: zodOutputFormat(params.schema) }),
     messages: [{ role: "user", content: params.user }],
   });
   if (res.stop_reason === "refusal") throw new Error("The assistant declined this request.");
   if (!res.parsed_output) throw new Error("The assistant returned an unreadable result. Please try again.");
-  return { data: res.parsed_output as z.infer<T>, usage: res.usage, latencyMs: Date.now() - started };
+  return { data: res.parsed_output as z.infer<T>, usage: res.usage, latencyMs: Date.now() - started, model };
 }
 
 /** Human-readable error for API routes. */

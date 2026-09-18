@@ -13586,6 +13586,7 @@ export type Database = {
         Args: { p_note?: string; p_status: string; p_task: string }
         Returns: undefined
       }
+      action_verification: { Args: { p_days?: number }; Returns: Json }
       activity_timeline: {
         Args: { p_from: string; p_to: string; p_user: string }
         Returns: {
@@ -13637,6 +13638,7 @@ export type Database = {
       }
       apply_role_change: { Args: { p_change: string }; Returns: undefined }
       apply_transfer: { Args: { p_transfer: string }; Returns: undefined }
+      answer_quality: { Args: { p_days?: number }; Returns: Json }
       approve_account: {
         Args: {
           p_department?: string
@@ -13799,6 +13801,8 @@ export type Database = {
         Args: { p_user: string; p_video?: boolean }
         Returns: string
       }
+      ai_cost_summary: { Args: { p_days?: number }; Returns: Json }
+      can_see_ai_console: { Args: never; Returns: boolean }
       can_approve_account: {
         Args: { p_department?: string; p_user: string }
         Returns: boolean
@@ -14250,6 +14254,8 @@ export type Database = {
         Returns: Json
       }
       knock: { Args: { p_message?: string; p_user: string }; Returns: string }
+      knowledge_health: { Args: { p_days?: number }; Returns: Json }
+      knowledge_signal: { Args: { p_ids: string[] }; Returns: Json }
       leave_collisions: { Args: { p_leave: string }; Returns: Json }
       leave_days: {
         Args: { p_from: string; p_half: boolean; p_to: string }
@@ -14948,6 +14954,10 @@ export type Database = {
       urgent_assistance: {
         Args: { p_kind: string; p_message: string }
         Returns: string
+      }
+      verify_ai_action: {
+        Args: { p_action: string; p_entity: string; p_id: string }
+        Returns: Json
       }
       view_as: { Args: { p_user: string }; Returns: Json }
       waiting_on_me: { Args: { p_user?: string }; Returns: Json }

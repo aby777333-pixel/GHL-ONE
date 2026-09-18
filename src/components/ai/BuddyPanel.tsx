@@ -234,15 +234,49 @@ export function BuddyPanel({ open, onClose, initial }: { open: boolean; onClose:
   }, [messages.length, pending, isOpen]);
 
   /* ---------- speech synthesis */
+  /*
+    Read aloud used to stop working after the first answer, permanently, until the page was
+    reloaded — because it asked the browser whether it was speaking:
+
+        if (synth.speaking) { synth.cancel(); return; }
+
+    `speechSynthesis.speaking` is not trustworthy. Chrome leaves it `true` after `cancel()` (it
+    frequently never fires `onend` for a cancelled utterance), and an utterance whose language has
+    no installed voice reports `start` and then simply hangs — reproduced in a browser here: `start`
+    fired, `end` never did, and `speaking` was still `true` seconds later. Once that flag sticks,
+    every later press takes the stop branch and returns, so nothing is ever spoken again.
+
+    So we track whether *we* started speaking, in a ref, and `cancel()` unconditionally before
+    speaking. Pressing the button always does something: stop if we are speaking, otherwise clear
+    whatever the browser thinks is going on and start fresh.
+  */
+  const speakingRef = React.useRef(false);
+  const keepAliveRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const stopSpeaking = React.useCallback(() => {
+    speakingRef.current = false;
+    setSpeaking(false);
+    if (keepAliveRef.current) {
+      clearInterval(keepAliveRef.current);
+      keepAliveRef.current = null;
+    }
+    try {
+      window.speechSynthesis?.cancel();
+    } catch {
+      /* a browser without speech, or one mid-teardown */
+    }
+  }, []);
+
   const speak = React.useCallback((text: string) => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
     const synth = window.speechSynthesis;
-    if (synth.speaking) {
-      synth.cancel();
-      setSpeaking(false);
+    if (speakingRef.current) {
+      stopSpeaking();
       return;
     }
-    const spoken = plainText(text).slice(0, 2500);
+    const spoken = plainText(text).slice(0, 2500).trim();
+    if (!spoken) return;
+    synth.cancel();
     const u = new SpeechSynthesisUtterance(spoken);
     /*
       The language of the ANSWER, not of the preference. Buddy replies in whichever language it was
@@ -259,11 +293,25 @@ export function BuddyPanel({ open, onClose, initial }: { open: boolean; onClose:
     */
     const voice = pickVoice(synth.getVoices(), u.lang);
     if (voice) u.voice = voice;
-    u.onend = () => setSpeaking(false);
-    u.onerror = () => setSpeaking(false);
+    u.onend = () => stopSpeaking();
+    u.onerror = () => stopSpeaking();
+    speakingRef.current = true;
     setSpeaking(true);
     synth.speak(u);
-  }, [prefs.language]);
+    /*
+      Chrome stops speaking after about fifteen seconds and reports nothing — it simply goes quiet
+      mid-sentence, which for a long answer is most of it. The browser's own remedy is to resume a
+      queue that has silently paused; harmless when it has not.
+    */
+    keepAliveRef.current = setInterval(() => {
+      if (!speakingRef.current) return;
+      const s = window.speechSynthesis;
+      if (!s) return;
+      if (s.paused) s.resume();
+      // The utterance is over and the browser never told us: stop, so the button works again.
+      if (!s.speaking && !s.pending) stopSpeaking();
+    }, 4000);
+  }, [prefs.language, stopSpeaking]);
 
   /* Voices arrive asynchronously in Chrome; touching the list once primes it so the first
      read-aloud already has them. */
@@ -274,12 +322,16 @@ export function BuddyPanel({ open, onClose, initial }: { open: boolean; onClose:
     window.speechSynthesis.addEventListener?.("voiceschanged", prime);
     return () => window.speechSynthesis.removeEventListener?.("voiceschanged", prime);
   }, []);
+  /*
+    Closing the panel — or leaving the page — stops the voice, and clears our own flag with it:
+    otherwise the next open would start in the "already speaking" state and the first press would
+    do nothing but stop. Expressed as the effect's cleanup rather than a branch in its body, which
+    is both what cleanup is for and the only version that does not set state during the effect.
+  */
   React.useEffect(() => {
-    if (isOpen) return;
-    try {
-      window.speechSynthesis?.cancel();
-    } catch {}
-  }, [isOpen]);
+    if (!isOpen) return;
+    return () => stopSpeaking();
+  }, [isOpen, stopSpeaking]);
 
   /* ---------- send */
   const send = React.useCallback(async (text: string, modeOverride?: BuddyMode, extraAttachments?: PendingAttachment[]) => {

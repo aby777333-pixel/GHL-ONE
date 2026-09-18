@@ -368,6 +368,14 @@ Positioning: *One Company. One Workspace. One Source of Truth.*
 ### A trap worth remembering
 - **A fix applied in the same statement batch as a `raise exception` test is rolled back with it.** The `related_to` column fix was applied, verified by a test in the same call, reported as passing — and lost, because the exception that carried the results out also undid the `create or replace`. It resurfaced an hour later as the same error. **Apply a fix in one call; prove it in another.** CLAUDE.md already recorded the temp-table version of this from 0059; it applies to DDL just as much.
 
+## Read aloud stopped after the first answer
+
+- **`speechSynthesis.speaking` is not trustworthy, and the toggle was built on it.** `speak()` began with `if (synth.speaking) { synth.cancel(); return; }` — meant as "press again to stop". Chrome leaves `speaking === true` after `cancel()` (it frequently never fires `onend` for a cancelled utterance), and an utterance whose language has no installed voice reports `start` and then hangs forever. Once the flag sticks, **every later press takes the stop branch and returns, so nothing is ever spoken again** until the page is reloaded.
+- Reproduced in a browser rather than reasoned about: the first utterance fired `start`, never `end`, and left `speaking: true`; a second press under the old logic produced **zero events** — silence — while cancel-then-speak fired `start` normally. That comparison is the whole bug in one run.
+- The fix: track whether **we** started speaking in a ref, and `cancel()` unconditionally before speaking. Pressing the button now always does something — stop if we are speaking, otherwise clear whatever the browser thinks is happening and start fresh. A 4-second ticker resumes a queue Chrome has silently paused (it goes quiet after about fifteen seconds and reports nothing) and clears our flag if the browser finished without telling us.
+- Panel close and unmount stop the voice **through the effect's cleanup**, not a branch in its body — that is what cleanup is for, and it is the only version that does not set state during an effect.
+- Related, already fixed earlier: read-aloud used the *preference* language rather than the language of the reply (see the fourth test report). Both bugs were in the same function; neither was visible from the code alone.
+
 ## UI/UX audit — keyboard focus was invisible everywhere (WCAG 2.4.7)
 
 - **Only form controls had a focus style.** `globals.css` defined `.input:focus / .select:focus / .textarea:focus` and nothing else, while Tailwind's preflight removes the browser's own outline — so every button, link, tab, menu item and toggle in the product focused **invisibly**. Somebody navigating by keyboard could tab through an entire screen with no idea where they were. Measured on the live site: a focused button reported `outline-style: none` with no ring of any kind.

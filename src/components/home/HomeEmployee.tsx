@@ -19,7 +19,7 @@ export function HomeEmployee({ personal }: { personal: Personal }) {
     <div className="page">
       <PageHeader eyebrow={fmtDate(new Date())} title={greeting(profile.full_name)} subtitle={personalBrief(personal)} />
       <div className="grid lg:grid-cols-3 gap-[var(--s3)] stagger">
-        <div className="lg:col-span-2 space-y-[var(--s3)]">
+        <div className="min-w-0 lg:col-span-2 space-y-[var(--s3)]">
           <WhileYouWereAway />
           <ClockCard />
           <BuddyHomeCard />

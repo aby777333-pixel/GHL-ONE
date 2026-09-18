@@ -90,7 +90,7 @@ export function SecurityCenter({ events: initialEvents, audit, guests, expiringG
           )}
         </Card>
 
-        <div className="lg:col-span-2 space-y-[var(--s4)]">
+        <div className="min-w-0 lg:col-span-2 space-y-[var(--s4)]">
           <Card>
             <CardHeader title={<span className="inline-flex items-center gap-2"><ScrollText size={15} className="text-muted" /> Access & security trail</span>} subtitle="Derived from the audit log — security.* and access.* actions" action={<Link href="/admin?tab=audit" className="text-xs text-muted hover:text-[var(--fg)] shrink-0">Full log →</Link>} />
             {audit.length === 0 ? <EmptyState title="Nothing yet" className="py-4" /> : (

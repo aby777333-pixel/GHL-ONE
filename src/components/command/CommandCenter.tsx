@@ -74,7 +74,10 @@ export function CommandCenter(props: { initialTab?: string; pulse: Pulse; depart
 
       {tab === "overview" && (
         <div className="grid lg:grid-cols-3 gap-[var(--s3)] stagger" key="ov">
-          <div className="lg:col-span-2 space-y-[var(--s3)]">
+          {/* min-w-0: a grid item defaults to min-width:auto and will not shrink below its
+            content, so this column sized itself to 684px inside a 346px track on a phone and
+            `main`'s overflow-x:clip hid the difference — 317px of this page was unreachable. */}
+        <div className="min-w-0 lg:col-span-2 space-y-[var(--s3)]">
             <Card>
               <CardHeader title="Department health" subtitle="Drill down: company → department → project → team → employee → task" action={<Link href="/departments" className="text-xs text-muted hover:text-[var(--fg)]">All departments →</Link>} />
               <div className="px-[var(--s3)] pb-[var(--s3)]"><DepartmentHealthGrid rows={departments} compact /></div>

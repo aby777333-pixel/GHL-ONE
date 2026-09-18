@@ -61,7 +61,7 @@ export function HomeManager({ personal, workload, teamTasks, projects }: { perso
     <div className="page">
       <PageHeader eyebrow={fmtDate(new Date())} title={greeting(profile.full_name)} subtitle={personalBrief(personal) + ` ${blocked.length} team item${blocked.length === 1 ? "" : "s"} blocked, ${overdue.length} overdue.`} actions={<Link href="/people/team" className="btn btn-secondary btn-sm"><Users size={14} /> My team</Link>} />
       <div className="grid lg:grid-cols-3 gap-[var(--s3)] stagger">
-        <div className="lg:col-span-2 space-y-[var(--s3)]">
+        <div className="min-w-0 lg:col-span-2 space-y-[var(--s3)]">
           <WhileYouWereAway />
           <BriefCard variant="manager" />
           <div className="grid md:grid-cols-2 gap-[var(--s3)]">

@@ -64,6 +64,27 @@ export type BuddyMode =
 
 export type BuddyAssistantKey = "general" | "it" | "sales" | "support" | "design" | "content" | "hr" | "manager" | "department_head" | "new_joiner";
 
+/**
+ * What the orchestrator decided (schema 0061). Wider than `BuddyMode` — several intents share a
+ * mode, and the intent is what the Buddy console reports on. Client-safe: the engine that produces
+ * it is server-only (`@/lib/ai/orchestrator`).
+ */
+export type BuddyIntent =
+  | "work_ranking" | "waiting_on" | "blocker" | "who_can_help" | "policy_knowledge" | "coding" | "incident"
+  | "hr_self_service" | "meeting_prep" | "writing" | "translate" | "learning" | "analysis" | "org_structure"
+  | "screen_help" | "personal_support" | "general_knowledge" | "unclear";
+
+export type BuddyRoutingInfo = {
+  intent: BuddyIntent;
+  mode: BuddyMode;
+  /** Persona the orchestrator suggested, before `pickAssistant` checked whether it is available. */
+  assistant: BuddyAssistantKey | null;
+  /** explicit_mode = the person pressed a quick action; rules = keyword/context pass; model = the classifier. */
+  source: "explicit_mode" | "rules" | "model" | "fallback";
+  confidence: number;
+  signals: string[];
+};
+
 export type BuddyAttachment =
   | { kind: "image"; name: string; mime: string; data: string }               // base64 png/jpeg/webp/gif, ≤ 4 MB
   | { kind: "document"; name: string; mime: "application/pdf"; data: string } // base64 pdf ≤ 8 MB
@@ -121,6 +142,8 @@ export type BuddyResponse = {
   suggestions: string[];              // follow-up prompts to show as buttons
   handoff: { kind: "person" | "department" | "help" | "chat"; id?: string | null; label: string }[];  // human handoff — AI is never a barrier
   limit?: { used: number; max: number } | null;
+  /** How this answer was routed. Optional: older clients and cached history rows simply have none. */
+  routing?: BuddyRoutingInfo | null;
 };
 
 export type BuddyStatus = { enabled: boolean; assistant: BuddyAssistantKey; name: string; actionLevel: number; dailyLimit: number | null; usedToday: number; isNewJoiner: boolean; departmentSlug: string | null };

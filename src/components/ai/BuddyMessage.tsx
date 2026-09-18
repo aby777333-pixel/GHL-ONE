@@ -31,6 +31,8 @@ export type BuddyMsg = {
   handoff?: BuddyResponse["handoff"];
   sources?: { link: string; title: string }[];
   assistant?: BuddyResponse["assistant"] | null;
+  /** How the orchestrator routed this answer. Absent on history rows and on older answers. */
+  routing?: BuddyResponse["routing"];
   attachments?: { kind: string; name: string }[];
   /** Live responses only — history rows have no action level, so we fall back to the panel's. */
   actionLevel?: number;
@@ -99,6 +101,9 @@ export function BuddyMessage({ m, question, conversationId, actionLevel, onSugge
 
   const conf = m.confidence ? CONFIDENCE_META[m.confidence] : null;
   const modeMeta = m.mode && m.mode !== "chat" ? MODE_META[m.mode] : null;
+  /* An answer routed from the question rather than from a button the person pressed. Worth saying:
+     if Buddy read the question as the wrong kind of question, that is what they need to see. */
+  const routedAuto = !!m.routing && m.routing.source !== "explicit_mode";
   const level = m.actionLevel ?? actionLevel;
   const name = m.assistant?.name || "GHL Buddy";
 
@@ -176,7 +181,11 @@ export function BuddyMessage({ m, question, conversationId, actionLevel, onSugge
         {/* Meta line */}
         <div className="flex items-center gap-1.5 flex-wrap text-[11px]">
           <span className="font-semibold text-[var(--fg)]">{name}</span>
-          {modeMeta && <Pill tone="tone-neutral" className="!text-[10px]"><modeMeta.icon size={10} /> {modeMeta.label}</Pill>}
+          {modeMeta && (
+            <Pill tone="tone-neutral" className="!text-[10px]" title={routedAuto ? `Picked from your question — read as "${m.routing!.intent.replace(/_/g, " ")}". Use a quick action to steer it yourself.` : undefined}>
+              <modeMeta.icon size={10} /> {modeMeta.label}{routedAuto ? " · auto" : ""}
+            </Pill>
+          )}
           {conf && <Pill tone={conf.tone} className="!text-[10px]" ><span title={conf.hint}>{conf.label}</span></Pill>}
         </div>
 

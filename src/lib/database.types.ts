@@ -998,6 +998,7 @@ export type Database = {
           mode: string | null
           proposals: Json | null
           role: string
+          routing: Json | null
           sources: Json | null
         }
         Insert: {
@@ -1011,6 +1012,7 @@ export type Database = {
           mode?: string | null
           proposals?: Json | null
           role: string
+          routing?: Json | null
           sources?: Json | null
         }
         Update: {
@@ -1024,6 +1026,7 @@ export type Database = {
           mode?: string | null
           proposals?: Json | null
           role?: string
+          routing?: Json | null
           sources?: Json | null
         }
         Relationships: [

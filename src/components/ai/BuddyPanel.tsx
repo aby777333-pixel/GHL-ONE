@@ -324,6 +324,7 @@ export function BuddyPanel({ open, onClose, initial }: { open: boolean; onClose:
         suggestions: res.suggestions?.length ? res.suggestions : undefined,
         handoff: res.handoff?.length ? res.handoff : undefined,
         assistant: res.assistant,
+        routing: res.routing ?? null,
         actionLevel: res.assistant.actionLevel,
       }]);
       if (prefs.readAloud) speak(res.answer);
@@ -460,7 +461,8 @@ export function BuddyPanel({ open, onClose, initial }: { open: boolean; onClose:
             <div className="flex items-center gap-1.5 min-w-0 text-[11px] text-muted">
               {assistants && assistants.length > 1 ? (
                 <select value={prefs.persona} onChange={(e) => updatePrefs({ persona: e.target.value })} className="bg-transparent outline-none max-w-[160px] truncate cursor-pointer hover:text-[var(--fg)]" aria-label="Choose which buddy answers">
-                  <option value="auto">Auto · picks by your role</option>
+                  {/* No longer only by role: the orchestrator reads the question too (0061). */}
+                  <option value="auto">Auto · picks by your question</option>
                   {assistants.map((a) => <option key={a.key} value={a.key}>{a.name}</option>)}
                 </select>
               ) : (

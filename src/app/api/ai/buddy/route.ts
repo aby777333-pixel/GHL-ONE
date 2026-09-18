@@ -5,6 +5,7 @@ import { AI_MODEL, getAI, logUsage } from "@/lib/ai/client";
 import { BUDDY_MODES, BUDDY_SYSTEM, BUDDY_TONES } from "@/lib/ai/buddyPrompts";
 import { todayIST } from "@/lib/ai/context";
 import { attachmentBlocks, buildTools, loadAssistants, nextSuggestions, parseConfidence, pickAssistant, scopeContext, type BuddyToolState } from "@/lib/ai/buddy";
+import { maxEffort, routeBuddy } from "@/lib/ai/orchestrator";
 import { isManagerPlus, isLeadPlus } from "@/lib/utils";
 import type { BuddyAssistantKey, BuddyAttachment, BuddyMode, BuddyRequest, BuddyResponse, BuddyScope } from "@/lib/ai/types";
 
@@ -19,9 +20,18 @@ export async function POST(req: Request) {
     const message = str(b.message).trim();
     const attachments = (Array.isArray(b.attachments) ? b.attachments : []) as BuddyAttachment[];
     if (!message && !attachments.length) throw new Error("Empty message");
-    const mode: BuddyMode = MODES.has(b.mode as BuddyMode) ? (b.mode as BuddyMode) : "chat";
     const scope = (b.scope && typeof b.scope === "object" ? b.scope : {}) as BuddyScope;
     const started = Date.now();
+
+    /*
+      Orchestration (0061). A quick action is an instruction, not a hint: when the person pressed
+      one, `explicitMode` is it and routing only annotates. "chat" — what the composer sends when
+      they simply typed something — is what "Auto" has always meant, and is now where the
+      orchestrator reads the question and decides the mode, the persona hint and the effort.
+    */
+    const explicitMode: BuddyMode | null = MODES.has(b.mode as BuddyMode) && b.mode !== "chat" ? (b.mode as BuddyMode) : null;
+    const routing = await routeBuddy({ message, explicitMode, scope, attachments });
+    const mode: BuddyMode = routing.mode;
 
     // Who is asking → which assistant
     const [{ data: me }, assistants] = await Promise.all([
@@ -29,7 +39,9 @@ export async function POST(req: Request) {
       loadAssistants(ctx),
     ]);
     const dept = (me?.department as unknown as { slug: string; name: string } | null) || null;
-    const assistant = pickAssistant(assistants, { override: (b.assistant as BuddyAssistantKey) || null, role: ctx.role, departmentId: ctx.departmentId, departmentSlug: dept?.slug || null, joinedAt: me?.joined_at || null });
+    // The person's own persona choice wins; otherwise the orchestrator's hint is offered to
+    // pickAssistant, which still checks the assistant is enabled and allowed for this department.
+    const assistant = pickAssistant(assistants, { override: (b.assistant as BuddyAssistantKey) || routing.assistant || null, role: ctx.role, departmentId: ctx.departmentId, departmentSlug: dept?.slug || null, joinedAt: me?.joined_at || null });
     if (!assistant.enabled) return { error: "GHL Buddy is switched off for your department. Ask your admin." };
 
     // Daily limit
@@ -75,6 +87,7 @@ export async function POST(req: Request) {
       scope.path ? `Current page: ${scope.path}` : "",
       pageNote,
       memNote ? `PERSONAL WORKING CONTEXT (their own notes, not company policy):\n${memNote}` : "",
+      routing.plan.focus ? `INTENT (auto-detected from the question — trust their words over this): ${routing.intent}. ${routing.plan.focus}` : "",
       modeNote, toneNote, langNote,
     ].filter(Boolean).join("\n\n");
 
@@ -89,7 +102,9 @@ export async function POST(req: Request) {
       model: assistant.model || AI_MODEL,
       max_tokens: 3000,
       system,
-      output_config: { effort: mode === "debug" || mode === "check" || mode === "incident" ? "medium" : "low" },
+      // The per-mode floor is exactly what it was; routing may raise it for work that deserves more
+      // thinking (an incident, a blocker trace), never lower it.
+      output_config: { effort: maxEffort(mode === "debug" || mode === "check" || mode === "incident" ? "medium" : "low", routing.plan.effort) },
       tools,
       messages,
       max_iterations: 7,
@@ -109,7 +124,7 @@ export async function POST(req: Request) {
     const attMeta = attachments.map((a) => ({ kind: a.kind, name: a.name, size: "data" in a ? a.data.length : a.text.length }));
     const { data: inserted } = await ctx.db.from("ai_messages").insert([
       { conversation_id: convId, role: "user", content: message || `(attachment: ${attachments.map((a) => a.name).join(", ")})`, mode, attachments: attMeta.length ? attMeta : null },
-      { conversation_id: convId, role: "assistant", content: answer, proposals: state.proposals.length ? (state.proposals as never) : null, sources: [...state.sources.entries()].slice(0, 12).map(([link, title]) => ({ link, title })) as never, confidence, context: state.used as never, mode },
+      { conversation_id: convId, role: "assistant", content: answer, proposals: state.proposals.length ? (state.proposals as never) : null, sources: [...state.sources.entries()].slice(0, 12).map(([link, title]) => ({ link, title })) as never, confidence, context: state.used as never, mode, routing: { intent: routing.intent, mode, assistant: assistant.key, source: routing.source, confidence: routing.confidence, signals: routing.signals } as never },
     ]).select("id,role");
     const messageId = (inserted || []).find((m) => m.role === "assistant")?.id || null;
     if (state.proposals.length) {
@@ -131,6 +146,7 @@ export async function POST(req: Request) {
       suggestions: nextSuggestions(mode),
       handoff,
       limit: limit ? { used: limit.used + 1, max: limit.max } : null,
+      routing: { intent: routing.intent, mode, assistant: routing.assistant, source: routing.source, confidence: routing.confidence, signals: routing.signals },
     };
     return res;
   });

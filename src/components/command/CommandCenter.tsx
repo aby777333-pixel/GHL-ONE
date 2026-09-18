@@ -319,7 +319,12 @@ function PulseLine({ label, value, tone }: { label: string; value: React.ReactNo
 function ListCard({ title, subtitle, href, items, icon, render, empty }: { title: string; subtitle?: string; href: string; items?: T[]; icon?: React.ReactNode; render?: React.ReactNode[]; empty?: string }) {
   const body = render ?? (items || []).slice(0, 8).map((t) => <TaskRow key={t.id} task={t} />);
   return (
-    <Card>
+    /*
+      min-w-0: these sit in a `md:grid-cols-2` grid, which is a single track on a phone. A grid item
+      defaults to min-width:auto, so all four cards took the widest one's intrinsic width — 460px in
+      a 346px track — and `main`'s overflow-x:clip hid the 93px that fell off the side.
+    */
+    <Card className="min-w-0">
       <CardHeader title={<span className="inline-flex items-center gap-1.5">{icon}{title}</span>} subtitle={subtitle} action={<Link href={href} className="text-xs text-muted hover:text-[var(--fg)]">All →</Link>} />
       {body.length === 0 ? <EmptyState title={empty || "Nothing here"} className="py-6" /> : <div className="px-2 pb-2">{body}</div>}
     </Card>

@@ -32,14 +32,22 @@ export async function POST(req: Request) {
       orchestrator reads the question and decides the mode, the persona hint and the effort.
     */
     const explicitMode: BuddyMode | null = MODES.has(b.mode as BuddyMode) && b.mode !== "chat" ? (b.mode as BuddyMode) : null;
-    const routing = await routeBuddy({ message, explicitMode, scope, attachments });
-    const mode: BuddyMode = routing.mode;
 
-    // Who is asking → which assistant
-    const [{ data: me }, assistants] = await Promise.all([
-      ctx.db.from("profiles").select("joined_at,department_id,department:departments(slug,name),role,designation,full_name,timezone").eq("id", ctx.userId).maybeSingle(),
-      loadAssistants(ctx),
+    /*
+      Routing and "who is asking" do not depend on each other, so they run together. That matters
+      most for a question the keyword rules cannot score at all: every rule in the orchestrator is
+      an English `\b`-anchored pattern, so a Tamil, Malayalam or Hindi message always scores zero
+      and always falls through to the model classifier. Awaiting that hop before even reading the
+      profile spent its latency twice over, on exactly the requests that were timing out.
+    */
+    const [routing, [{ data: me }, assistants]] = await Promise.all([
+      routeBuddy({ message, explicitMode, scope, attachments }),
+      Promise.all([
+        ctx.db.from("profiles").select("joined_at,department_id,department:departments(slug,name),role,designation,full_name,timezone").eq("id", ctx.userId).maybeSingle(),
+        loadAssistants(ctx),
+      ]),
     ]);
+    const mode: BuddyMode = routing.mode;
     const dept = (me?.department as unknown as { slug: string; name: string } | null) || null;
     // The person's own persona choice wins; otherwise the orchestrator's hint is offered to
     // pickAssistant, which still checks the assistant is enabled and allowed for this department.
@@ -94,7 +102,13 @@ export async function POST(req: Request) {
     ];
     const modeNote = BUDDY_MODES[mode] || "";
     const toneNote = b.tone ? BUDDY_TONES[b.tone] || "" : "";
-    const langNote = b.language ? `Answer in ${b.language}. Keep names, ids and links unchanged.` : "";
+    /*
+      The dropdown is an override, not the only lever: the system prompt already tells Buddy to
+      reply in whatever language the person wrote in, so leaving this on "English" no longer means
+      a Tamil question comes back in English. When they HAVE picked one, say so unambiguously —
+      "Answer in Tamil" alone lost to a page of English context above it.
+    */
+    const langNote = b.language ? `ANSWER LANGUAGE: write the entire reply in ${b.language}, using that language's own script — not English, not transliterated. This overrides the language of the message. Keep names, ids, links, code and the final [confidence: …] marker exactly as they are.` : "";
 
     const userIntro = [
       `Signed-in person: ${me?.full_name || ctx.name} (id ${ctx.userId}) · ${me?.designation || ctx.role} · role ${ctx.role} · department ${dept?.name || "none"}${ctx.departmentId ? ` (id ${ctx.departmentId})` : ""}. Today (IST): ${todayIST()}.`,

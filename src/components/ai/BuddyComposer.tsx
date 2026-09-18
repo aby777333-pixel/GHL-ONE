@@ -6,6 +6,7 @@ import { Button, Kbd, Modal, Select, Textarea, useToast } from "@/components/ui"
 import type { BuddyAttachment, BuddyMode, BuddyRequest, BuddyScope } from "@/lib/ai/types";
 import { bytes, cn } from "@/lib/utils";
 import { BAR_MODES, LANGUAGES, MODE_META, TONES } from "./buddyModes";
+import { dictationText, endSession, newDictation, readResult, recognizerCtor, speechSupported, synthesisSupported, type Dictation, type Recognizer } from "./dictation";
 
 /* ------------------------------------------------------------------ attachments ---- */
 
@@ -53,31 +54,14 @@ export async function fileToAttachment(file: File): Promise<PendingAttachment | 
   return `${name}: images, PDFs and text files only`;
 }
 
-/* ------------------------------------------------------------------ speech (typed minimally) ---- */
+/* ------------------------------------------------------------------ speech ---- */
 
-type SpeechResultEvent = { resultIndex: number; results: ArrayLike<ArrayLike<{ transcript: string }> & { isFinal: boolean }> };
-type Recognizer = {
-  lang: string;
-  continuous: boolean;
-  interimResults: boolean;
-  onresult: ((e: SpeechResultEvent) => void) | null;
-  onend: (() => void) | null;
-  onerror: ((e: { error?: string }) => void) | null;
-  start: () => void;
-  stop: () => void;
-  abort: () => void;
-};
-function recognizerCtor(): (new () => Recognizer) | null {
-  if (typeof window === "undefined") return null;
-  const w = window as unknown as { SpeechRecognition?: new () => Recognizer; webkitSpeechRecognition?: new () => Recognizer };
-  return w.SpeechRecognition || w.webkitSpeechRecognition || null;
-}
-export function speechSupported() {
-  return !!recognizerCtor();
-}
-export function synthesisSupported() {
-  return typeof window !== "undefined" && "speechSynthesis" in window && typeof SpeechSynthesisUtterance !== "undefined";
-}
+/*
+  The transcript logic lives in `./dictation` — apart from React and from any timer, because it
+  cannot be verified by reading it. `npm run test:dictation` replays both engine behaviours
+  against it. Re-exported here because callers already import these two from the composer.
+*/
+export { speechSupported, synthesisSupported };
 
 /* ------------------------------------------------------------------ composer ---- */
 
@@ -108,7 +92,6 @@ export function BuddyComposer({ value, onChange, onSend, pending, mode, onMode, 
   const toast = useToast();
   const fileRef = React.useRef<HTMLInputElement>(null);
   const recRef = React.useRef<Recognizer | null>(null);
-  const baseRef = React.useRef("");
   const [listening, setListening] = React.useState(false);
   const [errorOpen, setErrorOpen] = React.useState(false);
   const [errorText, setErrorText] = React.useState("");
@@ -143,56 +126,121 @@ export function BuddyComposer({ value, onChange, onSend, pending, mode, onMode, 
     inputRef.current?.focus();
   };
 
-  // Voice dictation (Web Speech API) — toggle; appends interim + final text to the composer.
-  const stopListening = React.useCallback(() => {
-    try {
-      recRef.current?.stop();
-    } catch {}
+  /*
+    Voice dictation. The session machine is here; how a result is READ is in `./dictation`, which
+    carries the full account of the defect this replaced (Chrome on Android delivers every
+    hypothesis of one sentence as a new entry, so concatenating them glued the sentence to itself)
+    and is covered by `npm run test:dictation`.
+
+    `continuous` is off — one session is one sentence — so this component starts the next session
+    itself. That is also the only thing that works on Android, where `continuous` is not honoured.
+  */
+  const dictRef = React.useRef<Dictation>(newDictation(""));
+  const wantRef = React.useRef(false); // the mic is on — keep starting the next sentence
+  const emptyRef = React.useRef(0);    // consecutive sessions that ended instantly with nothing
+  const restartRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onChangeRef = React.useRef(onChange);
+  // `begin` restarts itself through a ref rather than by name: a self-referencing useCallback is
+  // used before it is declared, and the ref also keeps the restart on the latest `onChange`.
+  const beginRef = React.useRef<((langKey: string) => boolean) | null>(null);
+  React.useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
+
+  const teardown = React.useCallback(() => {
+    wantRef.current = false;
+    if (restartRef.current) { clearTimeout(restartRef.current); restartRef.current = null; }
+    const rec = recRef.current;
     recRef.current = null;
-    setListening(false);
+    try { rec?.stop(); } catch {}
   }, []);
-  const startListening = () => {
+
+  const stopListening = React.useCallback(() => {
+    teardown();
+    setListening(false);
+  }, [teardown]);
+
+  /** Start one recognition session. The mic stays "on" across sessions — `onend` starts the next. */
+  const begin = React.useCallback((langKey: string) => {
     const Ctor = recognizerCtor();
-    if (!Ctor) {
-      setVoiceNote("Voice input isn't supported in this browser — Chrome or Edge on desktop and Android work best.");
-      return;
-    }
-    if (listening) return stopListening();
+    if (!Ctor) return false;
     const rec = new Ctor();
-    rec.lang = LANGUAGES.find((l) => l.key === language)?.speech || "en-IN";
-    rec.continuous = true;
+    rec.lang = LANGUAGES.find((l) => l.key === langKey)?.speech || "en-IN";
+    rec.continuous = false;
     rec.interimResults = true;
-    baseRef.current = value ? `${value.replace(/\s+$/, "")} ` : "";
+    rec.maxAlternatives = 1;
+    const startedAt = Date.now();
+
     rec.onresult = (e) => {
-      let finalText = "";
-      let interim = "";
-      for (let i = 0; i < e.results.length; i++) {
-        const r = e.results[i];
-        const t = r[0]?.transcript || "";
-        if (r.isFinal) finalText += t;
-        else interim += t;
-      }
-      onChange(`${baseRef.current}${finalText}${interim}`.replace(/\s{2,}/g, " "));
+      dictRef.current = readResult(dictRef.current, e);
+      onChangeRef.current(dictationText(dictRef.current));
     };
     rec.onerror = (e) => {
+      // `no-speech` is a pause for thought, not a failure — keep the mic on and start the next
+      // session. Everything else stops, so a blocked microphone cannot restart-loop.
+      if (e.error === "no-speech" || e.error === "aborted") return;
       if (e.error === "not-allowed" || e.error === "service-not-allowed") setVoiceNote("Microphone access was blocked. Allow the microphone for this site to dictate.");
-      else if (e.error !== "aborted" && e.error !== "no-speech") setVoiceNote("Voice input stopped. Try again.");
+      else setVoiceNote("Voice input stopped. Try again.");
       stopListening();
     };
     rec.onend = () => {
       recRef.current = null;
-      setListening(false);
+      const heard = dictRef.current.live.trim();
+      dictRef.current = endSession(dictRef.current);
+      if (heard) emptyRef.current = 0;
+      else if (Date.now() - startedAt < 400) {
+        // The engine refused rather than listened. A few of these in a row means restarting is
+        // pointless; without this guard a permission or device problem becomes a hot loop.
+        emptyRef.current += 1;
+      }
+      onChangeRef.current(dictationText(dictRef.current));
+      if (!wantRef.current) { setListening(false); return; }
+      if (emptyRef.current >= 4) {
+        setVoiceNote("Voice input stopped — the microphone isn't sending anything.");
+        stopListening();
+        return;
+      }
+      // Calling start() synchronously inside onend throws InvalidStateError in some browsers.
+      restartRef.current = setTimeout(() => { restartRef.current = null; if (wantRef.current) beginRef.current?.(langKey); }, 150);
     };
+
     try {
       rec.start();
       recRef.current = rec;
+      return true;
+    } catch {
+      return false;
+    }
+  }, [stopListening]);
+  React.useEffect(() => { beginRef.current = begin; }, [begin]);
+
+  const startListening = () => {
+    if (listening) return stopListening();
+    if (!recognizerCtor()) {
+      setVoiceNote("Voice input isn't supported in this browser — Chrome or Edge on desktop and Android work best.");
+      return;
+    }
+    dictRef.current = newDictation(value);
+    emptyRef.current = 0;
+    wantRef.current = true;
+    if (begin(language)) {
       setListening(true);
       setVoiceNote(null);
-    } catch {
+    } else {
+      wantRef.current = false;
       setVoiceNote("Could not start voice input.");
     }
   };
-  React.useEffect(() => () => { try { recRef.current?.abort(); } catch {} }, []);
+
+  /** Sending ends dictation — otherwise the next result would restore the text that was just sent. */
+  const send = React.useCallback(() => {
+    if (wantRef.current) stopListening();
+    onSend();
+  }, [onSend, stopListening]);
+
+  React.useEffect(() => () => {
+    wantRef.current = false;
+    if (restartRef.current) clearTimeout(restartRef.current);
+    try { recRef.current?.abort(); } catch {}
+  }, []);
 
   const meta = MODE_META[mode];
   const barModes = BAR_MODES.filter((m) => !MODE_META[m].needsTask || scope.taskId);
@@ -204,7 +252,7 @@ export function BuddyComposer({ value, onChange, onSend, pending, mode, onMode, 
       <div className="flex items-center gap-1.5 px-3 sm:px-4 pt-2.5 overflow-x-auto no-scrollbar">
         <button
           type="button"
-          onClick={onStuck}
+          onClick={() => { if (wantRef.current) stopListening(); onStuck(); }}
           disabled={pending}
           className={cn("shrink-0 inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-[12px] font-bold tracking-wide text-white transition-transform active:scale-[.98]", mode === "stuck" && "ring-2 ring-[var(--brand-2)] ring-offset-1 ring-offset-[var(--bg-elev)]")}
           style={{ background: "linear-gradient(135deg, var(--brand), var(--violet))", boxShadow: "var(--shadow-sm)" }}
@@ -274,7 +322,7 @@ export function BuddyComposer({ value, onChange, onSend, pending, mode, onMode, 
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
                 e.preventDefault();
-                if (canSend) onSend();
+                if (canSend) send();
               }
             }}
             rows={Math.min(6, Math.max(1, value.split("\n").length))}
@@ -283,7 +331,7 @@ export function BuddyComposer({ value, onChange, onSend, pending, mode, onMode, 
             aria-label="Message GHL Buddy"
           />
           <Button type="button" variant={listening ? "danger" : "ghost"} size="sm" icon onClick={startListening} aria-label={listening ? "Stop dictation" : "Dictate"} title={canSpeak ? (listening ? "Stop dictation" : "Dictate with your voice") : "Voice input not supported here"} className={cn("mb-1", !listening && "text-muted", listening && "animate-pulse")}><Mic size={17} /></Button>
-          <Button variant="primary" icon onClick={onSend} disabled={!canSend} aria-label="Send" className="!w-11 !h-11 shrink-0"><Send size={16} /></Button>
+          <Button variant="primary" icon onClick={send} disabled={!canSend} aria-label="Send" className="!w-11 !h-11 shrink-0"><Send size={16} /></Button>
         </div>
 
         {/* Tone / language / read aloud */}

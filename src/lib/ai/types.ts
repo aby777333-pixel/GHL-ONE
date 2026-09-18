@@ -44,11 +44,23 @@ export type SearchAIResponse = { answer: string; terms: string[]; results: { kin
 export type AIError = { error: string; disabled?: boolean };
 
 /** Small fetch helper for client components. Throws Error(message) on failure. */
+/** Statuses the platform returns without ever reaching the route, so the body carries no `error`. */
+const GATEWAY: Record<number, string> = {
+  408: "That took too long to answer. Try asking it in a shorter, more specific way.",
+  502: "The assistant could not be reached just now. Try again in a moment.",
+  504: "That took too long to answer — ask it in a shorter, more specific way, or try again. Long or garbled messages are the usual cause.",
+};
+
 export async function callAI<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(`/api/ai/${path}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body ?? {}) });
   const json = (await res.json().catch(() => ({}))) as T & AIError;
   if (!res.ok) {
-    const err = new Error(json.error || `AI request failed (${res.status})`) as Error & { disabled?: boolean; status?: number };
+    /*
+      A gateway timeout never reaches the route, so there is no `error` in the body to show and the
+      person got the bare "AI request failed (504)" — which reads as a broken product rather than
+      as an answer that ran long. Say what actually happened and what to do about it.
+    */
+    const err = new Error(json.error || GATEWAY[res.status] || `AI request failed (${res.status})`) as Error & { disabled?: boolean; status?: number };
     err.disabled = !!json.disabled || res.status === 503;
     err.status = res.status;
     throw err;

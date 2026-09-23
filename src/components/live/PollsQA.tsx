@@ -1,7 +1,7 @@
 "use client";
 /** Polls and Q&A (§88–§91). Both live in Postgres and stream over Supabase Realtime. */
 import * as React from "react";
-import { BarChart3, Check, MessageCircleQuestion, Plus, ThumbsUp, Trash2, X } from "lucide-react";
+import { BarChart3, Check, MessageCircleQuestion, Pencil, Plus, ThumbsUp, Trash2, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button, EmptyState, Field, Input, Pill, Progress, Tabs, Textarea, useToast } from "@/components/ui";
 import { liveChannelName, type LivePoll, type LiveQuestion } from "@/lib/live/types";
@@ -70,6 +70,7 @@ function Polls({ polls, roomId, orgId, meId, isHost }: { polls: LivePoll[]; room
   const [multi, setMulti] = React.useState(false);
   const [anonymous, setAnonymous] = React.useState(true);
   const [busy, setBusy] = React.useState(false);
+  const [editing, setEditing] = React.useState<string | null>(null);
 
   async function create() {
     const opts = options.map((o) => o.trim()).filter(Boolean);
@@ -139,6 +140,9 @@ function Polls({ polls, roomId, orgId, meId, isHost }: { polls: LivePoll[]; room
               <div className="text-sm font-medium flex-1 min-w-0">{p.question}</div>
               <Pill tone={p.status === "open" ? "tone-success" : "tone-neutral"}>{p.status === "open" ? "Open" : "Closed"}</Pill>
             </div>
+            {editing === p.id ? (
+              <EditPoll poll={p} onDone={() => setEditing(null)} />
+            ) : (
             <div className="mt-2 space-y-1.5">
               {p.options.map((o) => {
                 const v = p.votes?.[o.id] || [];
@@ -162,15 +166,74 @@ function Polls({ polls, roomId, orgId, meId, isHost }: { polls: LivePoll[]; room
                 );
               })}
             </div>
+            )}
             <div className="flex items-center gap-2 mt-2 text-[11px] text-muted">
               <span>{total} vote{total === 1 ? "" : "s"}{p.anonymous ? " · anonymous" : ""}</span>
+              {(isHost || p.created_by === meId) && p.status === "open" && editing !== p.id && (
+                <Button size="xs" variant="ghost" className="ml-auto" onClick={() => setEditing(p.id)}><Pencil size={12} /> Edit</Button>
+              )}
               {isHost && p.status === "open" && (
-                <Button size="xs" variant="ghost" className="ml-auto" onClick={() => void close(p)}><X size={12} /> Close</Button>
+                <Button size="xs" variant="ghost" className={isHost || p.created_by === meId ? undefined : "ml-auto"} onClick={() => void close(p)}><X size={12} /> Close</Button>
               )}
             </div>
           </div>
         );
       })}
+    </div>
+  );
+}
+
+/*
+  Editing an open poll — reported missing: a mistyped option could not be corrected and nothing could be
+  added. Votes are stored per option id, so renaming an option or adding one never disturbs a vote; an
+  option somebody has already voted for cannot be removed (that would silently delete their vote).
+*/
+function EditPoll({ poll, onDone }: { poll: LivePoll; onDone: () => void }) {
+  const toast = useToast();
+  const [question, setQuestion] = React.useState(poll.question);
+  const [opts, setOpts] = React.useState(poll.options.map((o) => ({ id: o.id, label: o.label })));
+  const [busy, setBusy] = React.useState(false);
+  const votesFor = (id: string) => (poll.votes?.[id] || []).length;
+
+  async function save() {
+    const clean = opts.map((o) => ({ id: o.id, label: o.label.trim() })).filter((o) => o.label);
+    if (!question.trim() || clean.length < 2) return toast.push("A poll needs a question and two options", "danger");
+    setBusy(true);
+    const { data, error } = await createClient().from("live_polls").update({ question: question.trim(), options: clean }).eq("id", poll.id).select("id");
+    setBusy(false);
+    if (error) return toast.push(error.message, "danger");
+    // An RLS refusal matches zero rows rather than raising — say so instead of pretending it saved.
+    if (!data?.length) return toast.push("Only the host or the person who started this poll can edit it", "danger");
+    toast.push("Poll updated", "success");
+    onDone();
+  }
+
+  return (
+    <div className="mt-2 space-y-2">
+      <Input value={question} onChange={(e) => setQuestion(e.target.value)} aria-label="Question" />
+      {opts.map((o, i) => (
+        <div key={o.id} className="flex items-center gap-1.5">
+          <Input value={o.label} onChange={(e) => setOpts((s) => s.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))} placeholder={`Option ${i + 1}`} aria-label={`Option ${i + 1}`} />
+          <Button
+            size="xs"
+            variant="ghost"
+            icon
+            disabled={votesFor(o.id) > 0 || opts.length <= 2}
+            title={votesFor(o.id) > 0 ? "People have voted for this option" : opts.length <= 2 ? "A poll needs two options" : "Remove option"}
+            aria-label="Remove option"
+            onClick={() => setOpts((s) => s.filter((_, j) => j !== i))}
+          >
+            <Trash2 size={12} />
+          </Button>
+        </div>
+      ))}
+      <div className="flex items-center gap-2">
+        <Button size="xs" variant="ghost" onClick={() => setOpts((s) => [...s, { id: `o${Date.now().toString(36)}${s.length}`, label: "" }])}><Plus size={12} /> Option</Button>
+        <span className="ml-auto flex gap-1">
+          <Button size="xs" onClick={onDone}>Cancel</Button>
+          <Button size="xs" variant="primary" loading={busy} onClick={() => void save()}>Save</Button>
+        </span>
+      </div>
     </div>
   );
 }

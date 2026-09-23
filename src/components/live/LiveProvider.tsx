@@ -22,7 +22,6 @@ import { useSession } from "@/components/providers/SessionProvider";
 import { createClient } from "@/lib/supabase/client";
 import { leaveRoom, respondInvite } from "@/lib/live/client";
 import { ROOM_KIND_LABEL, type LiveInvite, type RoomKind } from "@/lib/live/types";
-import { cn } from "@/lib/utils";
 import { RoomEvent, type Room } from "livekit-client";
 import { dismissInvite, getLiveState, patchActiveRoom, pushInvite, setActiveRoom, setMinimized, useLive } from "./liveStore";
 import { clearLiveSession, endLiveSession, getLiveSession, useLiveSession, type LiveSession } from "./liveSession";
@@ -284,7 +283,7 @@ function SessionBridge({ session }: { session: LiveSession }) {
  * Buddy FAB (which owns `right-4`), so the two never collide. z-[95] keeps it under modals (z-100+).
  */
 function MiniBar({ onReturn, onLeave }: { onReturn: () => void; onLeave: () => void }) {
-  const { active, pip, setPip } = useLive();
+  const { active } = useLive();
   const [now, setNow] = React.useState(() => Date.now());
   React.useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
@@ -318,12 +317,14 @@ function MiniBar({ onReturn, onLeave }: { onReturn: () => void; onLeave: () => v
           {active.micOn ? <Mic size={13} /> : <MicOff size={13} className="text-danger" />}
           {active.sharing && <MonitorUp size={13} className="text-warn" />}
         </span>
+        {/* Expand. It toggled a picture-in-picture flag that nothing in the app ever read, so it looked
+            like a working button and did nothing. It now opens the full meeting view, like Return. */}
         <button
           type="button"
-          onClick={() => setPip(!pip)}
-          className={cn("btn btn-ghost btn-sm btn-icon hidden sm:inline-flex", pip && "bg-[var(--neutral-bg)]")}
-          aria-label="Picture in picture"
-          title="Picture in picture"
+          onClick={onReturn}
+          className="btn btn-ghost btn-sm btn-icon hidden sm:inline-flex"
+          aria-label="Expand to the full meeting"
+          title="Expand to the full meeting"
         >
           <Maximize2 size={14} />
         </button>

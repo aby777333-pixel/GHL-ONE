@@ -11,6 +11,7 @@ import { createClient } from "@/lib/supabase/client";
 import { APPROVAL_STATUS_LABEL, APPROVAL_STATUS_TONE, cn, fmtDate, isManagerPlus } from "@/lib/utils";
 import { LEAVE_KINDS, type LeaveRow } from "./calendarUtils";
 import { todayLocal } from "@/components/meetings/meetingUtils";
+import { leaveWithdrawn } from "@/components/leave/leaveUtils";
 
 export function LeaveTab({ leaves }: { leaves: LeaveRow[] }) {
   const { profile } = useSession();
@@ -54,7 +55,7 @@ export function LeaveTab({ leaves }: { leaves: LeaveRow[] }) {
 
   async function cancel(l: LeaveRow) {
     setBusy(l.id);
-    const { error } = await createClient().from("leaves").update({ status: "rejected", note: [l.note, "Cancelled by employee"].filter(Boolean).join(" · ") }).eq("id", l.id);
+    const { error } = await createClient().from("leaves").update({ status: "rejected", decision_note: "Cancelled by employee", note: [l.note, "Cancelled by employee"].filter(Boolean).join(" · ") }).eq("id", l.id);
     setBusy(null);
     if (error) return toast.push(error.message, "danger");
     toast.push("Request cancelled", "info");
@@ -126,7 +127,7 @@ export function LeaveTab({ leaves }: { leaves: LeaveRow[] }) {
                   <span className="text-sm num">{fmtDate(l.starts_on)}{l.ends_on !== l.starts_on ? ` → ${fmtDate(l.ends_on)}` : ""}</span>
                   <Pill tone="tone-neutral">{LEAVE_KINDS.find((k) => k.value === l.kind)?.label || l.kind}</Pill>
                   <span className="text-xs text-muted num">{days(l)}d</span>
-                  <Pill tone={APPROVAL_STATUS_TONE[l.status]}>{APPROVAL_STATUS_LABEL[l.status]}</Pill>
+                  {leaveWithdrawn(l) ? <Pill tone="tone-muted">Cancelled</Pill> : <Pill tone={APPROVAL_STATUS_TONE[l.status]}>{APPROVAL_STATUS_LABEL[l.status]}</Pill>}
                   {l.note && <span className="text-xs text-muted truncate w-full sm:w-auto sm:flex-1">{l.note}</span>}
                   {l.status === "pending" && <Button size="xs" variant="ghost" className="ml-auto" loading={busy === l.id} onClick={() => cancel(l)}>Cancel</Button>}
                 </div>

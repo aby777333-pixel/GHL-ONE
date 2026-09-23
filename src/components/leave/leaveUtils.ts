@@ -53,8 +53,22 @@ export type StepState = "done" | "current" | "rejected" | "todo" | "skipped";
 export type Step = { key: string; label: string; state: StepState; note?: string | null; at?: string | null };
 
 /** Status timeline: submitted → manager → HR (when the type requires it) → outcome. */
+/*
+  A request the employee withdrew. There is no "cancelled" leave status in the database — a withdrawal is
+  stored as `rejected` with a note ("Withdrawn by employee" from Leave, "Cancelled by employee" from the
+  Calendar tab) and no manager or HR decision. Shown as Cancelled everywhere, never as Rejected/Declined:
+  nobody declined it.
+*/
+export function leaveWithdrawn(l: Pick<LeaveRow, "status" | "decision_note" | "note" | "manager_decision" | "hr_decision">) {
+  return l.status === "rejected" && !l.manager_decision && !l.hr_decision && /(withdrawn|cancelled) by employee/i.test(`${l.decision_note || ""} ${l.note || ""}`);
+}
+
 export function timelineFor(l: LeaveRow, requiresHr: boolean): Step[] {
   const steps: Step[] = [{ key: "submitted", label: "Submitted", state: "done", at: l.created_at }];
+  if (leaveWithdrawn(l)) {
+    steps.push({ key: "manager", label: "Cancelled by employee", state: "skipped", at: l.decided_at });
+    return steps;
+  }
   const md = l.manager_decision;
   if (md === "approved") steps.push({ key: "manager", label: "Manager approved", state: "done" });
   else if (md === "rejected" || md === "changes_requested") steps.push({ key: "manager", label: md === "rejected" ? "Manager declined" : "Changes requested", state: "rejected", note: l.decision_note, at: l.decided_at });

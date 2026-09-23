@@ -335,7 +335,7 @@ export function BuddyComposer({ value, onChange, onSend, pending, mode, onMode, 
         </div>
 
         {/* Tone / language / read aloud */}
-        <div className="flex items-center gap-2 mt-2 text-[11px] text-muted min-w-0">
+        <div className="flex items-center flex-wrap gap-x-2 gap-y-1 mt-2 text-[11px] text-muted min-w-0">
           <Select value={tone} onChange={(e) => onTone(e.target.value as NonNullable<BuddyRequest["tone"]>)} className="!h-6 !w-auto !py-0 !text-[11px] !pr-6" aria-label="Tone">
             {TONES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
           </Select>
@@ -346,7 +346,9 @@ export function BuddyComposer({ value, onChange, onSend, pending, mode, onMode, 
             {/* The icon switched with the state but the words always said "Read aloud"; they now say which it is. */}
             {readAloud ? <Volume2 size={12} /> : <VolumeX size={12} />} <span className="hidden sm:inline">{readAloud ? "Voice on" : "Voice off"}</span>
           </button>
-          <span className="ml-auto hidden lg:inline-flex items-center gap-2 shrink-0"><span><Kbd>Enter</Kbd> send</span><span><Kbd>Shift</Kbd>+<Kbd>Enter</Kbd> newline</span><span className="inline-flex items-center gap-1"><Keyboard size={11} /> <Kbd>Ctrl</Kbd> <Kbd>J</Kbd></span></span>
+          {/* Buddy's own shortcuts. They were shown only from 1024px up, so most people never saw them;
+              now from 640px (keyboards), wrapping onto their own line when the row is full. */}
+          <span className="ml-auto hidden sm:inline-flex items-center gap-2 shrink-0" aria-label="Keyboard shortcuts"><span><Kbd>Enter</Kbd> send</span><span><Kbd>Shift</Kbd>+<Kbd>Enter</Kbd> newline</span><span className="inline-flex items-center gap-1" title="Open or close GHL Buddy from anywhere"><Keyboard size={11} /> <Kbd>Ctrl</Kbd> <Kbd>J</Kbd> open/close</span><span><Kbd>Esc</Kbd> close</span></span>
         </div>
       </div>
 

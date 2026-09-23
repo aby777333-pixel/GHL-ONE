@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, CheckSquare, FileText, Gavel, PenTool, Radio, StickyNote, Users, Video } from "lucide-react";
+import { ArrowLeft, BarChart3, CheckSquare, FileText, Gavel, MessageCircleQuestion, PenTool, Radio, StickyNote, Users, Video } from "lucide-react";
 import { getSession } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardHeader, EmptyState, Pill } from "@/components/ui";
@@ -35,7 +35,7 @@ export default async function LiveRoomHistoryPage({ params }: { params: Promise<
   const { data: room } = await supabase.from("live_rooms").select("id,title,kind,status,started_at,ended_at,host_id,meeting_id,project_id,persistent").eq("id", id).maybeSingle();
   if (!room) notFound();
 
-  const [{ data: notes }, { data: decisions }, { data: tasks }, { data: recordings }, { data: boards }, { data: docs }, { data: parts }] = await Promise.all([
+  const [{ data: notes }, { data: decisions }, { data: tasks }, { data: recordings }, { data: boards }, { data: docs }, { data: parts }, { data: polls }, { data: questions }] = await Promise.all([
     supabase.from("live_notes").select("body,updated_at").eq("room_id", id).maybeSingle(),
     supabase.from("decisions").select("id,title,decided_at,status").eq("live_room_id", id).order("decided_at"),
     supabase.from("tasks").select("id,title,status,assignee_id").eq("source_live_room_id", id).order("created_at"),
@@ -43,6 +43,9 @@ export default async function LiveRoomHistoryPage({ params }: { params: Promise<
     supabase.from("boards").select("id,title,created_at").eq("room_id", id).order("created_at"),
     supabase.from("live_docs").select("id,title,created_at").eq("room_id", id).order("created_at"),
     supabase.from("live_participants").select("user_id,joined_at").eq("room_id", id).order("joined_at"),
+    // Polls with their results, and the room's Q&A — reported missing from the history.
+    supabase.from("live_polls").select("id,question,options,votes,status,anonymous").eq("room_id", id).order("created_at"),
+    supabase.from("live_questions").select("id,body,answer,answered,anonymous,author_id,upvotes").eq("room_id", id).order("created_at"),
   ]);
 
   const isLive = room.status === "live";
@@ -92,6 +95,56 @@ export default async function LiveRoomHistoryPage({ params }: { params: Promise<
                 ))}
               </ul>
             ) : <EmptyState title="No decisions recorded" className="py-[var(--s3)]" />}
+          </Card>
+
+          <Card>
+            <CardHeader title={<span className="inline-flex items-center gap-2"><BarChart3 size={15} className="text-muted" /> Polls</span>} subtitle={`${polls?.length || 0} asked`} />
+            {polls?.length ? (
+              <div className="px-[var(--s4)] pb-[var(--s4)] space-y-3">
+                {polls.map((p) => {
+                  const options = (Array.isArray(p.options) ? p.options : []) as { id: string; label: string }[];
+                  const votes = (p.votes && typeof p.votes === "object" && !Array.isArray(p.votes) ? p.votes : {}) as Record<string, string[]>;
+                  const total = Object.values(votes).reduce((a, v) => a + (Array.isArray(v) ? v.length : 0), 0);
+                  return (
+                    <div key={p.id} className="rounded-[var(--radius-sm)] border p-3">
+                      <div className="text-sm font-medium">{p.question}</div>
+                      <ul className="mt-2 space-y-1">
+                        {options.map((o) => {
+                          const n = Array.isArray(votes[o.id]) ? votes[o.id].length : 0;
+                          const pct = total ? Math.round((n / total) * 100) : 0;
+                          return (
+                            <li key={o.id} className="flex items-center gap-2 text-xs">
+                              <span className="flex-1 min-w-0 truncate">{o.label}</span>
+                              <span className="num text-muted">{n} · {pct}%</span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                      <div className="text-[11px] text-muted mt-1.5">{total} vote{total === 1 ? "" : "s"}{p.anonymous ? " · anonymous" : ""}{p.status === "open" ? " · still open" : ""}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : <EmptyState title="No polls were run" className="py-[var(--s3)]" />}
+          </Card>
+
+          <Card>
+            <CardHeader title={<span className="inline-flex items-center gap-2"><MessageCircleQuestion size={15} className="text-muted" /> Q&amp;A</span>} subtitle={`${questions?.length || 0} question${questions?.length === 1 ? "" : "s"}`} />
+            {questions?.length ? (
+              <ul className="divide-y border-t">
+                {questions.map((q) => (
+                  <li key={q.id} className="px-[var(--s4)] py-2 text-sm">
+                    <div className="flex items-start gap-2">
+                      <span className="flex-1 min-w-0 break-words">{q.body}</span>
+                      {q.upvotes?.length ? <span className="text-[11px] text-muted num shrink-0">▲ {q.upvotes.length}</span> : null}
+                      <Pill tone={q.answered ? "tone-success" : "tone-neutral"}>{q.answered ? "Answered" : "Open"}</Pill>
+                    </div>
+                    <div className="text-[11px] text-muted mt-0.5">{q.anonymous || !q.author_id ? "Anonymous" : <PersonChip id={q.author_id} size={14} />}</div>
+                    {q.answer && <div className="text-xs mt-1 sunken rounded-[var(--radius-sm)] px-2 py-1.5 whitespace-pre-wrap">{q.answer}</div>}
+                  </li>
+                ))}
+              </ul>
+            ) : <EmptyState title="No questions were asked" className="py-[var(--s3)]" />}
           </Card>
 
           <Card>

@@ -22,6 +22,13 @@ type Tab = "now" | "mine" | "recent" | "starred";
 
 const PERSISTENT_KINDS: RoomKind[] = ["project_room", "department_room", "team_room", "virtual_office"];
 
+/** How long a room ran, e.g. "52 min" or "1h 05m". */
+function spanLabel(from: string, to: string) {
+  const mins = Math.max(0, Math.round((Date.parse(to) - Date.parse(from)) / 60000));
+  if (mins < 60) return `${Math.max(1, mins)} min`;
+  return `${Math.floor(mins / 60)}h ${String(mins % 60).padStart(2, "0")}m`;
+}
+
 export function LiveHub({
   live,
   persistent,
@@ -173,7 +180,14 @@ export function LiveHub({
                 <div className="flex items-center gap-1.5 flex-wrap text-[11px]">
                   {isLive && <Pill tone="tone-success" className="gap-1"><span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" /> Live · {ago(r.last_active_at)}</Pill>}
                   {!isLive && r.persistent && <Pill tone="tone-info">Always open</Pill>}
-                  {!isLive && !r.persistent && <Pill tone="tone-neutral"><Clock size={10} /> {r.ended_at ? fmtDate(r.ended_at, true) : fmtDate(r.started_at, true)}</Pill>}
+                  {/* Start → end and how long it actually ran — it showed one timestamp, so the real length
+                      could not be compared with the scheduled one. */}
+                  {!isLive && !r.persistent && (
+                    <Pill tone="tone-neutral" title={`Started ${fmtDate(r.started_at, true)}${r.ended_at ? ` · ended ${fmtDate(r.ended_at, true)}` : ""}`}>
+                      <Clock size={10} /> {fmtDate(r.started_at, true)}{r.ended_at ? ` → ${fmtDate(r.ended_at, true).split(", ").pop()}` : ""}
+                      {r.ended_at && <span className="text-muted"> · {spanLabel(r.started_at, r.ended_at)}</span>}
+                    </Pill>
+                  )}
                   {r.confidential && <Pill tone="tone-danger">Confidential</Pill>}
                   {r.participants && r.participants.length > 0 && (
                     <span className="ml-auto inline-flex items-center gap-1 text-muted"><Users size={11} /> {r.participants.length}</span>

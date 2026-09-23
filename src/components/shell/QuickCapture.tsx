@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { ListChecks, FolderKanban, Video, CheckSquare, Lightbulb, StickyNote, Wand2, MessageSquare } from "lucide-react";
-import { Modal, Button, Field, Input, Textarea, useToast } from "@/components/ui";
+import { Modal, Button, Field, Input, Kbd, Textarea, useToast } from "@/components/ui";
 import { QuickTaskForm } from "@/components/tasks/QuickTaskForm";
 import { createClient } from "@/lib/supabase/client";
 import { useSession, useScreens } from "@/components/providers/SessionProvider";
@@ -96,7 +96,16 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
             <Input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder={active === "idea" ? "What could we do better?" : "Something to remember…"} required />
           </Field>
           <Field label="Details">
-            <Textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Optional context" style={{ minHeight: 89 }} />
+            <Textarea
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              placeholder="Optional context"
+              style={{ minHeight: 89 }}
+              onKeyDown={(e) => {
+                // Ctrl/⌘+Enter saves from the details box (plain Enter is a new line here).
+                if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); e.currentTarget.form?.requestSubmit(); }
+              }}
+            />
           </Field>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" onClick={close}>Cancel</Button>
@@ -104,6 +113,14 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
           </div>
         </form>
       )}
+      {/* Quick capture's own shortcuts, as the Search / Command menu shows its own. */}
+      <div className="hidden sm:flex items-center flex-wrap gap-x-3 gap-y-1 mt-4 pt-3 border-t text-[11px] text-muted" aria-label="Keyboard shortcuts">
+        <span><Kbd>C</Kbd> open quick capture</span>
+        <span><Kbd>Enter</Kbd> save</span>
+        {active !== "task" && <span><Kbd>Ctrl</Kbd>+<Kbd>Enter</Kbd> save from details</span>}
+        <span><Kbd>Esc</Kbd> close</span>
+        <span className="ml-auto"><Kbd>Ctrl</Kbd> <Kbd>K</Kbd> search</span>
+      </div>
     </Modal>
   );
 }

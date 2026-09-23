@@ -12,7 +12,7 @@ import { APPROVAL_STATUS_LABEL, APPROVAL_STATUS_TONE, cn, fmtDate, isAdminRole, 
 import { addDays, dayLabel, istDay } from "@/components/attendance/attendanceUtils";
 import { ApplyLeaveModal } from "./ApplyLeaveModal";
 import { LeaveImpact } from "./LeaveImpact";
-import { fmtDays, timelineFor, type Balance, type HandoverTask, type Holiday, type LeaveRow, type LeaveType } from "./leaveUtils";
+import { fmtDays, leaveWithdrawn, timelineFor, type Balance, type HandoverTask, type Holiday, type LeaveRow, type LeaveType } from "./leaveUtils";
 
 export type LeaveData = {
   balances: Balance[];
@@ -97,7 +97,8 @@ export function LeaveClient({ data, initialTab }: { data: LeaveData; initialTab?
     () =>
       data.team
         .filter((l) => l.status !== "pending" && l.user_id !== profile.id)
-        .filter((l) => decidedFilter === "all" || l.status === decidedFilter)
+        // "Declined" means an approver said no — a request the employee withdrew is not one.
+        .filter((l) => decidedFilter === "all" || (l.status === decidedFilter && !(decidedFilter === "rejected" && leaveWithdrawn(l))))
         .sort((a, b) => b.starts_on.localeCompare(a.starts_on)),
     [data.team, profile.id, decidedFilter]
   );
@@ -149,7 +150,7 @@ export function LeaveClient({ data, initialTab }: { data: LeaveData; initialTab?
                         <span className="text-sm font-medium">{typeName(l)}</span>
                         <span className="text-sm num text-2">{range(l)}</span>
                         <span className="text-xs text-muted num">{fmtDays(l.days)}d</span>
-                        <Pill tone={APPROVAL_STATUS_TONE[l.status]}>{APPROVAL_STATUS_LABEL[l.status]}</Pill>
+                        {leaveWithdrawn(l) ? <Pill tone="tone-muted">Cancelled</Pill> : <Pill tone={APPROVAL_STATUS_TONE[l.status]}>{APPROVAL_STATUS_LABEL[l.status]}</Pill>}
                         {l.status === "pending" && <Button size="xs" variant="ghost" className="ml-auto" loading={busy === l.id} onClick={() => cancel(l)}>Withdraw</Button>}
                       </div>
                       {l.note && <div className="text-xs text-muted mt-1">{l.note}</div>}
@@ -236,8 +237,8 @@ export function LeaveClient({ data, initialTab }: { data: LeaveData; initialTab?
                         <PersonChip id={l.user_id} size={20} />
                         <span className="text-muted">{typeName(l)}</span>
                         <span className="num">{range(l)}</span>
-                        <Pill tone={APPROVAL_STATUS_TONE[l.status]}>{APPROVAL_STATUS_LABEL[l.status]}</Pill>
-                        {l.decision_note && <span className="text-xs text-muted truncate w-full sm:w-auto sm:flex-1">{l.decision_note}</span>}
+                        {leaveWithdrawn(l) ? <Pill tone="tone-muted">Cancelled by employee</Pill> : <Pill tone={APPROVAL_STATUS_TONE[l.status]}>{APPROVAL_STATUS_LABEL[l.status]}</Pill>}
+                        {l.decision_note && !leaveWithdrawn(l) && <span className="text-xs text-muted truncate w-full sm:w-auto sm:flex-1">{l.decision_note}</span>}
                       </div>
                     ))}
                     {decidedAll.length > decidedTeam.length && (

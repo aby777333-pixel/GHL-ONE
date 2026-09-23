@@ -16,6 +16,7 @@ import { BuddyQuickActions } from "@/components/ai/BuddyQuickActions";
 import { EntityLive } from "@/components/live/EntityLive";
 import { CollaborationHistory } from "@/components/live/CollaborationHistory";
 import { runningLate } from "@/lib/live/client";
+import { useLive } from "@/components/live/liveStore";
 import { AutosaveField } from "./AutosaveField";
 import { ActionItems, type LinkedTask, type MeetingAction } from "./ActionItems";
 import { PeopleMultiSelect } from "./PeopleMultiSelect";
@@ -27,6 +28,8 @@ export type MeetingRoomProps = {
   meeting: Meeting;
   /** Status of the linked GHL Live room, if any — the host can end it before the scheduled time. */
   liveStatus?: string | null;
+  /** The room that is live for this meeting right now, if any. */
+  liveRoomNow?: string | null;
   participantIds: string[];
   actions: MeetingAction[];
   tasks: LinkedTask[];
@@ -36,7 +39,7 @@ export type MeetingRoomProps = {
   prepare: PrepareData;
 };
 
-export function MeetingRoom({ meeting: m, liveStatus, participantIds, actions, tasks, decisions, files, project, prepare }: MeetingRoomProps) {
+export function MeetingRoom({ meeting: m, liveStatus, liveRoomNow, participantIds, actions, tasks, decisions, files, project, prepare }: MeetingRoomProps) {
   const { profile, people } = useSession();
   const router = useRouter();
   const toast = useToast();
@@ -53,6 +56,11 @@ export function MeetingRoom({ meeting: m, liveStatus, participantIds, actions, t
   const [nowMs] = React.useState(() => Date.now());
   const upcoming = Date.parse(m.ends_at || m.starts_at) > nowMs;
   const phase = meetingPhase({ ...m, live_status: liveStatus }, nowMs);
+  // Already in this meeting's call (joined, then minimised)? Then offer "Return", never "Join" again.
+  const { active } = useLive();
+  const inThisCall = !!active && (active.id === liveRoomNow || active.id === m.live_room_id);
+  const over = phase === "ended" || cancelled;
+  const runningOver = phase === "live" && liveStatus === "live" && Date.parse(m.ends_at || m.starts_at) < nowMs;
   async function cancelMeeting() {
     setCancelling(true);
     const { error } = await createClient().rpc("cancel_meeting", { p_meeting: m.id, p_reason: cancelReason.trim() || undefined });
@@ -129,7 +137,7 @@ export function MeetingRoom({ meeting: m, liveStatus, participantIds, actions, t
               <h1 className="h1 break-words min-w-0">{m.title}</h1>
               {cancelled && <Pill tone="tone-danger" size="lg">Cancelled</Pill>}
               {phase === "ended" && <Pill tone="tone-neutral" size="lg">Ended</Pill>}
-              {phase === "live" && <Pill tone="tone-success" size="lg">{liveStatus === "live" ? "Live now" : "In progress"}</Pill>}
+              {phase === "live" && <Pill tone={runningOver ? "tone-warn" : "tone-success"} size="lg">{liveStatus === "live" ? (runningOver ? "Running over · call still live" : "Live now") : "In progress"}</Pill>}
             </div>
             {cancelled && (
               <div className="text-sm text-danger mt-1">
@@ -145,8 +153,14 @@ export function MeetingRoom({ meeting: m, liveStatus, participantIds, actions, t
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <EntityLive ctx={{ meetingId: m.id, projectId: m.project_id, title: m.title }} label="Join live" />
-            <Button
+            {/* Once the meeting is over (ended or cancelled) the live controls go: they only ever led to
+                "This room has ended". While you are already in its call, one "Return to meeting" replaces
+                every Join. */}
+            {inThisCall && (
+              <Link href={`/live/${active!.id}`} className="btn btn-primary"><Video size={15} /> Return to meeting</Link>
+            )}
+            {!over && !inThisCall && <EntityLive ctx={{ meetingId: m.id, projectId: m.project_id, title: m.title }} label="Join live" />}
+            {!over && !inThisCall && <Button
               size="sm"
               variant="ghost"
               onClick={async () => {
@@ -160,12 +174,13 @@ export function MeetingRoom({ meeting: m, liveStatus, participantIds, actions, t
               title="Tell the room you are on your way"
             >
               <Clock3 size={14} /> Running late
-            </Button>
+            </Button>}
             <BuddyQuickActions scope={{ meetingId: m.id, projectId: m.project_id || undefined, path: `/meetings/${m.id}` }} />
-            {/* No Join once the meeting is over — it only led to "This room has ended". */}
-            {m.meeting_link && !cancelled && phase !== "ended" && (
+            {!over && !inThisCall && (liveRoomNow ? (
+              <Link href={`/live/${liveRoomNow}`} className="btn btn-primary"><Video size={15} /> Join meeting</Link>
+            ) : m.meeting_link ? (
               <a href={m.meeting_link} target="_blank" rel="noreferrer" className="btn btn-primary"><Video size={15} /> Join meeting</a>
-            )}
+            ) : null)}
             {canEdit && upcoming && !cancelled && (
               <Button size="sm" variant="ghost" className="text-danger" onClick={() => setCancelOpen(true)}>
                 <CalendarX2 size={14} /> Cancel meeting

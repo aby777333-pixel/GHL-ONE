@@ -10,11 +10,11 @@ import { useSession } from "@/components/providers/SessionProvider";
 import { cn, fmtDate, relDate, type Meeting } from "@/lib/utils";
 import { ScheduleMeetingModal, type ScheduleDefaults } from "./ScheduleMeetingModal";
 import { createClient } from "@/lib/supabase/client";
-import { durationLabel, durationMinutes, meetingPhase } from "./meetingUtils";
+import { durationLabel, durationMinutes, isPastMeeting, meetingPhase } from "./meetingUtils";
 import { openCollaborate } from "@/components/live/liveStore";
 
 type TabKey = "upcoming" | "past" | "mine";
-export type MeetingListItem = Meeting & { participant_ids: string[]; action_count: number; confirmed_count: number; live_status?: string | null };
+export type MeetingListItem = Meeting & { participant_ids: string[]; action_count: number; confirmed_count: number; live_status?: string | null; live_room_now?: string | null };
 
 export function MeetingsClient({ meetings, projects, openNew, defaults, initialTab }: { meetings: MeetingListItem[]; projects: { id: string; name: string }[]; openNew: boolean; defaults: ScheduleDefaults; initialTab?: string }) {
   const { profile } = useSession();
@@ -104,7 +104,7 @@ export function MeetingsClient({ meetings, projects, openNew, defaults, initialT
                         <div className="min-w-0 flex-1">
                           <div className="flex items-start gap-2">
                             <Link href={`/meetings/${m.id}`} className={cn("block font-medium leading-snug hover:underline min-w-0 flex-1", m.cancelled_at && "line-through text-muted")}>{m.title}</Link>
-                            {phase === "live" && <Pill tone="tone-success" className="shrink-0">{m.live_status === "live" ? "Live now" : "In progress"}</Pill>}
+                            {phase === "live" && <Pill tone={m.live_status === "live" && isPastMeeting(m, now) ? "tone-warn" : "tone-success"} className="shrink-0" title={m.live_status === "live" && isPastMeeting(m, now) ? "Past its scheduled end, and the call is still in progress" : undefined}>{m.live_status === "live" ? (isPastMeeting(m, now) ? "Running over · live" : "Live now") : "In progress"}</Pill>}
                           </div>
                           <div className="flex items-center gap-x-3 gap-y-1 flex-wrap mt-1.5 text-xs text-muted">
                             <PersonChip id={m.organizer_id} size={16} />
@@ -118,7 +118,8 @@ export function MeetingsClient({ meetings, projects, openNew, defaults, initialT
                             ) : phase === "ended" ? (
                               <span className="inline-flex items-center gap-1"><CheckCircle2 size={12} /> Ended</span>
                             ) : (
-                              m.meeting_link && <a href={m.meeting_link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 link"><Link2 size={12} /> Join</a>
+                              m.live_room_now ? <Link href={`/live/${m.live_room_now}`} className="inline-flex items-center gap-1 link"><Link2 size={12} /> Join</Link>
+                              : m.meeting_link && <a href={m.meeting_link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 link"><Link2 size={12} /> Join</a>
                             )}
                           </div>
                           <div className="flex items-center justify-between gap-2 mt-3">

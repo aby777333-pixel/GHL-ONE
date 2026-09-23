@@ -20,7 +20,8 @@ export default async function MeetingPage({ params }: { params: Promise<{ id: st
     meeting.project_id
       ? supabase.from("meetings").select("id,title,starts_at,summary,notes").eq("project_id", meeting.project_id).lt("starts_at", meeting.starts_at).neq("id", id).order("starts_at", { ascending: false }).limit(1).maybeSingle()
       : Promise.resolve({ data: null }),
-    meeting.live_room_id ? supabase.from("live_rooms").select("status").eq("id", meeting.live_room_id).maybeSingle() : Promise.resolve({ data: null }),
+    // Rooms tied to this meeting from either side (meetings.live_room_id, or the room's own meeting_id).
+    supabase.from("live_rooms").select("id,status").or(`meeting_id.eq.${id}${meeting.live_room_id ? `,id.eq.${meeting.live_room_id}` : ""}`),
   ]);
 
   const [{ data: prevActions }, { data: prevTasks }, { data: approvals }, { data: projectDecisions }] = await Promise.all([
@@ -33,7 +34,8 @@ export default async function MeetingPage({ params }: { params: Promise<{ id: st
   return (
     <MeetingRoom
       meeting={meeting}
-      liveStatus={room?.status || null}
+      liveStatus={(room || []).some((r) => r.status === "live") ? "live" : (room || []).find((r) => r.id === meeting.live_room_id)?.status || room?.[0]?.status || null}
+      liveRoomNow={(room || []).find((r) => r.status === "live")?.id || null}
       participantIds={(parts || []).map((p) => p.user_id)}
       actions={actions || []}
       tasks={tasks || []}

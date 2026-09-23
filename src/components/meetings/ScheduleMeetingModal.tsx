@@ -10,6 +10,12 @@ import { PeopleMultiSelect } from "./PeopleMultiSelect";
 import { DURATIONS, addMinutesIso, localToIso, nextSlot, todayLocal } from "./meetingUtils";
 import { MeetingLoadWarning } from "./MeetingHygiene";
 
+/** Current local time as HH:mm — the earliest start a meeting created today may have. */
+function nowHHMM() {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
 export type ScheduleDefaults = { project_id?: string | null; department_id?: string | null; participants?: string[]; title?: string };
 
 export function ScheduleMeetingModal({ open, onClose, defaults = {}, onCreated }: { open: boolean; onClose: () => void; defaults?: ScheduleDefaults; onCreated?: (id: string) => void }) {
@@ -32,6 +38,9 @@ export function ScheduleMeetingModal({ open, onClose, defaults = {}, onCreated }
     e.preventDefault();
     if (!title.trim() || !date || !time) return;
     if (link && !/^https?:\/\//i.test(link.trim())) return toast.push("Meeting link must start with http:// or https://", "danger");
+    // A meeting cannot start in the past. The pickers already refuse it; this catches a typed time.
+    // One minute of grace so "now" is still accepted by the time the form is sent.
+    if (Date.parse(localToIso(date, time)) < Date.now() - 60_000) return toast.push("That date and time have already passed — pick a time from now on.", "danger");
     setLoading(true);
     const supabase = createClient();
     const starts_at = localToIso(date, time);
@@ -73,10 +82,10 @@ export function ScheduleMeetingModal({ open, onClose, defaults = {}, onCreated }
         </Field>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <Field label="Date">
-            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+            <Input type="date" value={date} min={todayLocal()} onChange={(e) => setDate(e.target.value)} required />
           </Field>
           <Field label="Start (IST)">
-            <Input type="time" value={time} onChange={(e) => setTime(e.target.value)} required />
+            <Input type="time" value={time} min={date === todayLocal() ? nowHHMM() : undefined} onChange={(e) => setTime(e.target.value)} required />
           </Field>
           <Field label="Duration" className="col-span-2 sm:col-span-1">
             <Select value={duration} onChange={(e) => setDuration(Number(e.target.value))}>

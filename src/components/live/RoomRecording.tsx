@@ -50,6 +50,10 @@ export function useRoomRecording(args: UseRoomRecordingArgs) {
   const [saved, setSaved] = React.useState<Saved | null>(null);
   const [summaryState, setSummaryState] = React.useState<"idle" | "busy" | "done" | "off" | "failed">("idle");
   const [summaryNote, setSummaryNote] = React.useState("");
+  /* A take whose save failed. It used to be announced by a toast and then dropped — the recording was
+     simply gone (the testers recorded twice and nothing ever reached Recordings). The take is now kept
+     until the person downloads it, retries, or discards it on purpose. */
+  const [failed, setFailed] = React.useState<{ take: RoomRecorderTake; error: string } | null>(null);
 
   const startedAtRef = React.useRef(0);
   const ctxRef = React.useRef({ roomId, roomRow, orgId, meId, meName, roomTitle, lang });
@@ -91,7 +95,7 @@ export function useRoomRecording(args: UseRoomRecordingArgs) {
     async (take: RoomRecorderTake) => {
       const c = ctxRef.current;
       if (!c.roomId || !c.orgId || !c.meId) {
-        toast.push("The recording could not be saved — the room context was lost.", "danger");
+        setFailed({ take, error: "The room context was lost before the recording could be saved." });
         return;
       }
       setSaving(true);
@@ -108,7 +112,9 @@ export function useRoomRecording(args: UseRoomRecordingArgs) {
         orgId: c.orgId,
         ownerId: c.meId,
         blob: take.blob,
-        mime: take.mime,
+        // The bare type ("video/webm"), not the recorder's "video/webm;codecs=vp9,opus": the codec
+        // suffix is not needed to play the file and is one more thing an upload can be refused over.
+        mime: (take.mime || "video/webm").split(";")[0].trim() || "video/webm",
         durationSec: take.durationSec,
         kind: "meeting",
         title,
@@ -133,9 +139,15 @@ export function useRoomRecording(args: UseRoomRecordingArgs) {
       setProgress("");
 
       if ("error" in res) {
-        toast.push(res.error, "danger");
+        setFailed({ take, error: res.error });
+        // Leave a trace in the room's own log so a failure can be diagnosed afterwards.
+        void supabase
+          .from("live_events")
+          .insert({ org_id: c.orgId, room_id: c.roomId, kind: "recording_failed", actor_id: c.meId, actor_name: c.meName, payload: { error: res.error.slice(0, 500), size: take.blob.size, mime: take.mime } })
+          .then(() => null);
         return;
       }
+      setFailed(null);
       setSaved({ id: res.id, title, durationSec: take.durationSec });
       toast.push(`Recording saved · ${fmtDuration(take.durationSec)} — open it from Recordings`, "success");
       await supabase
@@ -145,6 +157,19 @@ export function useRoomRecording(args: UseRoomRecordingArgs) {
     },
     [audienceIds, supabase, toast, transcriptLines]
   );
+
+  function downloadFailed() {
+    if (!failed) return;
+    const url = URL.createObjectURL(failed.take.blob);
+    const a = document.createElement("a");
+    const ext = (failed.take.mime || "").includes("mp4") ? "mp4" : "webm";
+    a.href = url;
+    a.download = `${(ctxRef.current.roomTitle || "meeting").replace(/[^\w\-]+/g, "_")}-recording.${ext}`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  }
 
   const stoppedRef = React.useRef(args.onStopped);
   React.useEffect(() => {
@@ -176,6 +201,26 @@ export function useRoomRecording(args: UseRoomRecordingArgs) {
 
   const dialog = (
     <>
+      <Modal
+        open={!!failed && !saving}
+        onClose={() => { if (window.confirm("Discard this recording? It has not been saved anywhere.")) setFailed(null); }}
+        title="The recording was not saved"
+        width={460}
+        footer={
+          <>
+            <Button size="sm" variant="ghost" onClick={() => { if (window.confirm("Discard this recording? It has not been saved anywhere.")) setFailed(null); }}>Discard</Button>
+            <Button size="sm" variant="secondary" onClick={downloadFailed}>Download recording</Button>
+            <Button size="sm" variant="primary" onClick={() => { const f = failed; if (f) void persist(f.take); }}>Try again</Button>
+          </>
+        }
+      >
+        {failed && (
+          <div className="space-y-2 text-sm">
+            <p>Nothing is lost yet — the recording ({fmtDuration(failed.take.durationSec)}) is still in this tab. Try again, or download it to keep a copy.</p>
+            <p className="text-xs text-danger break-words">{failed.error}</p>
+          </div>
+        )}
+      </Modal>
       <Modal open={saving} onClose={() => {}} title="Saving the recording" width={420}>
         <div className="flex items-center gap-3 py-2">
           <Spinner />

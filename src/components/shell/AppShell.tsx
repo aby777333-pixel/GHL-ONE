@@ -16,6 +16,9 @@ import { BuddyPanel, useBuddy } from "@/components/ai";
 import { LiveProvider } from "@/components/live/LiveProvider";
 import { CollaborateMenu } from "@/components/live/CollaborateMenu";
 import { CollaborateButton } from "@/components/live/CollaborateButton";
+import { useLive } from "@/components/live/liveStore";
+import type { Database } from "@/lib/database.types";
+import { PRESENCE_LABEL } from "@/components/people/types";
 import { ActivityLamp, Blink } from "@/components/providers/ActivityProvider";
 import { ClockWidget } from "@/components/attendance";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
@@ -50,6 +53,8 @@ function useTheme() {
  * Read through `useSyncExternalStore` (same shape as the theme above) so the server snapshot is
  * "open" and the client reads localStorage without a setState-in-effect cascade.
  */
+type Presence = Database["public"]["Enums"]["presence_status"];
+
 const sidebarListeners = new Set<() => void>();
 function subscribeSidebar(cb: () => void) {
   sidebarListeners.add(cb);
@@ -138,6 +143,46 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
     };
   }, [profile.id]);
   const dndActive = !!dndUntil && Date.parse(dndUntil) > nowMs;
+
+  /*
+    The presence dot on your avatar. It read `profile.presence` from the session, which is loaded once by
+    the app layout — and a layout does not re-render on client navigation — so choosing Do Not Disturb in
+    Settings & status, or joining a call (which sets "in a meeting" in the database), left the dot green
+    until a full reload. It now follows your own profile row live (profiles is on the realtime
+    publication), re-reads on focus, and shows the call you are in straight from the live store.
+  */
+  const { active: activeCall } = useLive();
+  const [livePresence, setLivePresence] = React.useState(profile.presence);
+  const [seenSessionPresence, setSeenSessionPresence] = React.useState(profile.presence);
+  if (profile.presence !== seenSessionPresence) {
+    setSeenSessionPresence(profile.presence);
+    setLivePresence(profile.presence);
+  }
+  React.useEffect(() => {
+    const sb = createClient();
+    let alive = true;
+    const reread = () => {
+      sb.from("profiles").select("presence").eq("id", profile.id).maybeSingle().then(({ data }) => {
+        if (alive && data?.presence) setLivePresence(data.presence);
+      });
+    };
+    const chan = sb.channel(`my-presence:${profile.id}`).on("postgres_changes", { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${profile.id}` }, (p) => {
+      const next = (p.new as { presence?: Presence }).presence;
+      if (next) setLivePresence(next);
+    });
+    sb.auth.getSession().then(({ data }) => {
+      if (!alive) return;
+      if (data.session?.access_token) sb.realtime.setAuth(data.session.access_token);
+      chan.subscribe();
+    });
+    window.addEventListener("focus", reread);
+    return () => { alive = false; window.removeEventListener("focus", reread); sb.removeChannel(chan); };
+  }, [profile.id]);
+  const shownPresence: Presence = dndActive
+    ? "dnd"
+    : activeCall
+      ? (["call", "huddle"].includes(activeCall.kind) ? "on_call" : "in_meeting")
+      : livePresence;
   async function setDnd(minutes: number | "tomorrow" | null) {
     let until: string | null = null;
     if (minutes === "tomorrow") {
@@ -206,7 +251,9 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
     window.addEventListener(NOTIFICATIONS_CHANGED, onChanged);
     window.addEventListener("focus", onChanged);
     // presence heartbeat
-    supabase.from("profiles").update({ last_seen_at: new Date().toISOString(), presence: profile.presence === "offline" ? "available" : profile.presence }).eq("id", profile.id).then(() => {});
+    // Only ever lift "offline" back to "available". Writing the session's presence back on every load
+    // could overwrite a newer status (Do Not Disturb, or "in a meeting" set by joining a call).
+    supabase.from("profiles").update({ last_seen_at: new Date().toISOString(), ...(profile.presence === "offline" ? { presence: "available" as const } : {}) }).eq("id", profile.id).then(() => {});
     const hb = setInterval(() => supabase.from("profiles").update({ last_seen_at: new Date().toISOString() }).eq("id", profile.id).then(() => {}), 120000);
     return () => {
       cancelled = true;
@@ -375,9 +422,9 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
               </button>
               <Menu
                 trigger={
-                  <button className="flex items-center gap-1 pl-1 pr-1.5 h-8 rounded-full hover:bg-[var(--neutral-bg)]" title={dndActive ? `Do not disturb until ${fmtTime(dndUntil)}` : undefined}>
+                  <button className="flex items-center gap-1 pl-1 pr-1.5 h-8 rounded-full hover:bg-[var(--neutral-bg)]" title={dndActive ? `Do not disturb until ${fmtTime(dndUntil)}` : PRESENCE_LABEL[shownPresence] || undefined}>
                     <span className="relative inline-flex">
-                      <Avatar name={profile.full_name} src={profile.avatar_url} size={26} presence={dndActive ? "dnd" : profile.presence} />
+                      <Avatar name={profile.full_name} src={profile.avatar_url} size={26} presence={shownPresence} />
                       {dndActive && <span className="absolute -top-1 -left-1 w-4 h-4 rounded-full bg-[var(--violet)] text-white flex items-center justify-center ring-2 ring-[var(--bg-elev)]" aria-label="Do not disturb on"><MoonStar size={9} /></span>}
                     </span>
                     <ChevronDown size={13} className="text-muted hidden sm:block" />
@@ -393,7 +440,7 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
                 */}
                 <div className="px-2.5 py-2 border-b mb-1">
                   <div className="flex items-center gap-2">
-                    <Avatar name={profile.full_name} src={profile.avatar_url} size={28} presence={profile.presence} />
+                    <Avatar name={profile.full_name} src={profile.avatar_url} size={28} presence={shownPresence} />
                     <div className="min-w-0">
                       <div className="text-sm font-medium truncate">{profile.full_name}</div>
                       <div className="text-[11px] text-muted truncate">

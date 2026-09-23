@@ -492,8 +492,24 @@ export function LiveRoom(props: LiveRoomProps) {
     >
       {/* header */}
       <div className="flex items-center gap-2 px-3 h-11 border-b shrink-0 bg-[var(--bg-elev)]">
+        {/* Back no longer hangs up. It used to call leaveAndGo(), so stepping back to check something
+            dropped you out of the meeting. The call lives in the app shell (liveSession), so leaving
+            this page just minimises it to the call bar; only Leave / End for all end it. (Guests see no
+            Back — nothing outside their page could keep their audio alive.) */}
         {!guest && (
-          <Button size="xs" icon variant="ghost" onClick={() => void leaveAndGo()} aria-label="Back"><ArrowLeft size={15} /></Button>
+          <Button
+            size="xs"
+            icon
+            variant="ghost"
+            onClick={() => {
+              if (window.history.length > 1) router.back();
+              else router.push(backHref);
+            }}
+            aria-label="Back — the call keeps running"
+            title="Back — the call keeps running in the call bar"
+          >
+            <ArrowLeft size={15} />
+          </Button>
         )}
         <div className="min-w-0 flex-1">
           <div className="text-sm font-medium truncate flex items-center gap-1.5">

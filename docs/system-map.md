@@ -5,7 +5,7 @@ Generated from the codebase by `npm run system-map`. Structure only — no sourc
 because a name is not an implementation.
 
 Stack: Next.js 16 (App Router, `src/`), React 19, Tailwind v4, Supabase/Postgres with RLS.
-Counted at generation: 92 pages, 27 API endpoints, 203 tables, 425 database functions, 71 migrations.
+Counted at generation: 92 pages, 27 API endpoints, 203 tables, 425 database functions, 72 migrations.
 
 ## Screens (92)
 - /
@@ -223,3 +223,4 @@ The project's own engineering record is `CLAUDE.md`, whose sections are:
 - Fifth test report — ~45 issues across four PDFs (2026-09-23, no migration)
 - Second reset, owners, company-email sign-up, password reset, Inbox archive (2026-09-23, schema 0071)
 - Platform is owners-only (2026-09-23)
+- Sixth test report — meetings, Live, leave, presence (2026-09-23, schema 0072)

@@ -62,6 +62,38 @@ function readSidebar() {
     return false;
   }
 }
+/*
+  Folded sidebar sections (Work, Me & Team, …), by title. The list is long enough to scroll on a laptop,
+  so each titled section folds from its heading and the choice survives a reload. The snapshot is the raw
+  stored string — stable between reads — and parsed by the caller.
+*/
+const navFoldListeners = new Set<() => void>();
+function subscribeNavFold(cb: () => void) {
+  navFoldListeners.add(cb);
+  return () => { navFoldListeners.delete(cb); };
+}
+function readNavFold() {
+  try {
+    return localStorage.getItem("ghl-nav-folded") || "[]";
+  } catch {
+    return "[]";
+  }
+}
+function useNavFold() {
+  const raw = React.useSyncExternalStore(subscribeNavFold, readNavFold, () => "[]");
+  const folded = React.useMemo(() => {
+    try { return new Set<string>(JSON.parse(raw)); } catch { return new Set<string>(); }
+  }, [raw]);
+  const toggleFold = React.useCallback((title: string) => {
+    let cur: string[] = [];
+    try { cur = JSON.parse(readNavFold()); } catch {}
+    const next = cur.includes(title) ? cur.filter((t) => t !== title) : [...cur, title];
+    try { localStorage.setItem("ghl-nav-folded", JSON.stringify(next)); } catch {}
+    navFoldListeners.forEach((cb) => cb());
+  }, []);
+  return { folded, toggleFold };
+}
+
 function useSidebarCollapsed() {
   const collapsed = React.useSyncExternalStore(subscribeSidebar, readSidebar, () => false);
   const toggle = React.useCallback(() => {
@@ -196,6 +228,7 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sections, pathname]);
   const isActive = (href: string) => href === activeHref;
+  const { folded, toggleFold } = useNavFold();
   const badgeFor = (b?: "inbox" | "approvals" | "chat") => (b ? counts[b] : 0);
 
   const Sidebar = (
@@ -210,11 +243,29 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
         </button>
       </div>
       <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-4">
-        {sections.map((s, i) => (
+        {sections.map((s, i) => {
+          const isFolded = !!s.title && folded.has(s.title);
+          // A folded section still shows the page you are on, so the sidebar never hides where you are,
+          // and its unread counts move onto the heading so nothing waiting for you disappears.
+          const items = isFolded ? s.items.filter((it) => isActive(it.href)) : s.items;
+          const hidden = isFolded ? s.items.reduce((a, it) => a + badgeFor(it.badge), 0) : 0;
+          return (
           <div key={i}>
-            {s.title && <div className="eyebrow px-2.5 mb-1.5 mt-2">{s.title}</div>}
+            {s.title && (
+              <button
+                type="button"
+                onClick={() => toggleFold(s.title!)}
+                aria-expanded={!isFolded}
+                className="w-full flex items-center gap-1 eyebrow px-2.5 mb-1.5 mt-2 hover:text-[var(--fg)] transition-colors"
+                title={isFolded ? `Show ${s.title}` : `Hide ${s.title}`}
+              >
+                <span>{s.title}</span>
+                {hidden > 0 && <span className="pill tone-brand !normal-case !tracking-normal">{hidden > 99 ? "99+" : hidden}</span>}
+                <ChevronDown size={12} className={cn("ml-auto shrink-0 transition-transform", isFolded && "-rotate-90")} />
+              </button>
+            )}
             <div className="space-y-0.5">
-              {s.items.map((it) => {
+              {items.map((it) => {
                 const n = badgeFor(it.badge);
                 return (
                   <Link key={it.href} href={it.href} className="navlink" data-active={isActive(it.href)} onClick={() => setMobileOpen(false)}>
@@ -226,7 +277,8 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
               })}
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
       {/*
         The signed-in person used to be shown here as well as in the topbar menu — the same avatar,

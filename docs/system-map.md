@@ -5,9 +5,9 @@ Generated from the codebase by `npm run system-map`. Structure only — no sourc
 because a name is not an implementation.
 
 Stack: Next.js 16 (App Router, `src/`), React 19, Tailwind v4, Supabase/Postgres with RLS.
-Counted at generation: 91 pages, 27 API endpoints, 203 tables, 425 database functions, 70 migrations.
+Counted at generation: 92 pages, 27 API endpoints, 203 tables, 425 database functions, 71 migrations.
 
-## Screens (91)
+## Screens (92)
 - /
 - /academy
 - /academy/[id]
@@ -18,6 +18,7 @@ Counted at generation: 91 pages, 27 API endpoints, 203 tables, 425 database func
 - /approvals
 - /approvals/[id]
 - /attendance
+- /auth/update-password
 - /automations
 - /automations/[id]
 - /boards
@@ -219,3 +220,5 @@ The project's own engineering record is `CLAUDE.md`, whose sections are:
 - Clearing orphaned storage without a service-role key
 - Sam Sundaram as a Platform Owner — and a half state worth knowing about
 - Speech input duplicated what was said, and Buddy never knew to answer in Tamil
+- Fifth test report — ~45 issues across four PDFs (2026-09-23, no migration)
+- Second reset, owners, company-email sign-up, password reset, Inbox archive (2026-09-23, schema 0071)

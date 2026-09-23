@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Inbox, CheckCheck, AlertOctagon, Zap, CheckSquare, AtSign, Clock, Info, Sparkles, AlertTriangle, ArrowRightLeft } from "lucide-react";
+import { Archive, MailOpen, Inbox, CheckCheck, AlertOctagon, Zap, CheckSquare, AtSign, Clock, Info, Sparkles, AlertTriangle, ArrowRightLeft } from "lucide-react";
 import { Button, Card, EmptyState, PageHeader } from "@/components/ui";
 import { KIND_ICON, announceNotificationsChanged } from "@/components/shell/NotificationsPanel";
 import { PersonChip, PriorityPill, StatusPill } from "@/components/tasks/TaskBits";
@@ -36,7 +36,10 @@ export function InboxClient({ initial, dueTasks, cancelledMeetingIds = [] }: { i
   const { profile, people } = useSession();
   const router = useRouter();
   const [items, setItems] = React.useState<Notification[]>(initial);
-  const [onlyUnread, setOnlyUnread] = React.useState(false);
+  /* Inbox holds what you have not read; once read, a notification moves to Archive, where it can be
+     opened again or marked unread to bring it back. (It used to be All / Unread over one list.) */
+  const [view, setView] = React.useState<"inbox" | "archive">("inbox");
+  const archive = view === "archive";
   const [now] = React.useState(() => Date.now());
   const cancelledMeetings = React.useMemo(() => new Set(cancelledMeetingIds), [cancelledMeetingIds]);
 
@@ -59,7 +62,8 @@ export function InboxClient({ initial, dueTasks, cancelledMeetingIds = [] }: { i
     };
   }, [profile.id]);
 
-  const visible = onlyUnread ? items.filter((i) => !i.read_at) : items;
+  const visible = archive ? items.filter((i) => !!i.read_at) : items.filter((i) => !i.read_at);
+  const archivedCount = items.filter((i) => !!i.read_at).length;
 
   const rows = React.useMemo(() => {
     const byKind = new Map<Kind, Row[]>();
@@ -118,7 +122,17 @@ export function InboxClient({ initial, dueTasks, cancelledMeetingIds = [] }: { i
     { label: "Due 48h", n: dueSoon.length, tone: "text-orange" },
   ];
 
-  const nothing = totalUnread === 0 && visible.length === 0 && dueTasks.length === 0;
+  const nothing = archive ? visible.length === 0 : totalUnread === 0 && dueTasks.length === 0;
+
+  async function markUnread(row: Row) {
+    const ids = row.items.map((x) => x.id);
+    const { data, error } = await createClient().from("notifications").update({ read_at: null }).in("id", ids).select("id");
+    if (error || !data?.length) return;
+    const back = new Set(data.map((d) => d.id));
+    setItems((s) => s.map((x) => (back.has(x.id) ? { ...x, read_at: null } : x)));
+    announceNotificationsChanged();
+    router.refresh();
+  }
 
   return (
     <div className="page page-narrow">
@@ -133,20 +147,21 @@ export function InboxClient({ initial, dueTasks, cancelledMeetingIds = [] }: { i
               was in, so it read as a status rather than a choice — you could not tell it was a
               filter, let alone which way it was set.
             */}
-            <div className="inline-flex rounded-[var(--radius-sm)] border overflow-hidden" role="group" aria-label="Filter notifications">
-              {([false, true] as const).map((v) => (
+            <div className="inline-flex rounded-[var(--radius-sm)] border overflow-hidden" role="group" aria-label="Inbox or archive">
+              {(["inbox", "archive"] as const).map((v) => (
                 <button
-                  key={String(v)}
+                  key={v}
                   type="button"
-                  onClick={() => setOnlyUnread(v)}
-                  aria-pressed={onlyUnread === v}
+                  onClick={() => setView(v)}
+                  aria-pressed={view === v}
                   className={cn(
-                    "px-2.5 h-8 text-[13px] transition-colors",
-                    onlyUnread === v ? "bg-[var(--brand)] text-white font-medium" : "bg-[var(--bg)] hover:bg-[var(--neutral-bg)]"
+                    "px-2.5 h-8 text-[13px] transition-colors inline-flex items-center gap-1",
+                    view === v ? "bg-[var(--brand)] text-white font-medium" : "bg-[var(--bg)] hover:bg-[var(--neutral-bg)]"
                   )}
                 >
-                  {v ? "Unread" : "All"}
-                  {v && totalUnread > 0 ? <span className="ml-1.5 opacity-80">{totalUnread}</span> : null}
+                  {v === "archive" ? <><Archive size={13} /> Archive</> : "Inbox"}
+                  {v === "inbox" && totalUnread > 0 ? <span className="ml-0.5 opacity-80">{totalUnread}</span> : null}
+                  {v === "archive" && archivedCount > 0 ? <span className="ml-0.5 opacity-80">{archivedCount}</span> : null}
                 </button>
               ))}
             </div>
@@ -155,10 +170,10 @@ export function InboxClient({ initial, dueTasks, cancelledMeetingIds = [] }: { i
         }
       />
 
-      <InboxDigest className="mb-[var(--s3)]" />
+      {!archive && <InboxDigest className="mb-[var(--s3)]" />}
 
       {/* Today's focus */}
-      <Card className="px-[var(--s4)] py-[var(--s3)] mb-[var(--s3)]">
+      {!archive && <Card className="px-[var(--s4)] py-[var(--s3)] mb-[var(--s3)]">
         <div className="flex items-center gap-2 mb-2"><Sparkles size={14} className="text-[var(--accent)]" /><span className="eyebrow">Today&apos;s focus</span></div>
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
           {focus.map((f) => (
@@ -168,11 +183,15 @@ export function InboxClient({ initial, dueTasks, cancelledMeetingIds = [] }: { i
             </div>
           ))}
         </div>
-      </Card>
+      </Card>}
 
       {nothing && (
         <Card>
-          <EmptyState icon={<Inbox size={18} />} title="Inbox zero" hint="Assignments, approvals, mentions and deadlines will land here, ranked by urgency." />
+          {archive ? (
+            <EmptyState icon={<Archive size={18} />} title="Archive is empty" hint="Notifications you have read move here, so the inbox only holds what still needs you." />
+          ) : (
+            <EmptyState icon={<Inbox size={18} />} title="Inbox zero" hint="Assignments, approvals, mentions and deadlines will land here, ranked by urgency. Read items move to Archive." />
+          )}
         </Card>
       )}
 
@@ -186,7 +205,7 @@ export function InboxClient({ initial, dueTasks, cancelledMeetingIds = [] }: { i
             showed the whole deadline pile and looked broken. Unread now means the same thing in
             every section: only things you have not read.
           */
-          const taskRows = isDeadline && !onlyUnread ? dueTasks : [];
+          const taskRows = isDeadline && !archive ? dueTasks : [];
           if (list.length === 0 && taskRows.length === 0) return null;
           const unreadIds = list.flatMap((r) => r.items.filter((x) => !x.read_at).map((x) => x.id));
           return (
@@ -228,6 +247,18 @@ export function InboxClient({ initial, dueTasks, cancelledMeetingIds = [] }: { i
                         {r.latest.actor_id && <PersonChip id={r.latest.actor_id} size={14} />}
                         <span className="num" title={fmtDate(r.latest.created_at, true)}>{ago(r.latest.created_at)}</span>
                         {r.items.length > 1 && <span className="pill tone-neutral">{r.items.length}</span>}
+                        {archive && (
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            onClick={(e) => { e.stopPropagation(); void markUnread(r); }}
+                            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); void markUnread(r); } }}
+                            className="ml-auto inline-flex items-center gap-1 text-[11px] link"
+                            title="Move back to the inbox"
+                          >
+                            <MailOpen size={11} /> Mark unread
+                          </span>
+                        )}
                       </span>
                     </span>
                     {r.unread && <span className="w-2 h-2 rounded-full bg-[var(--brand-2)] mt-2 shrink-0" />}

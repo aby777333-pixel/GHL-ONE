@@ -11,7 +11,20 @@ import { Suspense } from "react";
 function LoginInner() {
   const params = useSearchParams();
   const next = params.get("next") || "/";
-  const [mode, setMode] = React.useState<"signin" | "signup">("signin");
+  const [mode, setMode] = React.useState<"signin" | "signup" | "reset">(() => (params.get("reset") === "1" ? "reset" : "signin"));
+  const [resetSent, setResetSent] = React.useState<string | null>(null);
+
+  /*
+    An email link (sign-up confirmation, password reset) that lands on the site root without a session is
+    sent here by the proxy with its `?code=` still attached. Hand it to /auth/callback, which turns it into
+    a session — and sends a password reset on to "choose a new password".
+  */
+  const code = params.get("code");
+  React.useEffect(() => {
+    if (!code) return;
+    const q = new URLSearchParams({ code, next: next.startsWith("/") ? next : "/" });
+    window.location.replace(`/auth/callback?${q}`);
+  }, [code, next]);
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [name, setName] = React.useState("");
@@ -29,6 +42,13 @@ function LoginInner() {
     setErr(null);
     setLoading(true);
     const supabase = createClient();
+    if (mode === "reset") {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/auth/callback?next=/auth/update-password` });
+      setLoading(false);
+      if (error) return setErr(error.message);
+      setResetSent(email);
+      return;
+    }
     if (mode === "signin") {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       setLoading(false);
@@ -74,7 +94,20 @@ function LoginInner() {
           </div>
         </div>
         <div className="card p-[var(--s4)]" style={{ boxShadow: "0 24px 60px rgba(2,6,23,.45), var(--shadow-lg)" }}>
-        {sentTo ? (
+        {resetSent ? (
+          <div className="text-center py-[var(--s2)]">
+            <div className="w-12 h-12 rounded-full sunken inline-flex items-center justify-center text-[var(--success)] mb-[var(--s3)]">
+              <MailCheck size={22} />
+            </div>
+            <div className="h2 mb-1">Check your email</div>
+            <p className="text-sm text-muted">
+              If <span className="font-medium text-[var(--fg)] break-all">{resetSent}</span> has an account, a link to choose a new password is on its way. Open it on this device.
+            </p>
+            <Button variant="primary" size="lg" className="w-full mt-[var(--s4)]" onClick={() => { setResetSent(null); setMode("signin"); }}>
+              Back to sign in
+            </Button>
+          </div>
+        ) : sentTo ? (
           <div className="text-center py-[var(--s2)]">
             <div className="w-12 h-12 rounded-full sunken inline-flex items-center justify-center text-[var(--success)] mb-[var(--s3)]">
               <MailCheck size={22} />
@@ -85,8 +118,8 @@ function LoginInner() {
               activate your account, then sign in.
             </p>
             <p className="text-xs text-muted mt-3">
-              Nothing arrived? Give it a minute and check your spam folder. New accounts also wait for admin activation
-              unless you were pre-invited.
+              Nothing arrived? Give it a minute and check your spam folder. A @ghlindiaventures.com address gets straight in
+              once confirmed; any other address waits for an administrator to approve it.
             </p>
             <Button
               variant="primary"
@@ -99,8 +132,8 @@ function LoginInner() {
           </div>
         ) : (
           <>
-          <div className="h2 mb-1">{mode === "signin" ? "Sign in" : "Create your account"}</div>
-          <div className="text-sm text-muted mb-5">{mode === "signin" ? "Use your GHL India Ventures work email." : "New accounts wait for admin activation unless pre-invited."}</div>
+          <div className="h2 mb-1">{mode === "signin" ? "Sign in" : mode === "reset" ? "Reset your password" : "Create your account"}</div>
+          <div className="text-sm text-muted mb-5">{mode === "signin" ? "Use your GHL India Ventures work email." : mode === "reset" ? "We will email you a link to choose a new password." : "Use your @ghlindiaventures.com email to get straight in once you confirm it. Other addresses wait for approval."}</div>
           <form onSubmit={submit} className="space-y-3">
             {mode === "signup" && (
               <Field label="Full name">
@@ -110,12 +143,19 @@ function LoginInner() {
             <Field label="Work email">
               <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@company.com" autoComplete="email" />
             </Field>
-            <Field label="Password">
-              <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} placeholder="••••••••" autoComplete={mode === "signin" ? "current-password" : "new-password"} />
-            </Field>
+            {mode !== "reset" && (
+              <Field label="Password">
+                <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} placeholder="••••••••" autoComplete={mode === "signin" ? "current-password" : "new-password"} />
+              </Field>
+            )}
+            {mode === "signin" && (
+              <div className="text-right -mt-1">
+                <button type="button" className="link text-xs" onClick={() => { setErr(null); setMode("reset"); }}>Forgot password?</button>
+              </div>
+            )}
             {err && <div className="text-sm text-danger">{err}</div>}
             <Button type="submit" variant="primary" size="lg" className="w-full mt-2" loading={loading}>
-              {mode === "signin" ? "Sign in" : "Create account"}
+              {mode === "signin" ? "Sign in" : mode === "reset" ? "Send reset link" : "Create account"}
             </Button>
           </form>
           <div className="text-sm text-muted mt-4 text-center">
@@ -126,8 +166,8 @@ function LoginInner() {
               </>
             ) : (
               <>
-                Already have an account?{" "}
-                <button className="link" onClick={() => setMode("signin")}>Sign in</button>
+                {mode === "reset" ? "Remembered it?" : "Already have an account?"}{" "}
+                <button className="link" onClick={() => { setErr(null); setMode("signin"); }}>Sign in</button>
               </>
             )}
           </div>

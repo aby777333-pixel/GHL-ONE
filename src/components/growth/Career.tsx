@@ -118,10 +118,12 @@ export function CareerCard({ person, self, canRequestMentor }: { person: Person;
           </div>
         </div>
 
+        {/* Section headings are real headings (13px semibold), not the faint uppercase eyebrow they were —
+            Training, Goals, I want to learn and Mentorship did not stand apart from their content. */}
         {/* Training */}
         <section>
           <div className="flex items-center justify-between mb-1.5">
-            <div className="eyebrow inline-flex items-center gap-1.5"><GraduationCap size={11} /> Training {enrollments ? `· ${completed.length} completed` : ""}</div>
+            <div className="text-[13px] font-semibold text-[var(--fg)] inline-flex items-center gap-1.5"><GraduationCap size={14} /> Training {enrollments ? `· ${completed.length} completed` : ""}</div>
             <Link href="/academy" className="text-[11px] text-muted hover:underline">Academy →</Link>
           </div>
           {loading ? <Skeleton className="h-5 w-2/3" /> : enrollments!.length === 0 ? (
@@ -149,7 +151,7 @@ export function CareerCard({ person, self, canRequestMentor }: { person: Person;
         {/* Goals */}
         <section className="-mx-[var(--s3)]">
           <div className="flex items-center justify-between mb-0.5 px-[var(--s3)]">
-            <div className="eyebrow inline-flex items-center gap-1.5"><Target size={11} /> Goals</div>
+            <div className="text-[13px] font-semibold text-[var(--fg)] inline-flex items-center gap-1.5"><Target size={14} /> Goals</div>
             <Link href={self ? "/goals?scope=mine" : "/goals"} className="text-[11px] text-muted hover:underline">All goals →</Link>
           </div>
           <PersonGoals userId={person.id} self={self} />
@@ -159,7 +161,7 @@ export function CareerCard({ person, self, canRequestMentor }: { person: Person;
         {self && (
           <section>
             <div className="flex items-center justify-between mb-1.5">
-              <div className="eyebrow inline-flex items-center gap-1.5"><Sparkles size={11} /> I want to learn</div>
+              <div className="text-[13px] font-semibold text-[var(--fg)] inline-flex items-center gap-1.5"><Sparkles size={14} /> I want to learn</div>
               <span className="text-[11px] text-muted">Only you see this list</span>
             </div>
             <div className="flex flex-wrap gap-1.5 items-center">
@@ -183,7 +185,7 @@ export function CareerCard({ person, self, canRequestMentor }: { person: Person;
         {/* Mentorship */}
         <section>
           <div className="flex items-center justify-between mb-1.5">
-            <div className="eyebrow inline-flex items-center gap-1.5"><HeartHandshake size={11} /> Mentorship</div>
+            <div className="text-[13px] font-semibold text-[var(--fg)] inline-flex items-center gap-1.5"><HeartHandshake size={14} /> Mentorship</div>
             {canRequestMentor && <button className="text-[11px] link" onClick={() => setRequesting(true)}>+ Request a mentor</button>}
           </div>
           {loading ? <Skeleton className="h-5 w-1/2" /> : (

@@ -51,12 +51,28 @@ export function WhatIfAbsent({ userId, from: initialFrom, to: initialTo, title =
 
   return (
     <Card>
+      {/* The date range and the risk verdict used to share the header row with the title, so on a phone
+          all three were squeezed into one line and wrapped into fragments. They now have a row of their
+          own under the title, which wraps cleanly at any width. */}
       <CardHeader
         title={<span className="inline-flex items-center gap-2"><UserX size={15} /> {title}</span>}
-        subtitle={w && !w.forbidden ? <span className="inline-flex items-center gap-1.5">Risk <Pill tone={risk === "high" ? "tone-danger" : risk === "medium" ? "tone-warn" : "tone-success"} className="capitalize">{risk}</Pill> for {fmtDate(from)} → {fmtDate(to)}</span> : "Responsibilities, deadlines, approvals and people who would be blocked"}
-        action={!fixedRange ? <span className="flex items-center gap-1"><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="!h-8 !text-xs !w-auto" /><span className="text-muted text-xs">→</span><Input type="date" value={to} min={from} onChange={(e) => setTo(e.target.value)} className="!h-8 !text-xs !w-auto" /></span> : undefined}
+        subtitle="Responsibilities, deadlines, approvals and people who would be blocked"
       />
       <div className="px-[var(--s4)] pb-[var(--s4)]">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mb-3 text-xs">
+          {!fixedRange ? (
+            <span className="flex items-center gap-1">
+              <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="!h-8 !text-xs !w-auto" aria-label="Away from" />
+              <span className="text-muted">→</span>
+              <Input type="date" value={to} min={from} onChange={(e) => setTo(e.target.value)} className="!h-8 !text-xs !w-auto" aria-label="Away until" />
+            </span>
+          ) : (
+            <span className="num text-muted">{fmtDate(from)} → {fmtDate(to)}</span>
+          )}
+          {w && !w.forbidden && (
+            <span className="inline-flex items-center gap-1.5">Risk <Pill tone={risk === "high" ? "tone-danger" : risk === "medium" ? "tone-warn" : "tone-success"} className="capitalize">{risk}</Pill></span>
+          )}
+        </div>
         {!w ? <div className="space-y-2"><Skeleton /><Skeleton /><Skeleton /></div> : w.forbidden ? <div className="text-sm text-muted">Only the person, their manager and leadership can see this.</div> : (
           <div className="space-y-3 text-sm">
             {noBackup.length > 0 ? (

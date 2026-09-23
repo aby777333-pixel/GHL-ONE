@@ -5,9 +5,9 @@ Generated from the codebase by `npm run system-map`. Structure only — no sourc
 because a name is not an implementation.
 
 Stack: Next.js 16 (App Router, `src/`), React 19, Tailwind v4, Supabase/Postgres with RLS.
-Counted at generation: 90 pages, 27 API endpoints, 203 tables, 425 database functions, 68 migrations.
+Counted at generation: 91 pages, 27 API endpoints, 203 tables, 425 database functions, 70 migrations.
 
-## Screens (90)
+## Screens (91)
 - /
 - /academy
 - /academy/[id]
@@ -58,6 +58,7 @@ Counted at generation: 90 pages, 27 API endpoints, 203 tables, 425 database func
 - /leave
 - /live
 - /live/[id]
+- /live/[id]/history
 - /live/guest/[token]
 - /login
 - /meetings
@@ -160,10 +161,10 @@ access_event_summary, access_findings, access_request_after_change, access_reque
 
 ## Front-end areas
 Components by area: academy, access, admin, ai, approvals, attendance, auth, automations, board, bookings, broadcasts, calendar, chat, command, commitments, common, connect, decisions, departments, docs, events, experiments, files, goals, growth, help, home, ideas, inbox, intel, jobs, leave, live, meetings, mywork, notifications, officehours, people, platform, policies, projects, providers, pulse, questions, recordings, requests, retros, shell, standups, status, tasks, ui, visitors, wiki, workforce
-Shared libraries: ai/buddy.ts, ai/buddyPrompts.ts, ai/client.ts, ai/context.ts, ai/memory.ts, ai/models.ts, ai/orchestrator.ts, ai/pricing.ts, ai/prompts.ts, ai/route.ts, ai/systemMap.ts, ai/types.ts, connectPerms.ts, database.types.ts, live/client.ts, live/livekit.ts, live/types.ts, permissions.ts, push/client.ts, push/server.ts, screens.ts, session.ts, supabase/client.ts, supabase/server.ts, utils.ts
+Shared libraries: ai/buddy.ts, ai/buddyPrompts.ts, ai/client.ts, ai/context.ts, ai/memory.ts, ai/models.ts, ai/orchestrator.ts, ai/pricing.ts, ai/prompts.ts, ai/route.ts, ai/systemMap.ts, ai/types.ts, connectPerms.ts, database.types.ts, live/client.ts, live/livekit.ts, live/types.ts, permissions.ts, push/client.ts, push/server.ts, screens.ts, session.ts, skills.ts, speech.ts, supabase/client.ts, supabase/server.ts, utils.ts
 
 ## Environment variables read by the app
-AI_MODEL, AI_ROUTER, ANTHROPIC_API_KEY, CONNECT_FROM_EMAIL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET, LIVEKIT_URL, NEXT_PUBLIC_APP_URL, NEXT_PUBLIC_LIVEKIT_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_VAPID_PUBLIC_KEY, PUSH_HOOK_SECRET, RESEND_API_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT
+AI_MODEL, AI_ROUTER, ANTHROPIC_API_KEY, CONNECT_FROM_EMAIL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET, LIVEKIT_URL, NEXT_PUBLIC_APP_TIMEZONE, NEXT_PUBLIC_APP_URL, NEXT_PUBLIC_LIVEKIT_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_VAPID_PUBLIC_KEY, PUSH_HOOK_SECRET, RESEND_API_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT
 
 ## How each area works
 The project's own engineering record is `CLAUDE.md`, whose sections are:
@@ -205,5 +206,16 @@ The project's own engineering record is `CLAUDE.md`, whose sections are:
 - Buddy memory with provenance — stage 2 (schema 0062)
 - Buddy stages 3-5 — models, the learning loop, the console, verified actions (schema 0063-0064)
 - Buddy: proactive, specialists, the org brain and the system map (schema 0066–0068)
+- /profile was a 404 that notifications linked to
 - Read aloud stopped after the first answer
 - UI/UX audit — keyboard focus was invisible everywhere (WCAG 2.4.7)
+- Mobile: `overflow-x: clip` was hiding missing content, not preventing it
+- The top bar overflowed the viewport on a phone
+- The app installs from the browser (PWA)
+- A cast hid a dead Buddy tool — and the check that now catches it
+- The server was in UTC and the people are in IST (React #418)
+- Go-live data reset (2026-09-18)
+- Push now fires from ghl-one — and a warning about reading Netlify secrets
+- Clearing orphaned storage without a service-role key
+- Sam Sundaram as a Platform Owner — and a half state worth knowing about
+- Speech input duplicated what was said, and Buddy never knew to answer in Tamil

@@ -43,7 +43,7 @@ export default async function CommandPage({ searchParams }: { searchParams: Prom
     supabase.from("projects").select("id,name,status,due_date,progress,department_id,owner_id,priority,classification").eq("archived", false).not("status", "in", "(completed,cancelled)").order("due_date", { ascending: true, nullsFirst: false }).limit(60),
     supabase.from("approvals").select("id,title,type,created_at,approver_id,requested_by,priority,project_id,due_date").eq("status", "pending").order("created_at").limit(100),
     supabase.from("milestones").select("id,title,due_date,project_id,completed_at,project:projects(name)").is("completed_at", null).gte("due_date", startOfDay.slice(0, 10)).lte("due_date", in14).order("due_date").limit(20),
-    supabase.from("meetings").select("id,title,starts_at,ends_at,project_id,organizer_id").gte("starts_at", startOfDay).lte("starts_at", new Date(now.getTime() + 86400000).toISOString()).order("starts_at").limit(20),
+    supabase.from("meetings").select("id,title,starts_at,ends_at,project_id,organizer_id").gte("starts_at", startOfDay).lte("starts_at", new Date(now.getTime() + 86400000).toISOString()).is("cancelled_at", null).order("starts_at").limit(20),
     supabase.from("decisions").select("id,title,decided_at,decided_by,project_id").order("decided_at", { ascending: false }).limit(8),
     supabase.from("project_risks").select("id,title,severity,project_id,owner_id,mitigation,project:projects(name)").is("resolved_at", null).order("severity").limit(20),
     supabase.from("audit_logs").select("id,action,entity_type,entity_id,summary,actor_id,created_at,project_id,task_id").order("created_at", { ascending: false }).limit(40),

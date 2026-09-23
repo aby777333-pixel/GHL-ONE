@@ -67,7 +67,7 @@ export function RoomGate({
     return (
       <Gate icon={<DoorOpen size={22} />} tone="text-muted" title="This room has ended" hint="The notes, decisions and tasks from it are kept in the room history." backHref={backHref}>
         {roomId && !guest && (
-          <Button size="sm" variant="primary" onClick={() => router.push(`/live?room=${roomId}`)}>Open the history</Button>
+          <Button size="sm" variant="primary" onClick={() => router.push(`/live/${roomId}/history`)}>Open the history</Button>
         )}
       </Gate>
     );

@@ -14,6 +14,7 @@ import type { StageMode } from "@/lib/live/types";
 import type { PeerView } from "./useLiveKit";
 import { AudioSink, VideoTile, useTrackElement } from "./VideoTile";
 import { AnnotationLayer, AnnotationToolbar, type AnnotKind, type Pointer, type Stroke } from "./Annotations";
+import { RoomLinkPicker, type RoomLinkContext } from "./RoomLinkPicker";
 
 export const STAGE_MODES: { key: StageMode; label: string; icon: React.ComponentType<{ size?: number }> }[] = [
   { key: "video", label: "Video", icon: LayoutGrid },
@@ -91,6 +92,9 @@ export type StageProps = {
   /** Board / doc linked to this room (owned by other agents' pages — we link out). */
   boardId?: string | null;
   docId?: string | null;
+  /** Lets a member create or link a board / document for this room. Absent for guests. */
+  link?: RoomLinkContext | null;
+  onLinked?: (kind: "board" | "doc", id: string) => void;
   canWhiteboard?: boolean;
   /**
    * Render the remote-audio sink here. Only ONE place in the app may own it or every voice doubles:
@@ -243,11 +247,15 @@ export function Stage(props: StageProps) {
             <EmptyState
               icon={<PencilRuler size={20} />}
               title="GHL BOARD"
-              hint={boardId ? "The whiteboard for this room opens in its own tab so you keep the call on screen." : "No board is linked to this room yet. Open GHL BOARD and pick “Use in this room”."}
+              hint={boardId ? "The whiteboard for this room opens in its own tab so you keep the call on screen." : props.link ? "No board is linked to this room yet. Create one, or bring in a board you already have." : "No board is linked to this room yet."}
               action={
-                <Button variant="primary" size="sm" onClick={() => window.open(boardId ? `/boards/${boardId}` : "/boards", "_blank", "noopener")}>
-                  <ExternalLink size={14} /> {boardId ? "Open the board" : "Open GHL BOARD"}
-                </Button>
+                boardId || !props.link ? (
+                  <Button variant="primary" size="sm" onClick={() => window.open(boardId ? `/boards/${boardId}` : "/boards", "_blank", "noopener")}>
+                    <ExternalLink size={14} /> {boardId ? "Open the board" : "Open GHL BOARD"}
+                  </Button>
+                ) : (
+                  <RoomLinkPicker kind="board" ctx={props.link} onLinked={(id) => props.onLinked?.("board", id)} />
+                )
               }
             />
           </div>
@@ -258,12 +266,17 @@ export function Stage(props: StageProps) {
             <EmptyState
               icon={<FileText size={20} />}
               title="Live document"
-              hint={docId ? "The shared document opens in a new tab; the Notes tab here stays in sync with the room." : "No document is linked to this room. Use the Notes tab for shared notes."}
+              hint={docId ? "The shared document opens in a new tab; the Notes tab here stays in sync with the room." : props.link ? "No document is linked to this room. Create one, link one you have, or use the Notes tab for quick shared notes." : "No document is linked to this room. Use the Notes tab for shared notes."}
               action={
                 docId ? (
                   <Link href={`/docs/${docId}`} target="_blank" className="btn btn-primary btn-sm">
                     <ExternalLink size={14} /> Open the document
                   </Link>
+                ) : props.link ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <RoomLinkPicker kind="doc" ctx={props.link} onLinked={(id) => props.onLinked?.("doc", id)} />
+                    <Button size="sm" variant="ghost" onClick={props.onOpenNotes}>Open shared notes</Button>
+                  </div>
                 ) : (
                   <Button size="sm" onClick={props.onOpenNotes}>Open shared notes</Button>
                 )

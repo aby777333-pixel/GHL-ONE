@@ -13,7 +13,7 @@ import { ago, cn, isAdminRole, type Channel } from "@/lib/utils";
 import { asVisibility, VISIBILITY_META, untilLabel, type ChannelType } from "./visibility";
 import { CreateRoomModal } from "./CreateRoomModal";
 import { RecognitionWall } from "@/components/growth/Recognition";
-import { asDeptStatus, DEPT_STATUS_META, fmtRemaining, slaRemaining, type HelpRequest } from "@/components/help/lib";
+import { deptBadge, fmtRemaining, slaRemaining, type HelpRequest } from "@/components/help/lib";
 
 export type Availability = {
   department_id: string; name: string; slug: string; color: string; status: string; on_duty_user_id: string | null;
@@ -138,7 +138,10 @@ export function CommonHub({ data }: { data: CommonHubData }) {
         )}
       </section>
 
-      <div className="grid gap-[var(--s5)] xl:grid-cols-[1.618fr_1fr]">
+      {/* Stacked, not side by side: the two halves are rarely the same height, so a short "Who needs
+          help" beside a one-column stack of department cards left most of the left side empty. Full
+          width lets the department cards flow across columns instead of down one narrow strip. */}
+      <div className="grid gap-[var(--s5)]">
         {/* Who needs help */}
         <section className="min-w-0">
           <div className="flex items-center justify-between mb-[var(--s3)] gap-2">
@@ -193,7 +196,7 @@ export function CommonHub({ data }: { data: CommonHubData }) {
             <div className="h2 inline-flex items-center gap-2"><Building2 size={18} className="text-muted" /> Department availability</div>
             <div className="text-xs text-muted mt-0.5">Right now, across the company.</div>
           </div>
-          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
             {data.availability.map((a) => (
               <AvailabilityCard key={a.department_id} a={a} />
             ))}
@@ -261,8 +264,7 @@ export function CommonHub({ data }: { data: CommonHubData }) {
 
 export function AvailabilityCard({ a, compact }: { a: Availability; compact?: boolean }) {
   const { people } = useSession();
-  const status = asDeptStatus(a.status);
-  const meta = DEPT_STATUS_META[status];
+  const meta = deptBadge(a);
   const onDuty = a.on_duty_user_id ? people.find((p) => p.id === a.on_duty_user_id) : undefined;
   return (
     <Link href={`/departments/${a.slug}`} className="card card-hover p-3 flex items-center gap-3 min-w-0" style={{ borderLeft: `3px solid ${a.color}` }}>
@@ -273,7 +275,7 @@ export function AvailabilityCard({ a, compact }: { a: Availability; compact?: bo
           <Pill tone={meta.tone}>{meta.label}</Pill>
         </div>
         <div className="flex items-center gap-x-2 gap-y-0.5 flex-wrap text-[11px] text-muted mt-1 num">
-          <span className="text-success">{a.available} available</span>
+          <span className={a.available ? "text-success" : undefined}>{a.available} available</span>
           <span>· {a.busy} busy</span>
           {a.on_leave > 0 && <span>· {a.on_leave} on leave</span>}
           {!compact && a.open_requests > 0 && <span>· {a.open_requests} open request{a.open_requests === 1 ? "" : "s"}</span>}

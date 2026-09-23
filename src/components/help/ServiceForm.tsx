@@ -10,7 +10,7 @@ import { useSession } from "@/components/providers/SessionProvider";
 import { Blink } from "@/components/providers/ActivityProvider";
 import { bytes, cn, type TaskPriority } from "@/lib/utils";
 import type { Availability } from "@/components/common/CommonHub";
-import { asDeptStatus, DEPT_STATUS_META, parseSchema, slaLabel, type FormField, type HelpAttachment, type Service } from "./lib";
+import { asDeptStatus, AVAILABLE_PRESENCE, deptBadge, parseSchema, slaLabel, type FormField, type HelpAttachment, type Service } from "./lib";
 
 const SOMETHING_ELSE = "__other__";
 const MAX_FILE = 25 * 1024 * 1024;
@@ -46,7 +46,7 @@ export function ServiceForm({ availability, services, initialDept, initialServic
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 stagger">
             {availability.map((a) => {
-              const st = asDeptStatus(a.status);
+              const badge = deptBadge(a);
               const onDuty = a.on_duty_user_id ? people.find((p) => p.id === a.on_duty_user_id) : undefined;
               return (
                 <button key={a.department_id} type="button" onClick={() => { setDeptId(a.department_id); setServiceId(null); }} className="card card-hover p-[var(--s3)] text-left flex flex-col gap-2 min-w-0" style={{ borderTop: `3px solid ${a.color}` }}>
@@ -54,9 +54,11 @@ export function ServiceForm({ availability, services, initialDept, initialServic
                     <span className="w-10 h-10 rounded-[var(--radius-sm)] flex items-center justify-center text-white font-semibold shrink-0" style={{ background: a.color }}>{a.name.slice(0, 1)}</span>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5 min-w-0"><span className="font-medium truncate">{a.name}</span><Blink zone={`dept:${a.department_id}`} /></div>
-                      <div className="text-[11px] text-muted">{a.services} service{a.services === 1 ? "" : "s"} · {a.available} available now</div>
+                      {/* `available` counts PEOPLE, not services — "0 services · 2 available now" read as a
+                          contradiction because the noun was missing. */}
+                      <div className="text-[11px] text-muted">{a.services} service{a.services === 1 ? "" : "s"} · {a.available} {a.available === 1 ? "person" : "people"} available now</div>
                     </div>
-                    <Pill tone={DEPT_STATUS_META[st].tone}>{DEPT_STATUS_META[st].label}</Pill>
+                    <Pill tone={badge.tone}>{badge.label}</Pill>
                   </div>
                   <div className="flex items-center gap-2 text-[11px] text-muted mt-auto">
                     {onDuty ? <span className="inline-flex items-center gap-1.5"><Avatar name={onDuty.full_name} src={onDuty.avatar_url} size={18} presence={onDuty.presence} /> {onDuty.full_name.split(" ")[0]} on duty</span> : <span>No one on duty</span>}
@@ -71,7 +73,24 @@ export function ServiceForm({ availability, services, initialDept, initialServic
     );
   }
 
-  const st = asDeptStatus(dept.status);
+  const badge = deptBadge(dept);
+
+  /*
+    Whether a service can be picked up right now. A service with a default owner is available when that
+    person is; one without is handled by the department, so it is available when anybody there is and the
+    department has not been set Offline. Same presence rule `department_availability()` counts by.
+  */
+  const serviceAvailability = (s: Service) => {
+    if (asDeptStatus(dept.status) === "offline") return { ok: false, text: "Unavailable — department offline" };
+    if (s.default_owner_id) {
+      const owner = people.find((p) => p.id === s.default_owner_id);
+      if (owner) {
+        const ok = AVAILABLE_PRESENCE.includes(owner.presence || "");
+        return { ok, text: ok ? `Available · ${owner.full_name.split(" ")[0]}` : `Unavailable · ${owner.full_name.split(" ")[0]} is away` };
+      }
+    }
+    return dept.available > 0 ? { ok: true, text: "Available now" } : { ok: false, text: "Unavailable right now" };
+  };
 
   // ---- Step 2: pick a service
   if (!serviceId) {
@@ -81,21 +100,30 @@ export function ServiceForm({ availability, services, initialDept, initialServic
         <div className="flex items-start gap-3">
           <span className="w-10 h-10 rounded-[var(--radius-sm)] flex items-center justify-center text-white font-semibold shrink-0" style={{ background: dept.color }}>{dept.name.slice(0, 1)}</span>
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 flex-wrap"><span className="h3">{dept.name}</span><Pill tone={DEPT_STATUS_META[st].tone}>{DEPT_STATUS_META[st].label}</Pill></div>
-            <div className="text-xs text-muted mt-0.5">{DEPT_STATUS_META[st].hint} {dept.avg_ack_minutes > 0 ? `Replies in about ${dept.avg_ack_minutes < 60 ? `${dept.avg_ack_minutes} minutes` : `${Math.round(dept.avg_ack_minutes / 60)} hours`} on average.` : ""}</div>
+            <div className="flex items-center gap-2 flex-wrap"><span className="h3">{dept.name}</span><Pill tone={badge.tone}>{badge.label}</Pill></div>
+            <div className="text-xs text-muted mt-0.5">{badge.hint} {dept.avg_ack_minutes > 0 ? `Replies in about ${dept.avg_ack_minutes < 60 ? `${dept.avg_ack_minutes} minutes` : `${Math.round(dept.avg_ack_minutes / 60)} hours`} on average.` : ""}</div>
           </div>
         </div>
         <div className="grid gap-2 sm:grid-cols-2">
-          {deptServices.map((s) => (
-            <button key={s.id} type="button" onClick={() => setServiceId(s.id)} className="card card-hover p-3 text-left flex items-start gap-3 min-w-0">
-              <span className="w-8 h-8 rounded-[var(--radius-sm)] tone-info flex items-center justify-center shrink-0"><FileText size={15} /></span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm font-medium truncate">{s.name}</span>
-                {s.description && <span className="block text-[11px] text-muted truncate-2 leading-snug">{s.description}</span>}
-                <span className="block text-[11px] text-muted mt-1 inline-flex items-center gap-1"><Clock size={10} /> {slaLabel(s.sla_ack_minutes)}</span>
-              </span>
-            </button>
-          ))}
+          {deptServices.map((s) => {
+            const av = serviceAvailability(s);
+            return (
+              <button key={s.id} type="button" onClick={() => setServiceId(s.id)} className="card card-hover p-3 text-left flex items-start gap-3 min-w-0">
+                <span className="w-8 h-8 rounded-[var(--radius-sm)] tone-info flex items-center justify-center shrink-0"><FileText size={15} /></span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-medium truncate">{s.name}</span>
+                  {s.description && <span className="block text-[11px] text-muted truncate-2 leading-snug">{s.description}</span>}
+                  <span className="flex items-center gap-x-3 gap-y-0.5 flex-wrap text-[11px] text-muted mt-1">
+                    <span className={cn("inline-flex items-center gap-1", av.ok ? "text-success" : "text-muted")}>
+                      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: av.ok ? "var(--success)" : "var(--danger)" }} aria-hidden />
+                      {av.text}
+                    </span>
+                    <span className="inline-flex items-center gap-1"><Clock size={10} /> {slaLabel(s.sla_ack_minutes)}</span>
+                  </span>
+                </span>
+              </button>
+            );
+          })}
           <button type="button" onClick={() => setServiceId(SOMETHING_ELSE)} className="card card-hover p-3 text-left flex items-start gap-3 min-w-0 border-dashed">
             <span className="w-8 h-8 rounded-[var(--radius-sm)] tone-neutral flex items-center justify-center shrink-0"><Sparkles size={15} /></span>
             <span className="min-w-0 flex-1">

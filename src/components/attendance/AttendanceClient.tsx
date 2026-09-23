@@ -38,7 +38,20 @@ export function AttendanceClient({ data }: { data: AttendanceData }) {
   useSeen("nav:/attendance");
   const lead = isLeadPlus(profile.role) || data.hasAttendancePerm;
   const requested = sp.get("tab") as TabKey | null;
-  const [tab, setTab] = React.useState<TabKey>(requested && ["me", "team", "roster", "timesheet", "corrections", "handover"].includes(requested) && (requested !== "team" || lead) ? requested : "me");
+  const fromUrl = (r: TabKey | null): TabKey => (r && ["me", "team", "roster", "timesheet", "corrections", "handover"].includes(r) && (r !== "team" || lead) ? r : "me");
+  const [tab, setTab] = React.useState<TabKey>(fromUrl(requested));
+
+  /*
+    The URL is read once for the initial tab, so a link to `?tab=corrections` followed from this very
+    page ("Request a correction" under My exceptions) changed the address bar and left the tab where it
+    was. Follow the URL whenever it changes — adjusting state during render, not in an effect, so the
+    right tab is on screen on the same paint.
+  */
+  const [seenRequested, setSeenRequested] = React.useState(requested);
+  if (requested !== seenRequested) {
+    setSeenRequested(requested);
+    setTab(fromUrl(requested));
+  }
 
   function go(t: TabKey) {
     setTab(t);

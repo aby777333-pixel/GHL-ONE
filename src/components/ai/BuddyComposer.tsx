@@ -342,8 +342,9 @@ export function BuddyComposer({ value, onChange, onSend, pending, mode, onMode, 
           <Select value={language} onChange={(e) => onLanguage(e.target.value)} className="!h-6 !w-auto !py-0 !text-[11px] !pr-6 max-w-[140px]" aria-label="Answer language">
             {LANGUAGES.map((l) => <option key={l.key} value={l.key}>{l.label}</option>)}
           </Select>
-          <button type="button" onClick={() => onReadAloud(!readAloud)} className={cn("inline-flex items-center gap-1 h-6 px-1.5 rounded-[var(--radius-sm)] hover:bg-[var(--neutral-bg)]", readAloud && "text-[var(--brand-2)]")} title={canRead ? "Read answers aloud" : "Read aloud not supported in this browser"} aria-pressed={readAloud}>
-            {readAloud ? <Volume2 size={12} /> : <VolumeX size={12} />} <span className="hidden sm:inline">Read aloud</span>
+          <button type="button" onClick={() => onReadAloud(!readAloud)} className={cn("inline-flex items-center gap-1 h-6 px-1.5 rounded-[var(--radius-sm)] hover:bg-[var(--neutral-bg)]", readAloud && "text-[var(--brand-2)]")} title={!canRead ? "Read aloud not supported in this browser" : readAloud ? "Voice on — answers are read aloud. Click to turn off." : "Voice off — click to have answers read aloud"} aria-pressed={readAloud}>
+            {/* The icon switched with the state but the words always said "Read aloud"; they now say which it is. */}
+            {readAloud ? <Volume2 size={12} /> : <VolumeX size={12} />} <span className="hidden sm:inline">{readAloud ? "Voice on" : "Voice off"}</span>
           </button>
           <span className="ml-auto hidden lg:inline-flex items-center gap-2 shrink-0"><span><Kbd>Enter</Kbd> send</span><span><Kbd>Shift</Kbd>+<Kbd>Enter</Kbd> newline</span><span className="inline-flex items-center gap-1"><Keyboard size={11} /> <Kbd>Ctrl</Kbd> <Kbd>J</Kbd></span></span>
         </div>

@@ -3,7 +3,7 @@
 import * as React from "react";
 import {
   ArrowUpRight, Check, ChevronDown, Circle, Diamond, Eraser, FilePlus2, Frame, Hand, Highlighter, Image as ImageIcon,
-  Maximize2, Minus, MessageSquarePlus, MousePointer2, Pencil, Plus, Redo2, Share2, Smile, Square, StickyNote,
+  Maximize2, Minus, MessageSquarePlus, MousePointer2, Pencil, Plus, Redo2, Smile, Spline, Square, StickyNote,
   Table as TableIcon, Type, Undo2, X, Zap,
 } from "lucide-react";
 import { Button, Menu, MenuItem } from "@/components/ui";
@@ -29,15 +29,33 @@ const TOOLS: { key: Tool; label: string; icon: React.ReactNode; hotkey?: string 
   { key: "diamond", label: "Diamond", icon: <Diamond size={16} /> },
   { key: "arrow", label: "Arrow", icon: <ArrowUpRight size={16} />, hotkey: "A" },
   { key: "line", label: "Line", icon: <Minus size={16} /> },
-  { key: "connector", label: "Connector", icon: <Share2 size={16} />, hotkey: "C" },
+  // Was the Share2 glyph — the universal "share" icon — so people pressed it expecting to share the board.
+  { key: "connector", label: "Connector", icon: <Spline size={16} />, hotkey: "C" },
   { key: "frame", label: "Frame", icon: <Frame size={16} />, hotkey: "F" },
   { key: "table", label: "Table", icon: <TableIcon size={16} /> },
-  { key: "icon", label: "Icon", icon: <Smile size={16} /> },
+  { key: "icon", label: "Symbol", icon: <Smile size={16} /> },
   { key: "image", label: "Image", icon: <ImageIcon size={16} /> },
   { key: "file", label: "File", icon: <FilePlus2 size={16} /> },
   { key: "comment", label: "Comment pin", icon: <MessageSquarePlus size={16} /> },
   { key: "laser", label: "Laser pointer", icon: <Zap size={16} /> },
 ];
+
+/*
+  What a gesture tool does, shown while it is selected. The connector acts only when dragged from one shape
+  to another and the laser is a pointer for everyone else in the board — clicked on empty canvas, both looked
+  like buttons that did nothing.
+*/
+const TOOL_HINT: Partial<Record<Tool, string>> = {
+  connector: "Drag from one shape to another to connect them",
+  laser: "Laser pointer — everyone on this board sees where you point",
+  icon: "Pick a symbol above, then click the board to place it",
+  comment: "Click anywhere on the board to pin a comment",
+};
+
+function SymbolGlyph({ name }: { name: string }) {
+  const I = BOARD_ICONS[name];
+  return I ? <I size={15} /> : null;
+}
 
 function Swatch({ token, palette, active, onClick, label }: { token: string; palette: Palette; active?: boolean; onClick: () => void; label?: string }) {
   const c = resolve(palette, token, "fg");
@@ -77,7 +95,7 @@ export function BoardToolbar({
     <div
       className={cn(
         "absolute left-1/2 -translate-x-1/2 z-20 max-w-[calc(100%-16px)] flex flex-col items-center gap-2",
-        // on phones the page tabs and zoom controls sit on the bottom row, so lift the tools above them
+        // on phones the zoom controls sit on the bottom row, so lift the tools above them
         embedded ? "bottom-3" : "bottom-[58px] sm:bottom-3"
       )}
     >
@@ -112,7 +130,7 @@ export function BoardToolbar({
             ))}
           </Menu>
           {tool === "icon" && (
-            <Menu width={230} trigger={<Button size="sm" variant="ghost" className="shrink-0">{style.icon} <ChevronDown size={12} /></Button>}>
+            <Menu width={230} trigger={<Button size="sm" variant="ghost" className="shrink-0" title="Choose a symbol"><SymbolGlyph name={style.icon} /> <span className="text-xs">{style.icon}</span> <ChevronDown size={12} /></Button>}>
               <div className="grid grid-cols-6 gap-1 p-1 max-h-56 overflow-y-auto">
                 {ICON_NAMES.map((n) => {
                   const I = BOARD_ICONS[n];
@@ -126,6 +144,10 @@ export function BoardToolbar({
             </Menu>
           )}
         </div>
+      )}
+
+      {TOOL_HINT[tool] && !disabled && (
+        <div className="pill tone-info text-[11px] max-w-full truncate" role="status">{TOOL_HINT[tool]}</div>
       )}
 
       <div className="card flex items-center gap-0.5 px-1.5 py-1.5 overflow-x-auto no-scrollbar max-w-full" style={{ boxShadow: "var(--shadow)" }}>
@@ -184,7 +206,9 @@ export function PageTabs({
   disabled?: boolean;
 }) {
   return (
-    <div className="absolute left-3 bottom-3 z-20 card flex items-center gap-1 px-1 py-1 max-w-[min(60vw,520px)] overflow-x-auto no-scrollbar" style={{ boxShadow: "var(--shadow)" }}>
+    /* Top-left, under the title bar. At the bottom-left it grew into the centred tool strip as pages were
+       added and covered its controls; up here nothing else competes for the row. */
+    <div className="absolute left-3 top-[56px] z-20 card flex items-center gap-1 px-1 py-1 max-w-[calc(100%-24px)] sm:max-w-[min(70%,640px)] overflow-x-auto no-scrollbar" style={{ boxShadow: "var(--shadow)" }}>
       {pages.map((p, i) => (
         <div key={p.id} className="flex items-center shrink-0">
           <button

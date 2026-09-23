@@ -20,11 +20,13 @@ import { AutosaveField } from "./AutosaveField";
 import { ActionItems, type LinkedTask, type MeetingAction } from "./ActionItems";
 import { PeopleMultiSelect } from "./PeopleMultiSelect";
 import { PrepareMe, type PrepareData } from "./PrepareMe";
-import { durationLabel, durationMinutes, extractLinks } from "./meetingUtils";
+import { durationLabel, durationMinutes, extractLinks, meetingPhase } from "./meetingUtils";
 import { MeetingCostLine } from "./MeetingHygiene";
 
 export type MeetingRoomProps = {
   meeting: Meeting;
+  /** Status of the linked GHL Live room, if any — the host can end it before the scheduled time. */
+  liveStatus?: string | null;
   participantIds: string[];
   actions: MeetingAction[];
   tasks: LinkedTask[];
@@ -34,7 +36,7 @@ export type MeetingRoomProps = {
   prepare: PrepareData;
 };
 
-export function MeetingRoom({ meeting: m, participantIds, actions, tasks, decisions, files, project, prepare }: MeetingRoomProps) {
+export function MeetingRoom({ meeting: m, liveStatus, participantIds, actions, tasks, decisions, files, project, prepare }: MeetingRoomProps) {
   const { profile, people } = useSession();
   const router = useRouter();
   const toast = useToast();
@@ -50,6 +52,7 @@ export function MeetingRoom({ meeting: m, participantIds, actions, tasks, decisi
   const cancelled = !!m.cancelled_at;
   const [nowMs] = React.useState(() => Date.now());
   const upcoming = Date.parse(m.ends_at || m.starts_at) > nowMs;
+  const phase = meetingPhase({ ...m, live_status: liveStatus }, nowMs);
   async function cancelMeeting() {
     setCancelling(true);
     const { error } = await createClient().rpc("cancel_meeting", { p_meeting: m.id, p_reason: cancelReason.trim() || undefined });
@@ -125,6 +128,8 @@ export function MeetingRoom({ meeting: m, participantIds, actions, tasks, decisi
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="h1 break-words min-w-0">{m.title}</h1>
               {cancelled && <Pill tone="tone-danger" size="lg">Cancelled</Pill>}
+              {phase === "ended" && <Pill tone="tone-neutral" size="lg">Ended</Pill>}
+              {phase === "live" && <Pill tone="tone-success" size="lg">{liveStatus === "live" ? "Live now" : "In progress"}</Pill>}
             </div>
             {cancelled && (
               <div className="text-sm text-danger mt-1">
@@ -157,7 +162,8 @@ export function MeetingRoom({ meeting: m, participantIds, actions, tasks, decisi
               <Clock3 size={14} /> Running late
             </Button>
             <BuddyQuickActions scope={{ meetingId: m.id, projectId: m.project_id || undefined, path: `/meetings/${m.id}` }} />
-            {m.meeting_link && !cancelled && (
+            {/* No Join once the meeting is over — it only led to "This room has ended". */}
+            {m.meeting_link && !cancelled && phase !== "ended" && (
               <a href={m.meeting_link} target="_blank" rel="noreferrer" className="btn btn-primary"><Video size={15} /> Join meeting</a>
             )}
             {canEdit && upcoming && !cancelled && (

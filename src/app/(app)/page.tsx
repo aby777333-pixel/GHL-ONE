@@ -23,7 +23,7 @@ export default async function HomePage() {
       .order("due_date", { ascending: true, nullsFirst: false })
       .limit(60),
     supabase.from("approvals").select("id,title,type,created_at,requested_by,priority").eq("approver_id", userId).eq("status", "pending").order("created_at").limit(10),
-    supabase.from("meetings").select("id,title,starts_at,ends_at,project_id").gte("starts_at", startOfDay).lte("starts_at", in7).order("starts_at").limit(10),
+    supabase.from("meetings").select("id,title,starts_at,ends_at,project_id").gte("starts_at", startOfDay).lte("starts_at", in7).is("cancelled_at", null).order("starts_at").limit(10),
     supabase.from("announcements").select("id,title,body,kind,mandatory,pinned,published_at,author_id").order("pinned", { ascending: false }).order("published_at", { ascending: false }).limit(4),
     supabase.rpc("my_unread_counts"),
     supabase.from("tasks").select("id,title,status,priority,due_date,assignee_id,waiting_on,waiting_on_user_id,project_id,project:projects(id,name)").eq("waiting_on_user_id", userId).not("status", "in", "(done,cancelled)").limit(20),

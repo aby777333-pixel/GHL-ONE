@@ -130,6 +130,15 @@ export function SearchInput({ className, ...props }: React.InputHTMLAttributes<H
   );
 }
 
+/**
+ * Whether a field may take focus by itself when a dialog or tab opens. Yes with a mouse; no on a touch
+ * screen, where focusing an input throws up the keyboard the person never asked for (New conversation,
+ * New decision). Read from the pointer, not the width, so a tablet with a keyboard and trackpad keeps it.
+ */
+export function useCanAutoFocus() {
+  return React.useSyncExternalStore(() => () => {}, () => window.matchMedia("(pointer: fine)").matches, () => false);
+}
+
 /* ------------------------------------------------------------------ Modal */
 export function Modal({ open, onClose, title, children, footer, width = 560, side }: { open: boolean; onClose: () => void; title?: React.ReactNode; children: React.ReactNode; footer?: React.ReactNode; width?: number; side?: boolean }) {
   const mounted = React.useSyncExternalStore(() => () => {}, () => true, () => false);
@@ -275,40 +284,72 @@ export function Menu({ trigger, children, align = "right", width = 200 }: { trig
    * where it read as detached, or off the bottom of the screen entirely. Measure once on open
    * and flip upwards when there is more room above than below.
    */
-  const [up, setUp] = React.useState(false);
+  /*
+    The panel is portalled to <body> and positioned in viewport coordinates. Rendered inside the trigger
+    it was at the mercy of every ancestor: a card's stacking context let the NEXT card paint over it (the
+    People card "…" menu), an `overflow` wrapper clipped it (the Board page dropdown), and a right-aligned
+    panel on a trigger near the left of the content ran underneath the sidebar ("Join live" on a meeting).
+    Same props and behaviour as before — it still opens below and flips up when there is more room above —
+    but it is also clamped to the viewport, so it is always entirely on screen.
+  */
+  const [pos, setPos] = React.useState<{ top: number; left: number } | null>(null);
   const ref = React.useRef<HTMLDivElement>(null);
   const panelRef = React.useRef<HTMLDivElement>(null);
   React.useLayoutEffect(() => {
-    // Only ever decided while open. A closed menu renders nothing, so there is no stale frame to
-    // reset — and resetting here would be a setState in an effect body for no visible gain.
+    // Only ever decided while open. A closed menu renders nothing, so there is no stale frame to reset.
     if (!open) return;
-    const anchor = ref.current?.getBoundingClientRect();
-    const h = panelRef.current?.offsetHeight ?? 0;
-    if (!anchor || !h) return;
-    const below = window.innerHeight - anchor.bottom;
-    setUp(below < h + 12 && anchor.top > below);
-  }, [open]);
+    const place = () => {
+      const anchor = ref.current?.getBoundingClientRect();
+      const panel = panelRef.current;
+      if (!anchor || !panel) return;
+      const h = panel.offsetHeight;
+      const w = panel.offsetWidth;
+      const below = window.innerHeight - anchor.bottom;
+      const up = below < h + 12 && anchor.top > below;
+      const rawLeft = align === "right" ? anchor.right - w : anchor.left;
+      const left = Math.max(8, Math.min(rawLeft, window.innerWidth - w - 8));
+      const top = up ? Math.max(8, anchor.top - h - 4) : anchor.bottom + 4;
+      setPos({ top, left });
+    };
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
+  }, [open, align]);
   React.useEffect(() => {
     if (!open) return;
     const onDoc = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      // The panel no longer lives inside `ref`, so a press inside it must not count as "outside".
+      if (!ref.current?.contains(t) && !panelRef.current?.contains(t)) setOpen(false);
     };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
     document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
   }, [open]);
   return (
     <div ref={ref} className="relative inline-flex">
       <span onClick={() => setOpen((o) => !o)}>{trigger}</span>
-      {open && (
-        <div
-          ref={panelRef}
-          className={cn("absolute z-50 card p-1 anim-pop", up ? "bottom-full mb-1" : "top-full mt-1")}
-          style={{ [align]: 0, width, boxShadow: "var(--shadow-lg)" }}
-          onClick={() => setOpen(false)}
-        >
-          {children}
-        </div>
-      )}
+      {open && typeof document !== "undefined" &&
+        createPortal(
+          <div
+            ref={panelRef}
+            className="fixed z-[110] card p-1 anim-pop max-h-[calc(100dvh-16px)] overflow-y-auto"
+            // Hidden until first measured, then placed in a layout effect — before paint, so no flash.
+            style={{ top: pos?.top ?? 0, left: pos?.left ?? 0, width, maxWidth: "calc(100vw - 16px)", visibility: pos ? "visible" : "hidden", boxShadow: "var(--shadow-lg)" }}
+            onClick={() => setOpen(false)}
+          >
+            {children}
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

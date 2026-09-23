@@ -9,7 +9,7 @@ import { DepartmentPicker, PersonPicker } from "@/components/pickers";
 import { useSession } from "@/components/providers/SessionProvider";
 import { useSeen } from "@/components/providers/ActivityProvider";
 import { PersonChip } from "@/components/tasks/TaskBits";
-import { ago, cn, fmtDate, humanize, isManagerPlus, type Tables } from "@/lib/utils";
+import { APP_TIME_ZONE, ago, cn, fmtDate, humanize, isManagerPlus, type Tables } from "@/lib/utils";
 import { PersonLine } from "@/components/admin/AdminBits";
 import { APPLICATION_STATUSES, APPLICATION_TONE, REVIEWER_APPLICATION_STATUSES } from "@/components/admin/hr/lib";
 
@@ -27,8 +27,13 @@ export function JobBoard({ data }: { data: JobBoardData }) {
   const [posting, setPosting] = React.useState(false);
   const [expanded, setExpanded] = React.useState<string | null>(null);
 
-  const open = data.jobs.filter((j) => j.status === "open");
-  const closed = data.jobs.filter((j) => j.status !== "open");
+  /* A posting past its closing date is not open, whatever its status says — nobody flips the status on the
+     day, so "Java Developer (closes 10 Sep)" sat under Open positions with a live Apply button afterwards.
+     The closing day itself still counts as open. Dates compare as YYYY-MM-DD in the company's time zone. */
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: APP_TIME_ZONE, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+  const expired = (j: JobRow) => !!j.closes_on && j.closes_on.slice(0, 10) < today;
+  const open = data.jobs.filter((j) => j.status === "open" && !expired(j));
+  const closed = data.jobs.filter((j) => j.status !== "open" || expired(j));
   const mine = data.applications.filter((a) => a.user_id === data.userId);
   const canReview = (j: JobRow) => data.isHr || j.hiring_manager_id === profile.id || j.created_by === profile.id;
   const ownOpening = (j: JobRow) => j.hiring_manager_id === profile.id || j.created_by === profile.id;
@@ -121,10 +126,10 @@ export function JobBoard({ data }: { data: JobBoardData }) {
 
           {closed.length > 0 && (
             <Card>
-              <CardHeader title="Closed" subtitle="Visible to HR and hiring managers." />
+              <CardHeader title="Closed & expired" subtitle="No longer taking applications." />
               <div className="divide-y border-t">
                 {closed.map((j) => (
-                  <div key={j.id} className="flex items-center gap-3 px-[var(--s4)] py-2 text-sm"><span className="truncate flex-1">{j.title}</span><span className="text-[11px] text-muted">{applicantsFor(j).length} applicant{applicantsFor(j).length === 1 ? "" : "s"}</span><Pill tone="tone-muted">Closed</Pill></div>
+                  <div key={j.id} className="flex items-center gap-3 px-[var(--s4)] py-2 text-sm"><span className="truncate flex-1">{j.title}</span><span className="text-[11px] text-muted">{applicantsFor(j).length} applicant{applicantsFor(j).length === 1 ? "" : "s"}</span><Pill tone="tone-muted">{j.status === "open" && expired(j) ? `Expired ${fmtDate(j.closes_on)}` : "Closed"}</Pill></div>
                 ))}
               </div>
             </Card>

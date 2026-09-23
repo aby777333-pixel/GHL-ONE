@@ -31,6 +31,23 @@ export function asDeptStatus(s?: string | null): DeptStatus {
   return (DEPT_STATUSES as readonly string[]).includes(s || "") ? (s as DeptStatus) : "available";
 }
 
+/** Presence values `department_availability()` counts as "available" (keep in step with it). */
+export const AVAILABLE_PRESENCE = ["available", "remote"];
+
+/*
+  The badge a person should read. `departments.status` is set by hand and says "Available" until somebody
+  changes it — so a department with nobody available right now still wore a green "Available" badge next
+  to "0 available now". A hand-set restriction (Busy, Limited, Emergency only, Offline) is always shown as
+  set; only the default "Available" is checked against the live head-count.
+*/
+export function deptBadge(a: { status?: string | null; available: number }): { label: string; hint: string; tone: string } {
+  const st = asDeptStatus(a.status);
+  if (st === "available" && a.available <= 0) {
+    return { label: "No one available", hint: "Nobody in the department is available right now — requests queue until someone is back.", tone: "tone-muted" };
+  }
+  return DEPT_STATUS_META[st];
+}
+
 /* --------------------------------------------------------------- form schema */
 export type FieldType = "text" | "textarea" | "select" | "date" | "number";
 export const FIELD_TYPES: FieldType[] = ["text", "textarea", "select", "date", "number"];

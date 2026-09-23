@@ -42,6 +42,22 @@ export function isPastMeeting(m: Pick<Meeting, "starts_at" | "ends_at">, now: nu
   return end < now;
 }
 
+export type MeetingPhase = "upcoming" | "live" | "ended" | "cancelled";
+
+/*
+  Where a meeting stands right now. The list used to split on the clock alone, so a cancelled meeting
+  stayed under Upcoming, and a meeting whose host had already ended the GHL Live room still offered Join.
+  Cancelled and a room that has ended win over the calendar; otherwise the scheduled window decides, and a
+  room that is live counts as live whatever the clock says (people start early).
+*/
+export function meetingPhase(m: Pick<Meeting, "starts_at" | "ends_at" | "cancelled_at"> & { live_status?: string | null }, now: number): MeetingPhase {
+  if (m.cancelled_at) return "cancelled";
+  if (m.live_status === "ended" || m.live_status === "archived") return "ended";
+  if (m.live_status === "live") return "live";
+  if (isPastMeeting(m, now)) return "ended";
+  return Date.parse(m.starts_at) <= now ? "live" : "upcoming";
+}
+
 export function pad(n: number) {
   return String(n).padStart(2, "0");
 }

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Button, Field, Input, Textarea, useToast } from "@/components/ui";
+import { Button, Field, Input, Textarea, useCanAutoFocus, useToast } from "@/components/ui";
 import { ClassificationPicker, DepartmentPicker, ProjectPicker } from "@/components/pickers";
 import { PeopleMultiSelect } from "@/components/meetings/PeopleMultiSelect";
 import { useSession } from "@/components/providers/SessionProvider";
@@ -28,6 +28,8 @@ export function RecordDecisionForm({ defaults = {}, existing, onDone, onCancel, 
   const { profile } = useSession();
   const router = useRouter();
   const toast = useToast();
+  // Opening New decision on a phone focused the title and threw up the keyboard unasked.
+  const autoFocus = useCanAutoFocus();
   const [title, setTitle] = React.useState(existing?.title || defaults.title || "");
   const [decision, setDecision] = React.useState(existing?.decision || defaults.decision || "");
   const [reason, setReason] = React.useState(existing?.reason || "");
@@ -91,7 +93,7 @@ export function RecordDecisionForm({ defaults = {}, existing, onDone, onCancel, 
         <div className="rounded-[var(--radius-sm)] tone-warn px-3 py-2 text-xs">Recording decisions is reserved for team leads and above. Ask your lead to record it.</div>
       )}
       <Field label="Decision title">
-        <Input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Move the investor deck launch to 15 Oct" required />
+        <Input autoFocus={autoFocus} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Move the investor deck launch to 15 Oct" required />
       </Field>
       <Field label="What was decided?">
         <Textarea value={decision} onChange={(e) => setDecision(e.target.value)} placeholder="State the decision clearly, so anyone reading it later understands what changes." style={{ minHeight: 89 }} required />

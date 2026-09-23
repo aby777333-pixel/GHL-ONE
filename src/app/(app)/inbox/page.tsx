@@ -20,5 +20,11 @@ export default async function InboxPage() {
       .order("due_date", { ascending: true })
       .limit(50),
   ]);
-  return <InboxClient initial={notifications || []} dueTasks={tasks || []} />;
+  // Meetings named in these notifications that have since been called off, so an old "Meeting: …" invite
+  // is not read as an appointment that still stands.
+  const meetingIds = [...new Set((notifications || []).filter((n) => n.entity_type === "meeting" && n.entity_id).map((n) => n.entity_id as string))];
+  const { data: cancelled } = meetingIds.length
+    ? await supabase.from("meetings").select("id").in("id", meetingIds).not("cancelled_at", "is", null)
+    : { data: [] as { id: string }[] };
+  return <InboxClient initial={notifications || []} dueTasks={tasks || []} cancelledMeetingIds={(cancelled || []).map((m) => m.id)} />;
 }

@@ -84,9 +84,7 @@ export function MyWorkView({ userId, tasks, waitingOnMe, approvals, mentions, pr
         {tab === "today" && (
           <Section>
             <div className="mb-3"><Standup compact /></div>
-            {today.length === 0 ? (
-              <EmptyState icon={<Sun size={18} />} title="Nothing due today" hint="Your next items are under Next. Enjoy the focus time." />
-            ) : (
+            {today.length > 0 && (
               <List>
                 {[...overdue, ...today.filter((t) => !overdue.includes(t))].map((t) => (
                   <TaskRow key={t.id} task={t} />
@@ -94,7 +92,7 @@ export function MyWorkView({ userId, tasks, waitingOnMe, approvals, mentions, pr
               </List>
             )}
             {meetingsToday.length > 0 && (
-              <Card className="mt-3">
+              <Card className={today.length > 0 ? "mt-3" : undefined}>
                 <CardHeader title="Today's meetings" />
                 <div className="px-2 pb-2">
                   {meetingsToday.map((m) => (
@@ -106,6 +104,11 @@ export function MyWorkView({ userId, tasks, waitingOnMe, approvals, mentions, pr
                   ))}
                 </div>
               </Card>
+            )}
+            {/* After the meetings, not before them: a "Nothing due today" card in the middle of the tab
+                read as the end of the page while today's meetings were still waiting below it. */}
+            {today.length === 0 && (
+              <EmptyState icon={<Sun size={18} />} title="Nothing due today" hint={meetingsToday.length ? "No tasks due — just the meetings above. Your next items are under Next." : "Your next items are under Next. Enjoy the focus time."} className={meetingsToday.length ? "mt-3" : undefined} />
             )}
           </Section>
         )}

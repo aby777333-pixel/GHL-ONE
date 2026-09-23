@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Hash, Lock, Users, Building2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { Avatar, Button, Field, Input, Modal, SearchInput, Tabs, Textarea, EmptyState, Spinner, useToast } from "@/components/ui";
+import { Avatar, Button, Field, Input, Modal, SearchInput, Tabs, Textarea, EmptyState, Spinner, useCanAutoFocus, useToast } from "@/components/ui";
 import { PersonPicker } from "@/components/pickers";
 import { useSession } from "@/components/providers/SessionProvider";
 import { cn, type Channel } from "@/lib/utils";
@@ -33,6 +33,8 @@ export function NewChannelModal({ open, onClose, memberChannelIds, initialTab = 
 }
 
 function StartDm({ onDone }: { onDone: () => void }) {
+  // Switching tabs focused the search box, and on a phone that opened the keyboard unasked.
+  const autoFocus = useCanAutoFocus();
   const { profile, people } = useSession();
   const router = useRouter();
   const toast = useToast();
@@ -56,7 +58,7 @@ function StartDm({ onDone }: { onDone: () => void }) {
 
   return (
     <div className="space-y-3">
-      <SearchInput placeholder="Search people…" value={q} onChange={(e) => setQ(e.target.value)} autoFocus />
+      <SearchInput placeholder="Search people…" value={q} onChange={(e) => setQ(e.target.value)} autoFocus={autoFocus} />
       <div className="space-y-0.5">
         {list.map((p) => (
           <button key={p.id} type="button" onClick={() => start(p.id)} disabled={loading} className="w-full flex items-center gap-3 h-11 px-2 rounded-[var(--radius-sm)] hover:bg-[var(--neutral-bg)] text-left">
@@ -82,6 +84,8 @@ function StartDm({ onDone }: { onDone: () => void }) {
 }
 
 function CreateChannel({ onDone }: { onDone: () => void }) {
+  // Switching tabs focused the search box, and on a phone that opened the keyboard unasked.
+  const autoFocus = useCanAutoFocus();
   const { profile, people, departments } = useSession();
   const router = useRouter();
   const toast = useToast();
@@ -131,7 +135,7 @@ function CreateChannel({ onDone }: { onDone: () => void }) {
       <Field label="Name">
         <div className="relative">
           <Hash size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-          <Input className="pl-8" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. investor-deck-q4" required autoFocus />
+          <Input className="pl-8" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. investor-deck-q4" required autoFocus={autoFocus} />
         </div>
       </Field>
       <Field label="Description (optional)">
@@ -181,6 +185,8 @@ function CreateChannel({ onDone }: { onDone: () => void }) {
 }
 
 function BrowseChannels({ memberChannelIds, onDone, open }: { memberChannelIds: string[]; onDone: () => void; open: boolean }) {
+  // Switching tabs focused the search box, and on a phone that opened the keyboard unasked.
+  const autoFocus = useCanAutoFocus();
   const { profile, departments } = useSession();
   const router = useRouter();
   const toast = useToast();
@@ -232,7 +238,7 @@ function BrowseChannels({ memberChannelIds, onDone, open }: { memberChannelIds: 
 
   return (
     <div className="space-y-2">
-      <SearchInput placeholder="Search channels…" value={q} onChange={(e) => setQ(e.target.value)} autoFocus />
+      <SearchInput placeholder="Search channels…" value={q} onChange={(e) => setQ(e.target.value)} autoFocus={autoFocus} />
       {!visible.length ? (
         <EmptyState icon={<Hash size={18} />} title="Nothing to join" hint="You are already a member of every public channel you can see." />
       ) : (

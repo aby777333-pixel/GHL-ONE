@@ -29,7 +29,7 @@ export default async function MyWorkPage({ searchParams }: { searchParams: Promi
     supabase.from("approvals").select("id,title,type,priority,due_date,created_at,requested_by,project_id").eq("approver_id", userId).eq("status", "pending").order("created_at"),
     supabase.from("notifications").select("id,title,body,link,created_at,read_at,actor_id").eq("user_id", userId).eq("kind", "mention").order("created_at", { ascending: false }).limit(30),
     supabase.from("project_members").select("project:projects(id,name,status,due_date,progress,department_id,owner_id)").eq("user_id", userId),
-    supabase.from("meetings").select("id,title,starts_at,ends_at,project_id").gte("starts_at", new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()).lte("starts_at", in7).order("starts_at").limit(20),
+    supabase.from("meetings").select("id,title,starts_at,ends_at,project_id").gte("starts_at", new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()).lte("starts_at", in7).is("cancelled_at", null).order("starts_at").limit(20),
   ]);
 
   return (

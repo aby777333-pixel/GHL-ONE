@@ -10,7 +10,7 @@ export default async function MeetingPage({ params }: { params: Promise<{ id: st
   const { data: meeting } = await supabase.from("meetings").select("*").eq("id", id).maybeSingle();
   if (!meeting) notFound();
 
-  const [{ data: parts }, { data: actions }, { data: tasks }, { data: decisions }, { data: files }, { data: project }, { data: previous }] = await Promise.all([
+  const [{ data: parts }, { data: actions }, { data: tasks }, { data: decisions }, { data: files }, { data: project }, { data: previous }, { data: room }] = await Promise.all([
     supabase.from("meeting_participants").select("user_id").eq("meeting_id", id),
     supabase.from("meeting_actions").select("*").eq("meeting_id", id).order("created_at"),
     supabase.from("tasks").select("id,title,status").eq("source_meeting_id", id),
@@ -20,6 +20,7 @@ export default async function MeetingPage({ params }: { params: Promise<{ id: st
     meeting.project_id
       ? supabase.from("meetings").select("id,title,starts_at,summary,notes").eq("project_id", meeting.project_id).lt("starts_at", meeting.starts_at).neq("id", id).order("starts_at", { ascending: false }).limit(1).maybeSingle()
       : Promise.resolve({ data: null }),
+    meeting.live_room_id ? supabase.from("live_rooms").select("status").eq("id", meeting.live_room_id).maybeSingle() : Promise.resolve({ data: null }),
   ]);
 
   const [{ data: prevActions }, { data: prevTasks }, { data: approvals }, { data: projectDecisions }] = await Promise.all([
@@ -32,6 +33,7 @@ export default async function MeetingPage({ params }: { params: Promise<{ id: st
   return (
     <MeetingRoom
       meeting={meeting}
+      liveStatus={room?.status || null}
       participantIds={(parts || []).map((p) => p.user_id)}
       actions={actions || []}
       tasks={tasks || []}

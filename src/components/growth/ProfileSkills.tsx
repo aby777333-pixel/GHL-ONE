@@ -9,6 +9,7 @@ import { Avatar, Button, Field, Input, Modal, Select, Skeleton, Textarea, useToa
 import { useSession } from "@/components/providers/SessionProvider";
 import { cn } from "@/lib/utils";
 import { skillKey, type EndorsementRow } from "./lib";
+import { SKILL_CATALOG, SKILL_NOT_LISTED, canonicalSkill } from "@/lib/skills";
 
 type Person = { id: string; full_name: string; skills: string[] };
 
@@ -51,8 +52,11 @@ export function ProfileSkills({ person, self }: { person: Person; self: boolean 
 
   async function addSkill(e: React.FormEvent) {
     e.preventDefault();
-    const s = newSkill.trim();
-    if (!s) return;
+    const typed = newSkill.trim();
+    if (!typed) return;
+    // Only skills from the list, stored in its spelling — "abc" is not a skill (see src/lib/skills.ts).
+    const s = canonicalSkill(typed);
+    if (!s) { toast.push(`“${typed}” — ${SKILL_NOT_LISTED}`, "danger"); return; }
     if (skills.some((x) => skillKey(x) === skillKey(s))) { toast.push("Already listed", "info"); setNewSkill(""); return; }
     setBusy(true);
     const next = [...skills, s];
@@ -111,7 +115,8 @@ export function ProfileSkills({ person, self }: { person: Person; self: boolean 
         {self ? (
           adding ? (
             <form onSubmit={addSkill} className="flex items-center gap-2 w-full">
-              <Input autoFocus value={newSkill} onChange={(e) => setNewSkill(e.target.value)} placeholder="e.g. Figma, GST filing, Tally" className="flex-1" style={{ height: 32 }} />
+              <Input autoFocus value={newSkill} onChange={(e) => setNewSkill(e.target.value)} placeholder="e.g. Figma, GST filing, Tally" className="flex-1" style={{ height: 32 }} list="ghl-skill-catalog" autoComplete="off" />
+              <datalist id="ghl-skill-catalog">{SKILL_CATALOG.map((c) => <option key={c} value={c} />)}</datalist>
               <Button type="submit" size="sm" variant="primary" loading={busy}>Add</Button>
               <Button type="button" size="sm" variant="ghost" onClick={() => setAdding(false)}>Cancel</Button>
             </form>

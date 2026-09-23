@@ -224,10 +224,6 @@ export function ProfileView({ person, tasks, projects, reports, leaves, edit, fo
           {(self || managerOf || isManagerPlus(me.role)) && <WhatIfAbsent userId={person.id} title={self ? "What breaks if I am away?" : "What breaks if they are away?"} />}
           {(managerOf || !!isHr || isManagerPlus(me.role)) && <AllocationsCard userId={person.id} canEdit={managerOf || !!isHr || isManagerPlus(me.role)} />}
 
-          {/* Employee self-service — me, HR, or my manager (RLS filters what each can actually see) */}
-          {hrView && <MyAssetsCard userId={person.id} self={self} />}
-          {(self || !!isHr) && <MyDocumentsCard userId={person.id} self={self} name={person.full_name} />}
-
           {/* Growth: career, feedback & recognition */}
           <CareerCard person={person} self={self} canRequestMentor={self || iManage} />
           <ProfileRecognition userId={person.id} self={self} onGiveFeedback={() => setFeedbackOpen(true)} onRecognise={!self ? () => setKudosOpen(true) : undefined} />
@@ -300,6 +296,13 @@ export function ProfileView({ person, tasks, projects, reports, leaves, edit, fo
               )}
             </div>
           </Card>
+
+          {/* Employee self-service — me, HR, or my manager (RLS filters what each can actually see).
+              Moved into this column: the left one carried nearly every card and this one five, so on a
+              desktop the page was a long left stack beside a short right one. These two are plain lists
+              and read well at this width. */}
+          {hrView && <MyAssetsCard userId={person.id} self={self} />}
+          {(self || !!isHr) && <MyDocumentsCard userId={person.id} self={self} name={person.full_name} />}
         </div>
       </div>
 

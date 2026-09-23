@@ -7,8 +7,9 @@ export const dynamic = "force-dynamic";
 
 const COLS = "id,title,kind,status,persistent,started_at,last_active_at,ended_at,host_id,department_id,project_id,confidential";
 
-export default async function LivePage() {
-  const session = await getSession();
+export default async function LivePage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const [session, sp] = await Promise.all([getSession(), searchParams]);
+  const tab = Array.isArray(sp.tab) ? sp.tab[0] : sp.tab;
   const supabase = await createClient();
 
   const [{ data: liveRooms }, { data: myRooms }, { data: recentIds }, { data: favourites }] = await Promise.all([
@@ -30,6 +31,7 @@ export default async function LivePage() {
       persistent={(myRooms || []) as unknown as HubRoom[]}
       recent={(recentRooms || []) as unknown as HubRoom[]}
       favouriteIds={(favourites || []).map((f) => f.entity_id)}
+      initialTab={tab}
     />
   );
 }

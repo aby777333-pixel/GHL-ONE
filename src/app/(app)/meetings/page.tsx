@@ -17,18 +17,24 @@ export default async function MeetingsPage({ searchParams }: { searchParams: Pro
     supabase.from("projects").select("id,name").eq("archived", false).order("name"),
   ]);
   const ids = (meetings || []).map((m) => m.id);
-  const [{ data: parts }, { data: actions }] = ids.length
+  const roomIds = [...new Set((meetings || []).map((m) => m.live_room_id).filter((x): x is string => !!x))];
+  const [{ data: parts }, { data: actions }, { data: rooms }] = ids.length
     ? await Promise.all([
         supabase.from("meeting_participants").select("meeting_id,user_id").in("meeting_id", ids),
         supabase.from("meeting_actions").select("meeting_id,confirmed").in("meeting_id", ids),
+        roomIds.length ? supabase.from("live_rooms").select("id,status").in("id", roomIds) : Promise.resolve({ data: [] as { id: string; status: string }[] }),
       ])
-    : [{ data: [] }, { data: [] }];
+    : [{ data: [] }, { data: [] }, { data: [] as { id: string; status: string }[] }];
+  // The GHL Live room's own state: a host can end the room before the scheduled end time, and the list
+  // must say "Ended" then rather than offer a Join that lands on "This room has ended".
+  const roomStatus = new Map((rooms || []).map((r) => [r.id, r.status]));
 
   const items: MeetingListItem[] = (meetings || []).map((m) => ({
     ...m,
     participant_ids: (parts || []).filter((p) => p.meeting_id === m.id).map((p) => p.user_id),
     action_count: (actions || []).filter((a) => a.meeting_id === m.id).length,
     confirmed_count: (actions || []).filter((a) => a.meeting_id === m.id && a.confirmed).length,
+    live_status: m.live_room_id ? roomStatus.get(m.live_room_id) || null : null,
   }));
 
   return (

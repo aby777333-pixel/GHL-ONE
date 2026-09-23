@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Hash, LogOut, UserPlus, FolderKanban, ExternalLink, Sparkles, Link2, Paperclip, ArrowDownToLine } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { Avatar, Button, EmptyState, Field, Input, Modal, Pill, SearchInput, Skeleton, Spinner, Textarea, useToast } from "@/components/ui";
+import { Avatar, Button, EmptyState, Field, Input, Modal, Pill, SearchInput, Skeleton, Spinner, Textarea, useCanAutoFocus, useToast } from "@/components/ui";
 import { PersonPicker } from "@/components/pickers";
 import { useSession } from "@/components/providers/SessionProvider";
 import { Markdown } from "@/components/wiki/markdown";
@@ -19,6 +19,7 @@ import type { ChannelMember, ChatMessage, PersonLite } from "./types";
 
 /* ------------------------------------------------------- Record decision */
 export function RecordDecisionModal({ m, channel, members, onClose, onRecorded }: { m: ChatMessage | null; channel: Channel; members: ChannelMember[]; onClose: () => void; onRecorded: (id: string, title: string) => void }) {
+  const autoFocus = useCanAutoFocus(); // no keyboard popping up unasked on a phone
   const { profile } = useSession();
   const toast = useToast();
   const [title, setTitle] = React.useState("");
@@ -72,7 +73,7 @@ export function RecordDecisionModal({ m, channel, members, onClose, onRecorded }
     <Modal open={open} onClose={onClose} title="Record decision" width={520}>
       <form onSubmit={submit} className="space-y-3">
         <Field label="Title">
-          <Input value={title} onChange={(e) => setTitle(e.target.value)} required autoFocus placeholder="What was decided?" />
+          <Input value={title} onChange={(e) => setTitle(e.target.value)} required autoFocus={autoFocus} placeholder="What was decided?" />
         </Field>
         <Field label="Decision">
           <Textarea value={decision} onChange={(e) => setDecision(e.target.value)} required style={{ minHeight: 80 }} />

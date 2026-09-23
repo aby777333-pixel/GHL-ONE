@@ -10,7 +10,7 @@ import { Avatar, Button, Kbd, Menu, MenuItem, ToastProvider } from "@/components
 import { cn, fmtTime, ROLE_LABEL } from "@/lib/utils";
 import { navFor, filterNav } from "./nav";
 import { CommandPalette } from "./CommandPalette";
-import { NotificationsPanel } from "./NotificationsPanel";
+import { NotificationsPanel, NOTIFICATIONS_CHANGED } from "./NotificationsPanel";
 import { QuickCapture } from "./QuickCapture";
 import { BuddyPanel, useBuddy } from "@/components/ai";
 import { LiveProvider } from "@/components/live/LiveProvider";
@@ -160,14 +160,27 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
       .on("postgres_changes", { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${profile.id}` }, refresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "messages" }, refresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "channel_members", filter: `user_id=eq.${profile.id}` }, refresh)
-      .on("postgres_changes", { event: "*", schema: "public", table: "approvals" }, refresh)
-      .subscribe();
+      .on("postgres_changes", { event: "*", schema: "public", table: "approvals" }, refresh);
+    // RLS on realtime is evaluated with the token present when the channel joins — subscribe with it.
+    let cancelled = false;
+    supabase.auth.getSession().then(({ data }) => {
+      if (cancelled) return;
+      if (data.session?.access_token) supabase.realtime.setAuth(data.session.access_token);
+      ch.subscribe();
+    });
+    // Belt and braces: re-count when the app marks something read, and when the tab comes back.
+    const onChanged = () => void refresh();
+    window.addEventListener(NOTIFICATIONS_CHANGED, onChanged);
+    window.addEventListener("focus", onChanged);
     // presence heartbeat
     supabase.from("profiles").update({ last_seen_at: new Date().toISOString(), presence: profile.presence === "offline" ? "available" : profile.presence }).eq("id", profile.id).then(() => {});
     const hb = setInterval(() => supabase.from("profiles").update({ last_seen_at: new Date().toISOString() }).eq("id", profile.id).then(() => {}), 120000);
     return () => {
+      cancelled = true;
       supabase.removeChannel(ch);
       clearInterval(hb);
+      window.removeEventListener(NOTIFICATIONS_CHANGED, onChanged);
+      window.removeEventListener("focus", onChanged);
     };
   }, [profile.id, profile.presence]);
 
@@ -227,7 +240,10 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
 
   return (
     <ToastProvider>
-      <div className="flex min-h-dvh">
+      {/* `overflow-x: clip` guards the whole shell: anything wider than a phone screen used to widen the
+          document, and a wider layout viewport is what made the fixed bottom bar and sticky top bar drift
+          sideways. `clip` (unlike `hidden`) creates no scroll container, so sticky keeps working. */}
+      <div className="flex min-h-dvh overflow-x-clip">
         {/* Desktop sidebar */}
         <aside className="hidden lg:flex flex-col fixed inset-y-0 left-0 w-[var(--sidebar-w)] border-r bg-[var(--bg-elev)] z-40" style={collapsed ? { display: "none" } : undefined}>
           {Sidebar}
@@ -257,12 +273,19 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
               {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
             </button>
             {/* One light for "anything, anywhere". The per-item dots in the rail say where. */}
-            <ActivityLamp />
+            <span className="hidden sm:contents"><ActivityLamp /></span>
             {/* Which company am I in? Always visible, and coloured when you are here as platform staff. */}
             <WorkspaceSwitcher />
-            <button onClick={() => setPaletteOpen(true)} className="flex-1 min-w-0 max-w-xl flex items-center gap-2 h-9 px-3 rounded-[var(--radius-sm)] border bg-[var(--bg)] text-sm text-muted hover:border-[var(--line-strong)] transition-colors">
+            {/* On a phone the bar held more than fits (≈376px of controls at 375px), so everything was
+                squeezed to slivers and the overflow widened the page. Below `sm`: search is one icon, the
+                activity lamp and theme toggle step aside (theme moves into the avatar menu), and the
+                clock can show its time. */}
+            <button onClick={() => setPaletteOpen(true)} className="sm:hidden btn btn-ghost btn-sm btn-icon shrink-0" aria-label="Search">
+              <Search size={17} />
+            </button>
+            <button onClick={() => setPaletteOpen(true)} className="hidden sm:flex flex-1 min-w-0 max-w-xl items-center gap-2 h-9 px-3 rounded-[var(--radius-sm)] border bg-[var(--bg)] text-sm text-muted hover:border-[var(--line-strong)] transition-colors">
               <Search size={15} className="shrink-0" />
-              <span className="truncate"><span className="sm:hidden">Search…</span><span className="hidden sm:inline">Search people, tasks, projects, messages, files…</span></span>
+              <span className="truncate">Search people, tasks, projects, messages, files…</span>
               <span className="ml-auto hidden sm:inline-flex gap-1"><Kbd>Ctrl</Kbd><Kbd>K</Kbd></span>
             </button>
             {/*
@@ -290,7 +313,7 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
                 mobile; this is the item that costs nothing to drop.
               */}
               <CollaborateButton ctx={{}} size="sm" variant="ghost" className="hidden sm:inline-flex" />
-              <Button variant="ghost" size="sm" icon onClick={toggle} aria-label="Toggle theme">
+              <Button variant="ghost" size="sm" icon onClick={toggle} aria-label="Toggle theme" className="hidden sm:inline-flex">
                 {dark ? <Sun size={16} /> : <Moon size={16} />}
               </Button>
               <button className="relative btn btn-ghost btn-sm btn-icon" onClick={() => setNotifOpen(true)} aria-label="Notifications">
@@ -334,6 +357,10 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
                 </div>
                 <MenuItem icon={<User size={14} />} onClick={() => router.push(`/people/${profile.id}?from=nav`)}>My profile</MenuItem>
                 <MenuItem icon={<Settings size={14} />} onClick={() => router.push(`/people/${profile.id}?edit=1&from=nav`)}>Settings & status</MenuItem>
+                {/* The theme toggle's home on a phone, where the top bar has no room for it. */}
+                <div className="sm:hidden">
+                  <MenuItem icon={dark ? <Sun size={14} /> : <Moon size={14} />} onClick={toggle}>{dark ? "Light theme" : "Dark theme"}</MenuItem>
+                </div>
                 {/* Renders nothing at all unless this browser can install right now. */}
                 <InstallAppMenuItem />
                 <div className="px-2.5 pt-2 pb-1.5 border-t mt-1">
@@ -382,7 +409,8 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
           )}
 
           {/* Mobile bottom nav */}
-          <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 glass border-t safe-b">
+          {/* Solid, not `glass`: at 72% opacity the page showed through and the bar read as transparent. */}
+          <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-[var(--bg-elev)] border-t safe-b">
             <div className="grid grid-cols-5">
               {mobileItems.map((it) => {
                 const n = badgeFor(it.badge);

@@ -11,7 +11,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Avatar, Button, Field, Input, Menu, MenuItem, Modal, Pill, Select, Textarea, useToast } from "@/components/ui";
 import { PersonPicker, PriorityPicker, ProjectPicker, DepartmentPicker, StatusPicker } from "@/components/pickers";
 import { useDepartment, useSession } from "@/components/providers/SessionProvider";
-import { PersonChip, StatusPill, TaskRow } from "@/components/tasks/TaskBits";
+import { PersonChip, StatusPill, TaskRow, doneBlockedReason } from "@/components/tasks/TaskBits";
 import { AttachmentList, AttachmentUploader, type FileWithVersions } from "@/components/tasks/AttachmentUploader";
 import { HandoffPanel, type HandoffRow } from "@/components/tasks/HandoffPanel";
 import { HandoffModal } from "@/components/tasks/HandoffModal";
@@ -154,6 +154,8 @@ export function TaskDetail({ data }: { data: TaskDetailData }) {
   const [reopenTo, setReopenTo] = React.useState<TaskStatus | null>(null);
   async function setStatus(s: TaskStatus, reopenReason?: string) {
     if (task.status === "done" && s !== "done" && !reopenReason) { setReopenTo(s); return; }
+    const blocked = s === "done" && task.status !== "done" ? doneBlockedReason(task) : null;
+    if (blocked) { toast.push(blocked, "danger"); return; }
     const patch: Partial<Task> = { status: s };
     if (reopenReason) patch.reopen_reason = reopenReason;
     if (s !== "waiting" && s !== "blocked" && task.waiting_on !== "none") {

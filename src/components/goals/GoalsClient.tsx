@@ -156,7 +156,8 @@ export function GoalsClient({ data }: { data: GoalsData }) {
         </div>
         <div className="flex items-center gap-2 sm:ml-auto">
           <label className="text-xs inline-flex items-center gap-1.5 cursor-pointer text-muted"><input type="checkbox" checked={showClosed} onChange={(e) => setShowClosed(e.target.checked)} className="accent-[var(--brand)]" /> Show achieved & dropped</label>
-          <div className="inline-flex rounded-[var(--radius-sm)] border overflow-hidden">
+          {/* Tree and List render the same single column on a phone, so the switch changed nothing there. */}
+          <div className="hidden md:inline-flex rounded-[var(--radius-sm)] border overflow-hidden">
             <button className={cn("btn btn-sm rounded-none border-0", view === "tree" ? "btn-primary" : "btn-ghost")} aria-pressed={view === "tree"} onClick={() => setView("tree")} title="Tree"><ListTree size={14} /></button>
             <button className={cn("btn btn-sm rounded-none border-0", view === "list" ? "btn-primary" : "btn-ghost")} aria-pressed={view === "list"} onClick={() => setView("list")} title="List"><LayoutList size={14} /></button>
           </div>

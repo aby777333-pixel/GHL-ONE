@@ -19,6 +19,28 @@ export function todayIST() {
   return new Date().toLocaleDateString("en-CA", { timeZone: IST });
 }
 
+/*
+  The person's attendance right now, from today's own clock events. The brief had no attendance data, so a
+  still-unread "you have not clocked in" nudge from earlier in the morning was repeated as fact after the
+  person had clocked in. This line is the live state and says so. `phase` is also the brief's cache key, so
+  a brief written before clocking in is rewritten after.
+*/
+export async function attendanceToday(db: DB, userId: string) {
+  const day = todayIST();
+  const { data } = await db.from("attendance_events").select("kind,mode,occurred_at").eq("user_id", userId).gte("occurred_at", `${day}T00:00:00+05:30`).order("occurred_at");
+  const events = data || [];
+  const last = events[events.length - 1];
+  const firstIn = events.find((e) => e.kind === "clock_in");
+  const phase = !last ? "out" : last.kind === "clock_out" ? "done" : last.kind === "break_start" ? "break" : "in";
+  const at = (d?: string) => (d ? new Date(d).toLocaleTimeString("en-GB", { timeZone: IST, hour: "2-digit", minute: "2-digit" }) : "");
+  const state =
+    phase === "out" ? "not clocked in yet today"
+    : phase === "done" ? `clocked in at ${at(firstIn?.occurred_at)} and clocked out at ${at(last?.occurred_at)}`
+    : phase === "break" ? `clocked in at ${at(firstIn?.occurred_at)}, currently on a break`
+    : `clocked in at ${at(firstIn?.occurred_at)}${firstIn?.mode ? ` (${firstIn.mode})` : ""} and working now`;
+  return { phase, line: `## My attendance right now: ${state}. This is the live state — it overrides any older notification about clocking in.` };
+}
+
 type PersonLite = { id: string; full_name: string; designation: string | null; department_id: string | null; role: string };
 
 export async function peopleDirectory(db: DB) {
@@ -50,18 +72,25 @@ export async function myWorkContext(db: DB, userId: string) {
   const dir = await peopleDirectory(db);
   const name = (id?: string | null) => dir.people.find((p) => p.id === id)?.full_name || "Unassigned";
   const cols = "id,title,status,priority,due_date,assignee_id,waiting_on,waiting_on_user_id,project:projects(name)";
-  const [{ data: mine }, { data: waitingOnMe }, { data: approvals }, { data: meetings }, { data: mentions }, { data: memberships }, { data: delegated }] = await Promise.all([
+  const [{ data: mine }, { data: waitingOnMe }, { data: approvals }, { data: meetings }, { data: mentions }, { data: memberships }, { data: delegated }, attendance] = await Promise.all([
     db.from("tasks").select(cols).eq("assignee_id", userId).not("status", "in", "(done,cancelled)").is("parent_id", null).order("due_date", { ascending: true, nullsFirst: false }).limit(40),
     db.from("tasks").select(cols).eq("waiting_on_user_id", userId).not("status", "in", "(done,cancelled)").limit(20),
     db.from("approvals").select("id,title,type,created_at,requested_by,priority,amount").eq("approver_id", userId).eq("status", "pending").order("created_at").limit(15),
-    db.from("meetings").select("id,title,starts_at,project_id,agenda").gte("starts_at", new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()).lte("starts_at", in7).order("starts_at").limit(10),
+    db.from("meetings").select("id,title,starts_at,project_id,agenda,cancelled_at").gte("starts_at", new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()).lte("starts_at", in7).order("starts_at").limit(10),
     db.from("notifications").select("id,title,body,link,created_at").eq("user_id", userId).is("read_at", null).order("created_at", { ascending: false }).limit(15),
     db.from("project_members").select("project:projects(id,name,status,due_date,progress)").eq("user_id", userId),
     db.from("tasks").select(cols).eq("delegated_by", userId).neq("assignee_id", userId).not("status", "in", "(done,cancelled)").limit(20),
+    attendanceToday(db, userId),
   ]);
   const projects = (memberships || []).map((m) => m.project).filter(Boolean) as { id: string; name: string; status: string; due_date: string | null; progress: number }[];
+  /* A cancelled meeting used to be listed exactly like a live one, so the inbox digest told people to
+     prepare for "meet1 at 13:00 today" after it had been called off. Keep it — knowing it was cancelled is
+     useful — but say so in words the model cannot mistake for an appointment. */
+  const liveMeetings = (meetings || []).filter((m) => !m.cancelled_at);
+  const cancelledMeetings = (meetings || []).filter((m) => m.cancelled_at);
   const text = [
     `Today (IST): ${todayIST()}`,
+    attendance.line,
     `## My open tasks (${mine?.length || 0})`,
     ...(mine || []).map((t) => taskLine(t, name)),
     `## Waiting on me (${waitingOnMe?.length || 0}) — others are blocked until I act`,
@@ -70,14 +99,16 @@ export async function myWorkContext(db: DB, userId: string) {
     ...(delegated || []).map((t) => taskLine(t, name)),
     `## Approvals waiting for my decision (${approvals?.length || 0})`,
     ...(approvals || []).map((a) => `- [${a.title}](/approvals/${a.id}) · ${a.type} · from ${name(a.requested_by)} · requested ${fmt(a.created_at)}${a.amount ? ` · ₹${Number(a.amount).toLocaleString("en-IN")}` : ""}`),
-    `## Meetings next 7 days (${meetings?.length || 0})`,
-    ...(meetings || []).map((m) => `- [${m.title}](/meetings/${m.id}) · ${fmt(m.starts_at, true)}${m.agenda ? ` · agenda: ${m.agenda.slice(0, 120)}` : ""}`),
+    `## Meetings next 7 days (${liveMeetings.length})`,
+    ...liveMeetings.map((m) => `- [${m.title}](/meetings/${m.id}) · ${fmt(m.starts_at, true)}${m.agenda ? ` · agenda: ${m.agenda.slice(0, 120)}` : ""}`),
+    ...(cancelledMeetings.length ? [`## Cancelled meetings (${cancelledMeetings.length}) — CALLED OFF, will NOT take place; never present these as upcoming or suggest preparing for them`] : []),
+    ...cancelledMeetings.map((m) => `- CANCELLED: [${m.title}](/meetings/${m.id}) · was scheduled ${fmt(m.starts_at, true)}`),
     `## Unread notifications (${mentions?.length || 0})`,
     ...(mentions || []).map((n) => `- ${n.title}${n.body ? ` — ${n.body.slice(0, 100)}` : ""}${n.link ? ` (${n.link})` : ""}`),
     `## My projects (${projects.length})`,
     ...projects.map((p) => `- [${p.name}](/projects/${p.id}) · ${p.status} · ${p.progress}%${p.due_date ? ` · due ${fmt(p.due_date)}` : ""}`),
   ].join("\n");
-  return { text, dir, counts: { open: mine?.length || 0, waitingOnMe: waitingOnMe?.length || 0, approvals: approvals?.length || 0, meetings: meetings?.length || 0, mentions: mentions?.length || 0 } };
+  return { text, dir, attendance: attendance.phase, counts: { open: mine?.length || 0, waitingOnMe: waitingOnMe?.length || 0, approvals: approvals?.length || 0, meetings: liveMeetings.length, mentions: mentions?.length || 0 } };
 }
 
 /** Company-wide state. RPCs return nothing for non-managers, so this is naturally gated. */

@@ -28,6 +28,7 @@ import { EntityLive } from "@/components/live/EntityLive";
 import { DocComments, type DocComment } from "./DocComments";
 import { DocVersions } from "./DocVersions";
 import { htmlToMd, mdToHtml, useLiveDoc } from "./useLiveDoc";
+import { UseInRoomButton } from "@/components/live/UseInRoomButton";
 
 type Rail = "comments" | "versions" | null;
 
@@ -261,6 +262,7 @@ export function LiveDocEditor({ doc, initialComments }: { doc: LiveDoc; initialC
                 }}
                 size="sm"
               />
+              {!readOnly && <UseInRoomButton kind="doc" id={doc.id} roomId={doc.room_id} onLinked={() => router.refresh()} />}
               <Button size="sm" variant="secondary" onClick={() => setRail(rail === "comments" ? null : "comments")} className="relative">
                 <MessageSquare size={14} /> <span className="hidden sm:inline">Comments</span>
                 {openComments > 0 && <span className="pill tone-brand ml-1">{openComments}</span>}

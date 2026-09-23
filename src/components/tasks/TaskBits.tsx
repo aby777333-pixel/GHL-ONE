@@ -7,6 +7,18 @@ import { usePerson } from "@/components/providers/SessionProvider";
 import { Blink } from "@/components/providers/ActivityProvider";
 import { cn, dueTone, relDate, STATUS_LABEL, STATUS_TONE, PRIORITY_LABEL, PRIORITY_TONE, WAITING_LABEL, type Task, type TaskPriority, type TaskStatus, type WaitingOn } from "@/lib/utils";
 
+/*
+  Why a task may not be marked Done yet, or null when it may. A task with nothing but a title could be
+  closed, which leaves "done" work nobody did. The one thing a finished task must say is who did it, so
+  the rule is an assignee — kept deliberately small, and applied in the UI rather than the database so
+  automations, recurring tasks and workflow steps that complete tasks for people are not refused.
+  (Unticked quality gates are already refused by the database — `task_quality_gate`.)
+*/
+export function doneBlockedReason(t: { assignee_id?: string | null }) {
+  if (!t.assignee_id) return "Assign this task to someone before marking it done — a finished task needs to say who did it.";
+  return null;
+}
+
 export function StatusPill({ status, size }: { status: TaskStatus; size?: "lg" }) {
   return <Pill tone={STATUS_TONE[status]} size={size}>{STATUS_LABEL[status]}</Pill>;
 }

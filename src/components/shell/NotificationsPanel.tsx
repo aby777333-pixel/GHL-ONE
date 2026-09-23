@@ -22,6 +22,16 @@ export const KIND_ICON: Record<string, React.ReactNode> = {
   help_request: <LifeBuoy size={15} className="text-info" />,
 };
 
+/*
+  Tell the shell a notification was just marked read, so the bell badge drops at once. The badge otherwise
+  waited for a realtime UPDATE event, which did not always arrive — the count stayed "unread" until the
+  page was reloaded. Fired by every place in the app that marks notifications read.
+*/
+export const NOTIFICATIONS_CHANGED = "ghl:notifications-changed";
+export function announceNotificationsChanged() {
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(NOTIFICATIONS_CHANGED));
+}
+
 export function NotificationsPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { profile } = useSession();
   const router = useRouter();
@@ -43,10 +53,14 @@ export function NotificationsPanel({ open, onClose }: { open: boolean; onClose: 
 
   async function markAll() {
     await createClient().from("notifications").update({ read_at: new Date().toISOString() }).eq("user_id", profile.id).is("read_at", null);
+    announceNotificationsChanged();
     load();
   }
   async function openItem(n: Notification) {
-    if (!n.read_at) await createClient().from("notifications").update({ read_at: new Date().toISOString() }).eq("id", n.id);
+    if (!n.read_at) {
+      await createClient().from("notifications").update({ read_at: new Date().toISOString() }).eq("id", n.id);
+      announceNotificationsChanged();
+    }
     onClose();
     if (n.link) router.push(n.link);
   }

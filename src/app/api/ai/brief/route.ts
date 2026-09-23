@@ -1,7 +1,7 @@
 import { withAI, str, bool, readCache, writeCache } from "@/lib/ai/route";
 import { AI_MODEL, complete, logUsage } from "@/lib/ai/client";
 import { BRIEF_SYSTEM } from "@/lib/ai/prompts";
-import { companyContext, myWorkContext, todayIST } from "@/lib/ai/context";
+import { attendanceToday, companyContext, myWorkContext, todayIST } from "@/lib/ai/context";
 import { isManagerPlus, isAdminRole } from "@/lib/utils";
 
 export const maxDuration = 90;
@@ -12,9 +12,13 @@ export async function POST(req: Request) {
     const mode = str(body.mode, "morning") === "eod" ? "eod" : "morning";
     const kind = mode === "eod" ? "brief_eod" : "brief_morning";
     const day = todayIST();
+    // Cached per day AND per clock state: a brief written before clocking in said "you are not clocked in
+    // yet" for the rest of the day. A strict comparison, so briefs cached before this change (no hash)
+    // are rewritten once too.
+    const { phase } = await attendanceToday(ctx.db, ctx.userId);
     if (!bool(body.force)) {
-      const cached = await readCache(ctx.db, { kind, userId: ctx.userId, day });
-      if (cached) return { markdown: (cached.content as { markdown: string }).markdown, cached: true, generatedAt: cached.created_at };
+      const cached = await readCache(ctx.db, { kind, userId: ctx.userId, day, inputHash: phase });
+      if (cached && cached.input_hash === phase) return { markdown: (cached.content as { markdown: string }).markdown, cached: true, generatedAt: cached.created_at };
     }
     const mine = await myWorkContext(ctx.db, ctx.userId);
     let extra = "";
@@ -25,7 +29,7 @@ export async function POST(req: Request) {
     const firstName = ctx.name.split(" ")[0];
     const user = `Write the ${mode === "eod" ? "end-of-day summary" : "morning brief"} for ${firstName} (${ctx.role}).${mode === "eod" ? " Focus on what happened today and what tomorrow needs." : ""}\n\n# Personal data\n${mine.text}${extra}`;
     const { text, usage, latencyMs } = await complete({ system: BRIEF_SYSTEM, user, effort: "low", maxTokens: 1500 });
-    await writeCache(ctx.db, { orgId: ctx.orgId, kind, userId: ctx.userId, day, content: { markdown: text }, model: AI_MODEL });
+    await writeCache(ctx.db, { orgId: ctx.orgId, kind, userId: ctx.userId, day, inputHash: phase, content: { markdown: text }, model: AI_MODEL });
     await logUsage(ctx.db, { orgId: ctx.orgId, userId: ctx.userId, feature: kind, usage, latencyMs });
     return { markdown: text, cached: false, generatedAt: new Date().toISOString() };
   });

@@ -10,6 +10,7 @@ import { useSession } from "@/components/providers/SessionProvider";
 import { isAdminRole, isManagerPlus, ROLE_LABEL, type Profile, type RoleLevel } from "@/lib/utils";
 import { extOf, publicUrl, uploadFile } from "@/components/files/storage";
 import { PRESENCE_LABEL } from "./types";
+import { SKILL_CATALOG, SKILL_NOT_LISTED, canonicalSkill } from "@/lib/skills";
 
 const ROLES: RoleLevel[] = ["super_admin", "director", "executive", "department_head", "manager", "team_lead", "employee", "intern", "consultant", "vendor", "guest"];
 const TIMEZONES = ["Asia/Kolkata", "Asia/Dubai", "Asia/Singapore", "Europe/London", "Europe/Berlin", "America/New_York", "America/Los_Angeles", "Australia/Sydney"];
@@ -20,14 +21,23 @@ const TIMEZONES = ["Asia/Kolkata", "Asia/Dubai", "Asia/Singapore", "Europe/Londo
  * stopped being trustworthy. Each value is now its own chip with a remove button, and the picker
  * offers what the company already uses before accepting something new.
  */
-function TagInput({ value, onChange, suggestions, placeholder }: { value: string[]; onChange: (v: string[]) => void; suggestions: string[]; placeholder?: string }) {
+function TagInput({ value, onChange, suggestions, placeholder, accept }: { value: string[]; onChange: (v: string[]) => void; suggestions: string[]; placeholder?: string; accept?: (s: string) => string | null }) {
   const [draft, setDraft] = React.useState("");
   const [openList, setOpenList] = React.useState(false);
+  const [rejected, setRejected] = React.useState<string | null>(null);
   const has = React.useCallback((s: string) => value.some((v) => v.toLowerCase() === s.trim().toLowerCase()), [value]);
 
   const add = (raw: string) => {
-    const s = raw.trim().replace(/,+$/, "").trim();
-    if (!s || has(s)) { setDraft(""); return; }
+    let s = raw.trim().replace(/,+$/, "").trim();
+    if (!s) { setDraft(""); return; }
+    // `accept` returns the value to store (e.g. the catalogue spelling) or null to refuse it.
+    if (accept) {
+      const ok = accept(s);
+      if (!ok) { setRejected(s); return; }
+      s = ok;
+    }
+    setRejected(null);
+    if (has(s)) { setDraft(""); return; }
     onChange([...value, s]);
     setDraft("");
   };
@@ -53,7 +63,7 @@ function TagInput({ value, onChange, suggestions, placeholder }: { value: string
           className="flex-1 min-w-[120px] bg-transparent outline-none text-sm py-0.5"
           value={draft}
           placeholder={value.length ? "" : placeholder}
-          onChange={(e) => { setDraft(e.target.value); setOpenList(true); }}
+          onChange={(e) => { setDraft(e.target.value); setOpenList(true); setRejected(null); }}
           onFocus={() => setOpenList(true)}
           onBlur={() => setTimeout(() => setOpenList(false), 120)}
           onKeyDown={(e) => {
@@ -62,6 +72,7 @@ function TagInput({ value, onChange, suggestions, placeholder }: { value: string
           }}
         />
       </div>
+      {rejected && <div className="text-[11px] text-danger mt-1" role="alert">“{rejected}” — {SKILL_NOT_LISTED}</div>}
       {openList && matches.length > 0 && (
         <div className="absolute left-0 right-0 top-full mt-1 z-20 card p-1 max-h-[180px] overflow-y-auto" style={{ boxShadow: "var(--shadow-lg)" }}>
           {matches.map((s) => (
@@ -123,7 +134,11 @@ export function ProfileEditor({ person, onDone }: { person: Profile; onDone?: ()
           const k = s.trim().toLowerCase();
           if (k && !seen.has(k)) seen.set(k, s.trim());
         }
-        setSkillSuggestions([...seen.values()].sort((a, b) => a.localeCompare(b)));
+        /* Offer what colleagues already use first, then the rest of the catalogue — but only skills that
+           are IN the catalogue, so a stray entry on one profile is never suggested to anyone else. */
+        const used = [...seen.values()].map((v) => canonicalSkill(v)).filter((v): v is string => !!v);
+        const usedSet = new Set(used);
+        setSkillSuggestions([...[...usedSet].sort((a, b) => a.localeCompare(b)), ...SKILL_CATALOG.filter((c) => !usedSet.has(c)).sort((a, b) => a.localeCompare(b))]);
       });
     return () => { alive = false; };
   }, []);
@@ -226,8 +241,8 @@ export function ProfileEditor({ person, onDone }: { person: Profile; onDone?: ()
           </div>
         </Field>
         <Field label="Status" className="sm:col-span-2"><Input value={statusText} onChange={(e) => setStatusText(e.target.value)} placeholder="What are you focused on?" maxLength={120} /></Field>
-        <Field label="Skills" hint="Pick from the list or type your own, then press Enter. Click × to remove one." className="sm:col-span-2">
-          <TagInput value={skills} onChange={setSkills} suggestions={skillSuggestions} placeholder="Figma, React, Investor decks…" />
+        <Field label="Skills" hint="Start typing and pick from the list, then press Enter. Click × to remove one." className="sm:col-span-2">
+          <TagInput value={skills} onChange={setSkills} suggestions={skillSuggestions} placeholder="Figma, React, Investor decks…" accept={canonicalSkill} />
         </Field>
       </div>
 

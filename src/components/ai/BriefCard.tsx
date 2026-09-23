@@ -142,11 +142,13 @@ function ModeButton({ active, onClick, icon, label }: { active: boolean; onClick
       type="button"
       role="tab"
       aria-selected={active}
+      aria-label={label}
       onClick={onClick}
       className={cn("inline-flex items-center gap-1 h-6 px-2 rounded-full text-[11px] font-medium transition-colors", active ? "bg-[var(--brand)] text-[var(--brand-fg)]" : "text-muted hover:text-[var(--fg)]")}
     >
       {icon}
-      <span className="hidden sm:inline">{label}</span>
+      {/* On a phone the selected mode keeps its words so it is clear which brief this is; the other stays an icon. */}
+      <span className={active ? "inline" : "hidden sm:inline"}>{label}</span>
     </button>
   );
 }

@@ -27,16 +27,18 @@ export function LiveHub({
   persistent,
   recent,
   favouriteIds,
+  initialTab,
 }: {
   live: HubRoom[];
   persistent: HubRoom[];
   recent: HubRoom[];
   favouriteIds: string[];
+  initialTab?: string;
 }) {
   const { profile, people, departments } = useSession();
   const router = useRouter();
   const toast = useToast();
-  const [tab, setTab] = React.useState<Tab>(live.length ? "now" : "mine");
+  const [tab, setTab] = React.useState<Tab>(() => (["now", "mine", "recent", "starred"].includes(initialTab || "") ? (initialTab as Tab) : live.length ? "now" : "mine"));
   const [q, setQ] = React.useState("");
   const [favs, setFavs] = React.useState<Set<string>>(new Set(favouriteIds));
   const [rows, setRows] = React.useState(live);
@@ -182,7 +184,9 @@ export function LiveHub({
                   {r.participants && r.participants.length > 0 && (
                     <AvatarStack size={20} people={r.participants.map((p) => people.find((x) => x.id === p.user_id) || { id: p.user_id, full_name: null, avatar_url: null })} />
                   )}
-                  <Link href={`/live/${r.id}`} className={cn("btn btn-sm ml-auto", isLive ? "btn-primary" : "btn-secondary")}>
+                  {/* History goes straight to the room's history. It used to open the room itself, which for
+                      an ended room is the "This room has ended" screen with a second "Open the history". */}
+                  <Link href={isLive || r.persistent ? `/live/${r.id}` : `/live/${r.id}/history`} className={cn("btn btn-sm ml-auto", isLive ? "btn-primary" : "btn-secondary")}>
                     {isLive ? "Join" : r.persistent ? "Open" : "History"}
                   </Link>
                 </div>

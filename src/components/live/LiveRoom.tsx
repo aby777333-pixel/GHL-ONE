@@ -179,6 +179,33 @@ export function LiveRoom(props: LiveRoomProps) {
   const canRecord = !guest && isHost && !confidential && settings.allow_recording !== false;
   const canWhiteboard = !guest && settings.allow_whiteboard !== false;
   const title = room?.title || lk.meta?.title || "Live room";
+
+  /* The board and live document linked to this room (`room_id`). Both were passed to the stage as a
+     literal null, so a linked board could never appear. Read them, and follow changes so a board linked by
+     one participant shows up for everyone in the room. */
+  const [linked, setLinked] = React.useState<{ board: string | null; doc: string | null }>({ board: null, doc: null });
+  React.useEffect(() => {
+    if (!roomId || guest) return;
+    const sb = createClient();
+    let alive = true;
+    const load = async () => {
+      const [{ data: b }, { data: d }] = await Promise.all([
+        sb.from("boards").select("id").eq("room_id", roomId).eq("archived", false).order("created_at", { ascending: false }).limit(1),
+        sb.from("live_docs").select("id").eq("room_id", roomId).eq("archived", false).order("created_at", { ascending: false }).limit(1),
+      ]);
+      if (alive) setLinked({ board: b?.[0]?.id ?? null, doc: d?.[0]?.id ?? null });
+    };
+    void load();
+    const chan = sb.channel(`room-links:${roomId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "boards", filter: `room_id=eq.${roomId}` }, () => void load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "live_docs", filter: `room_id=eq.${roomId}` }, () => void load());
+    sb.auth.getSession().then(({ data }) => {
+      if (!alive) return;
+      if (data.session?.access_token) sb.realtime.setAuth(data.session.access_token);
+      chan.subscribe();
+    });
+    return () => { alive = false; sb.removeChannel(chan); };
+  }, [roomId, guest]);
   const kind = room?.kind || lk.meta?.kind || "huddle";
   const handUp = hands.has(meId);
 
@@ -529,8 +556,10 @@ export function LiveRoom(props: LiveRoomProps) {
             pinned={pinned}
             onPin={setPinned}
             confidentialFor={confidential ? `${meName} · ${new Date().toLocaleDateString()}` : null}
-            boardId={null}
-            docId={null}
+            boardId={linked.board}
+            docId={linked.doc}
+            link={!guest && roomId && orgId && meId ? { roomId, orgId, meId, title, meetingId: room?.meeting_id ?? null, projectId: room?.project_id ?? null } : null}
+            onLinked={(kind, id) => setLinked((l) => ({ ...l, [kind]: id }))}
             canWhiteboard={canWhiteboard}
             strokes={annots.strokes}
             pointers={annots.pointers}

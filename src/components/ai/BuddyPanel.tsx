@@ -104,6 +104,31 @@ export function BuddyPanel({ open, onClose, initial }: { open: boolean; onClose:
   const mounted = React.useSyncExternalStore(() => () => {}, () => true, () => false);
 
   const isOpen = open || store.open;
+
+  /*
+    On a phone the header and the composer scrolled away with the conversation. The panel was sized to the
+    LAYOUT viewport, and when the keyboard opens (or the page behind is scroll-chained) the browser shifts
+    the VISUAL viewport instead, carrying the panel's top and bottom out of sight. Size the panel to the
+    visual viewport while it is open, and hold the page behind still, so only the message list scrolls.
+    On a desktop the visual viewport is the window, so nothing changes there.
+  */
+  const [vv, setVv] = React.useState<{ top: number; height: number } | null>(null);
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const root = document.documentElement;
+    const prevOverflow = root.style.overflow;
+    root.style.overflow = "hidden";
+    const v = window.visualViewport;
+    const sync = () => { if (v) setVv({ top: v.offsetTop, height: v.height }); };
+    sync();
+    v?.addEventListener("resize", sync);
+    v?.addEventListener("scroll", sync);
+    return () => {
+      root.style.overflow = prevOverflow;
+      v?.removeEventListener("resize", sync);
+      v?.removeEventListener("scroll", sync);
+    };
+  }, [isOpen]);
   const close = React.useCallback(() => {
     onClose();
     closeBuddy();
@@ -487,10 +512,10 @@ export function BuddyPanel({ open, onClose, initial }: { open: boolean; onClose:
   if (!mounted || !isOpen) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex justify-end" role="dialog" aria-modal aria-label="GHL Buddy">
+    <div className="fixed inset-x-0 z-[100] flex justify-end" style={{ top: vv?.top ?? 0, height: vv ? vv.height : "100dvh" }} role="dialog" aria-modal aria-label="GHL Buddy">
       <div className="absolute inset-0 bg-black/40 anim-fade-in" onClick={close} />
       <div
-        className="relative card anim-pop flex flex-col h-full max-h-[100dvh] overflow-hidden rounded-none border-y-0 border-r-0 w-full sm:w-[min(100vw,540px)]"
+        className="relative card anim-pop flex flex-col h-full overflow-hidden rounded-none border-y-0 border-r-0 w-full sm:w-[min(100vw,540px)]"
         style={{ boxShadow: "var(--shadow-lg)" }}
         onDragOver={(e) => { e.preventDefault(); if (!dragging) setDragging(true); }}
         onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragging(false); }}
@@ -565,7 +590,7 @@ export function BuddyPanel({ open, onClose, initial }: { open: boolean; onClose:
         )}
 
         {/* Body */}
-        <div ref={listRef} className="flex-1 min-h-0 overflow-y-auto px-3 sm:px-4 py-3">
+        <div ref={listRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 sm:px-4 py-3">
           {showDisabled ? (
             <AIDisabledNote />
           ) : loadingConv ? (

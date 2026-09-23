@@ -40,13 +40,24 @@ export function NewProjectForm({ templates }: { templates: TemplateLite[] }) {
   const [loading, setLoading] = React.useState(false);
 
   const tpl = templates.find((t) => t.key === tplKey) || null;
+  /* What the chosen template filled in by itself, so deselecting it can take exactly that back out —
+     and nothing the person typed or picked. */
+  const autoFilled = React.useRef<{ department?: string; description?: string }>({});
   function chooseTemplate(key: string) {
+    // Clicking the selected template again deselects it (back to Blank project). It used to stay selected.
+    if (key && key === tplKey) key = "";
+    const prev = autoFilled.current;
+    if (prev.department && department === prev.department) setDepartment("");
+    if (prev.description && description === prev.description) setDescription("");
+    autoFilled.current = {};
     setTplKey(key);
     const t = templates.find((x) => x.key === key);
     if (!t) return;
     const d = departments.find((x) => x.slug === t.department_slug);
-    if (d && !department) setDepartment(d.id);
-    if (!description && t.description) setDescription(t.description);
+    const deptFree = !department || department === prev.department;
+    const descFree = !description || description === prev.description;
+    if (d && deptFree) { setDepartment(d.id); autoFilled.current.department = d.id; }
+    if (descFree && t.description) { setDescription(t.description); autoFilled.current.description = t.description; }
   }
 
   const toggleMember = (id: string) => setMembers((m) => (m.includes(id) ? m.filter((x) => x !== id) : [...m, id]));
@@ -115,7 +126,7 @@ export function NewProjectForm({ templates }: { templates: TemplateLite[] }) {
             <div className="text-xs text-muted mt-1">Start empty and add tasks as you go.</div>
           </button>
           {templates.map((t) => (
-            <button type="button" key={t.key} onClick={() => chooseTemplate(t.key)} className={cn("text-left card card-hover p-3 border-2", tplKey === t.key ? "border-[var(--brand-2)]" : "border-transparent")}>
+            <button type="button" key={t.key} onClick={() => chooseTemplate(t.key)} aria-pressed={tplKey === t.key} title={tplKey === t.key ? "Selected — click again to clear" : undefined} className={cn("text-left card card-hover p-3 border-2", tplKey === t.key ? "border-[var(--brand-2)]" : "border-transparent")}>
               <div className="flex items-center gap-2 text-sm font-medium">{tplKey === t.key ? <Check size={14} className="text-[var(--brand-2)]" /> : <LayoutTemplate size={14} className="text-muted" />} {t.name}</div>
               <div className="text-xs text-muted mt-1 truncate-2">{t.description}</div>
               <div className="text-[11px] text-muted mt-1.5 num">{t.tasks.length} tasks · {t.milestones.length} milestones</div>

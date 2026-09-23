@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Inbox, CheckCheck, AlertOctagon, Zap, CheckSquare, AtSign, Clock, Info, Sparkles, AlertTriangle, ArrowRightLeft } from "lucide-react";
 import { Button, Card, EmptyState, PageHeader } from "@/components/ui";
-import { KIND_ICON } from "@/components/shell/NotificationsPanel";
+import { KIND_ICON, announceNotificationsChanged } from "@/components/shell/NotificationsPanel";
 import { PersonChip, PriorityPill, StatusPill } from "@/components/tasks/TaskBits";
 import { useSession } from "@/components/providers/SessionProvider";
 import { createClient } from "@/lib/supabase/client";
@@ -32,12 +32,13 @@ function entityLabel(title: string) {
   return i > 0 ? title.slice(i + 2) : title;
 }
 
-export function InboxClient({ initial, dueTasks }: { initial: Notification[]; dueTasks: DueTask[] }) {
+export function InboxClient({ initial, dueTasks, cancelledMeetingIds = [] }: { initial: Notification[]; dueTasks: DueTask[]; cancelledMeetingIds?: string[] }) {
   const { profile, people } = useSession();
   const router = useRouter();
   const [items, setItems] = React.useState<Notification[]>(initial);
   const [onlyUnread, setOnlyUnread] = React.useState(false);
   const [now] = React.useState(() => Date.now());
+  const cancelledMeetings = React.useMemo(() => new Set(cancelledMeetingIds), [cancelledMeetingIds]);
 
   // Live updates on my notifications.
   React.useEffect(() => {
@@ -93,12 +94,14 @@ export function InboxClient({ initial, dueTasks }: { initial: Notification[]; du
     const at = new Date().toISOString();
     setItems((s) => s.map((x) => (ids.includes(x.id) ? { ...x, read_at: x.read_at || at } : x)));
     await createClient().from("notifications").update({ read_at: at }).in("id", ids).is("read_at", null);
+    announceNotificationsChanged();
     router.refresh();
   }
   async function markAll() {
     const at = new Date().toISOString();
     setItems((s) => s.map((x) => ({ ...x, read_at: x.read_at || at })));
     await createClient().from("notifications").update({ read_at: at }).eq("user_id", profile.id).is("read_at", null);
+    announceNotificationsChanged();
     router.refresh();
   }
   async function open(row: Row) {
@@ -221,6 +224,7 @@ export function InboxClient({ initial, dueTasks }: { initial: Notification[]; du
                       {!r.collapsedTitle && r.latest.body && <span className="block text-xs text-muted truncate-2 mt-0.5">{r.latest.body}</span>}
                       <span className="flex items-center gap-2 mt-1 text-[11px] text-muted">
                         {r.latest.entity_type === "handoff" && <span className="pill tone-violet"><ArrowRightLeft size={10} /> Handoff</span>}
+                        {r.latest.entity_type === "meeting" && r.latest.entity_id && cancelledMeetings.has(r.latest.entity_id) && !r.latest.title.startsWith("Meeting cancelled") && <span className="pill tone-danger">Meeting cancelled</span>}
                         {r.latest.actor_id && <PersonChip id={r.latest.actor_id} size={14} />}
                         <span className="num" title={fmtDate(r.latest.created_at, true)}>{ago(r.latest.created_at)}</span>
                         {r.items.length > 1 && <span className="pill tone-neutral">{r.items.length}</span>}

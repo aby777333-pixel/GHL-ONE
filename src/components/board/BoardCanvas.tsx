@@ -33,6 +33,7 @@ import { useIconImages } from "./boardIcons";
 import { loadBoardImage, uploadBoardAsset } from "./boardAssets";
 import { exportPagePng, exportPagesPdf, logExport } from "./boardExport";
 import { uid } from "./BoardTemplates";
+import { UseInRoomButton } from "@/components/live/UseInRoomButton";
 
 export function BoardCanvas({ boardId, embedded, roomId, initialBoard }: { boardId: string; embedded?: boolean; roomId?: string; initialBoard?: BoardRow | null }) {
   const { profile } = useSession();
@@ -51,6 +52,9 @@ export function BoardCanvas({ boardId, embedded, roomId, initialBoard }: { board
   const [palette, setPalette] = React.useState(() => readPalette());
   const [view, setView] = React.useState<View>({ x: -200, y: -160, zoom: 1 });
   const [tool, setTool] = React.useState<Tool>("select");
+  /* Your own laser. The pointer position is broadcast so OTHERS see a glowing dot, but nothing was drawn
+     for the person holding it — pick the laser and the board appeared to do nothing. */
+  const [myLaser, setMyLaser] = React.useState<{ x: number; y: number } | null>(null);
   const [style, setStyleState] = React.useState<BoardStyle>({ color: "fg", fill: "warn-bg", strokeWidth: 2, fontSize: 15, icon: "Lightbulb" });
   const [selection, setSelection] = React.useState<string[]>([]);
   const [editing, setEditing] = React.useState<{ id: string; value: string } | null>(null);
@@ -395,6 +399,12 @@ export function BoardCanvas({ boardId, embedded, roomId, initialBoard }: { board
       className={cn("relative w-full overflow-hidden select-none", !embedded && "h-[calc(100dvh-var(--topbar-h)-56px)] lg:h-[calc(100dvh-var(--topbar-h))]")}
       style={{ height, background: "var(--bg)" }}
       ref={wrapRef}
+      onPointerMoveCapture={(e) => {
+        if (tool !== "laser") { if (myLaser) setMyLaser(null); return; }
+        const r = wrapRef.current?.getBoundingClientRect();
+        if (r) setMyLaser({ x: e.clientX - r.left, y: e.clientY - r.top });
+      }}
+      onPointerLeave={() => setMyLaser(null)}
       onDragOver={(e) => e.preventDefault()}
       onDrop={onDrop}
       onContextMenu={(e) => {
@@ -461,6 +471,9 @@ export function BoardCanvas({ boardId, embedded, roomId, initialBoard }: { board
           </span>
           <Button size="sm" variant="ghost" icon title="Ask AI" aria-label="Ask AI" onClick={() => setPanel("ai")}><Sparkles size={16} /></Button>
           <Button size="sm" variant="ghost" icon title="Present" aria-label="Present" onClick={() => setPresent({ on: true, index: 0, following: false, presenter: true })}><Presentation size={16} /></Button>
+          {/* Share was only reachable from the "…" menu; one tap from the bar, where people look for it. */}
+          <Button size="sm" variant="ghost" icon title="Share & access" aria-label="Share" onClick={() => setPanel("share")}><Share2 size={16} /></Button>
+          {!embedded && canEdit && <UseInRoomButton kind="board" id={board.id} roomId={board.room_id} onLinked={(rid) => api.setBoard((b) => (b ? { ...b, room_id: rid } : b))} />}
           <Menu width={230} trigger={<Button size="sm" variant="ghost" icon aria-label="More"><MoreHorizontal size={16} /></Button>}>
             <MenuItem icon={<Share2 size={13} />} onClick={() => setPanel("share")}>Share &amp; access</MenuItem>
             <MenuItem icon={<History size={13} />} onClick={() => setPanel("versions")}>Versions &amp; snapshots</MenuItem>
@@ -492,6 +505,9 @@ export function BoardCanvas({ boardId, embedded, roomId, initialBoard }: { board
       )}
 
       <LiveCursors cursors={cursors} view={view} pageId={pageId} meId={profile.id} />
+      {tool === "laser" && myLaser && (
+        <span className="absolute pointer-events-none z-30 block w-3.5 h-3.5 -ml-1.5 -mt-1.5 rounded-full" style={{ left: myLaser.x, top: myLaser.y, background: me.color, boxShadow: `0 0 12px 4px ${me.color}` }} aria-hidden />
+      )}
       <TaskBadges elements={elements} view={view} />
       {editing && byId.get(editing.id) && (
         <InlineTextEditor

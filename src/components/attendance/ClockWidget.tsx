@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Check, Clock, Coffee, LogIn, LogOut, MapPin, Play, ShieldCheck, ChevronRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button, Card, CardHeader, Modal, Pill, Skeleton, Textarea, useToast } from "@/components/ui";
@@ -236,10 +237,13 @@ export function ClockWidget({ className }: { className?: string }) {
       >
         <span className="relative inline-flex w-2 h-2 rounded-full" style={{ background: dot }}>{s?.phase === "in" && <span className="absolute inset-0 rounded-full animate-ping opacity-60" style={{ background: dot }} />}</span>
         <Clock size={14} className="text-muted" />
-        <span className="num hidden sm:inline">{short}</span>
+        <span className="num hidden min-[400px]:inline">{short}</span>
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-50 card p-[var(--s3)] anim-pop w-[min(92vw,320px)]" style={{ boxShadow: "var(--shadow-lg)" }} role="dialog" aria-label="Attendance">
+        /* On a phone the pill is not at the right edge of the screen, so a 320px panel anchored to its
+           right edge ran off the LEFT of the viewport. Below `sm` it is pinned to the viewport under the
+           top bar instead; from `sm` up it is anchored to the pill exactly as before. */
+        <div className="fixed left-3 right-3 top-[calc(var(--topbar-h)+4px)] sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-1 z-50 card p-[var(--s3)] anim-pop sm:w-[min(92vw,320px)]" style={{ boxShadow: "var(--shadow-lg)" }} role="dialog" aria-label="Attendance">
           {!s ? (
             <div className="space-y-2"><Skeleton className="h-5 w-2/3" /><Skeleton className="h-8" /></div>
           ) : (
@@ -271,6 +275,8 @@ export function ClockWidget({ className }: { className?: string }) {
 export function ClockCard({ className }: { className?: string }) {
   const c = useClockController();
   const s = c.snapshot;
+  const [details, setDetails] = React.useState(false);
+  const pathname = usePathname();
   return (
     <Card className={className}>
       <CardHeader title={<span className="inline-flex items-center gap-2"><Clock size={15} className="text-muted" /> Attendance today</span>} subtitle={s ? phaseLabel(s) : "Loading…"} action={s && <Pill tone={phaseTone(s)} size="lg">{s.phase === "in" ? "Clocked in" : s.phase === "break" ? "On break" : s.phase === "done" ? "Clocked out" : "Not in yet"}</Pill>} />
@@ -293,7 +299,9 @@ export function ClockCard({ className }: { className?: string }) {
             </div>
             <div className="flex items-center gap-2 mt-[var(--s3)] flex-wrap">
               <ActionButtons snapshot={s} busy={c.busy} onClockIn={() => c.setModal(true)} onAct={(k) => c.act(k)} size="md" />
-              <Link href="/attendance" className="btn btn-ghost ml-auto text-xs">Details <ChevronRight size={13} /></Link>
+              {/* Was a link to /attendance — which, on the attendance page itself, went nowhere. It now
+                  opens today's full record wherever the card is shown. */}
+              <button type="button" onClick={() => setDetails(true)} className="btn btn-ghost ml-auto text-xs">Details <ChevronRight size={13} /></button>
             </div>
             {s.events.length > 0 && (
               <div className="mt-[var(--s3)] flex flex-wrap gap-1.5">
@@ -312,6 +320,45 @@ export function ClockCard({ className }: { className?: string }) {
       </div>
       <ClockInModal open={c.modal} onClose={() => c.setModal(false)} onSubmit={c.clockIn} busy={c.busy} defaultMode={s?.mode} />
       <BreakModal open={c.breakModal} onClose={() => c.setBreakModal(false)} onSubmit={c.startBreak} busy={c.busy} />
+      <Modal open={details && !!s} onClose={() => setDetails(false)} title={<span className="inline-flex items-center gap-2"><Clock size={15} className="text-muted" /> Today&apos;s attendance</span>} width={480}>
+        {s && (
+          <div className="p-[var(--s4)] space-y-[var(--s3)] text-sm">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Pill tone={phaseTone(s)} size="lg">{s.phase === "in" ? "Clocked in" : s.phase === "break" ? "On break" : s.phase === "done" ? "Clocked out" : "Not in yet"}</Pill>
+              {s.mode && <Pill tone="tone-neutral">{MODE_LABEL[s.mode]}</Pill>}
+            </div>
+            <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+              <dt className="text-muted">First in</dt><dd className="num">{istTime(s.firstIn)}</dd>
+              <dt className="text-muted">Last out</dt><dd className="num">{s.lastOut ? istTime(s.lastOut) : s.phase === "out" ? "—" : "Still in"}</dd>
+              <dt className="text-muted">Worked</dt><dd className="num">{fmtMinutes(s.minutes)}</dd>
+              <dt className="text-muted">Breaks</dt><dd className="num">{fmtMinutes(s.breakMinutes)}</dd>
+            </dl>
+            <div>
+              <div className="label">Timeline</div>
+              {s.events.length === 0 ? (
+                <div className="text-xs text-muted">Nothing recorded yet today.</div>
+              ) : (
+                <ul className="divide-y rounded-[var(--radius-sm)] border">
+                  {s.events.map((e) => (
+                    <li key={e.id} className="flex items-center gap-2 px-2.5 py-1.5">
+                      {e.kind === "clock_in" ? <LogIn size={13} className="text-muted shrink-0" /> : e.kind === "clock_out" ? <LogOut size={13} className="text-muted shrink-0" /> : e.kind === "break_start" ? <Coffee size={13} className="text-muted shrink-0" /> : <Play size={13} className="text-muted shrink-0" />}
+                      <span className="flex-1 min-w-0 truncate">{EVENT_LABEL[e.kind] || e.kind}{e.note ? <span className="text-muted"> · {e.note}</span> : null}</span>
+                      {e.location ? <MapPin size={12} className="text-muted shrink-0" aria-label="Location shared" /> : null}
+                      <span className="num text-xs shrink-0">{istTime(e.occurred_at)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <TransparencyNote />
+            {pathname !== "/attendance" && (
+              <Link href="/attendance" onClick={() => setDetails(false)} className="btn btn-secondary btn-sm">Open my attendance <ChevronRight size={13} /></Link>
+            )}
+          </div>
+        )}
+      </Modal>
     </Card>
   );
 }
+
+const EVENT_LABEL: Record<string, string> = { clock_in: "Clocked in", clock_out: "Clocked out", break_start: "Break started", break_end: "Back from break" };

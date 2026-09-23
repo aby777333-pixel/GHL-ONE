@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button, EmptyState, Modal, SearchInput, Select, useToast } from "@/components/ui";
 import { PersonPicker } from "@/components/pickers";
 import { useSession } from "@/components/providers/SessionProvider";
-import { TaskRow } from "@/components/tasks/TaskBits";
+import { TaskRow, doneBlockedReason } from "@/components/tasks/TaskBits";
 import { TaskBoard } from "@/components/tasks/TaskBoard";
 import { QuickTaskForm, type QuickTaskDefaults } from "@/components/tasks/QuickTaskForm";
 import { cn, PRIORITIES, PRIORITY_LABEL, STATUS_LABEL, TASK_STATUSES, type Task, type TaskStatus } from "@/lib/utils";
@@ -109,6 +109,8 @@ export function TaskListView<T extends TaskLite>({ tasks, projects, defaults, sh
   async function move(taskId: string, status: TaskStatus) {
     const t = merged.find((x) => x.id === taskId);
     if (!t) return;
+    const blocked = status === "done" && t.status !== "done" ? doneBlockedReason(t) : null;
+    if (blocked) { toast.push(blocked, "danger"); return; }
     const leavingWait = (t.status === "waiting" || t.status === "blocked") && status !== "waiting" && status !== "blocked";
     /*
       Same rule as TaskDetail.update(): RLS refuses an UPDATE by matching zero rows, not by

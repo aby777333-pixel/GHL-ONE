@@ -222,3 +222,4 @@ The project's own engineering record is `CLAUDE.md`, whose sections are:
 - Speech input duplicated what was said, and Buddy never knew to answer in Tamil
 - Fifth test report — ~45 issues across four PDFs (2026-09-23, no migration)
 - Second reset, owners, company-email sign-up, password reset, Inbox archive (2026-09-23, schema 0071)
+- Platform is owners-only (2026-09-23)

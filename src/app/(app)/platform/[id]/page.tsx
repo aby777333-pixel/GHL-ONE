@@ -27,7 +27,8 @@ export default async function PlatformCompanyPage({
   const supabase = await createClient();
 
   const [{ data: isPlatformAdmin }, { data: platformRole }] = await Promise.all([supabase.rpc("is_platform_admin"), supabase.rpc("platform_role")]);
-  if (!isPlatformAdmin) notFound();
+  // Platform owners only (platform_super_admin) — the owners decide who may do what (2026-09-23).
+  if (!isPlatformAdmin || platformRole !== "platform_super_admin") notFound();
   if (!UUID.test(id)) notFound();
 
   const { data, error } = await supabase.rpc("platform_company", { p_org: id });

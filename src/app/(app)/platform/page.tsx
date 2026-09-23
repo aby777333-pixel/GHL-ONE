@@ -16,7 +16,8 @@ export default async function PlatformPage() {
   const supabase = await createClient();
 
   const [{ data: isPlatformAdmin }, { data: platformRole }] = await Promise.all([supabase.rpc("is_platform_admin"), supabase.rpc("platform_role")]);
-  if (!isPlatformAdmin) notFound();
+  // Platform owners only (platform_super_admin) — the owners decide who may do what (2026-09-23).
+  if (!isPlatformAdmin || platformRole !== "platform_super_admin") notFound();
 
   const { data, error } = await supabase.rpc("platform_overview");
   if (error || !data) return <PlatformError title="The platform overview could not be loaded" message={error?.message} backHref="/" backLabel="Back to Home" />;

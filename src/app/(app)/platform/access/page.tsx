@@ -28,12 +28,10 @@ export default async function AccessControlPage({ searchParams }: { searchParams
     ability to *read* who holds what without handing over the ability to change it.
   */
   const [
-    { data: isOwner }, { data: canSecurity }, { data: canRead },
+    { data: isOwner },
     { data: canCreate }, { data: canEdit }, { data: canDelete }, { data: canAssign }, { data: canManage },
   ] = await Promise.all([
     supabase.rpc("is_platform_owner"),
-    supabase.rpc("has_perm", { p_perm: "security.manage" }),
-    supabase.rpc("has_perm", { p_perm: "access_control.view" }),
     /*
       §15: administering roles is four separate capabilities, not one. Reading this screen and
       changing what it shows are different permissions, so the studio has to be told which the
@@ -47,7 +45,10 @@ export default async function AccessControlPage({ searchParams }: { searchParams
     supabase.rpc("has_perm", { p_perm: "roles.assign" }),
     supabase.rpc("has_perm", { p_perm: "access_control.manage" }),
   ]);
-  if (!isOwner && !canSecurity && !canRead) notFound();
+  // Platform owners only. Company security administrators used to reach this studio through
+  // security.manage / access_control.view; the owners now decide who has access to what, alone.
+  // (The capability flags below still gate each control, and Postgres re-checks every write.)
+  if (!isOwner) notFound();
 
   const [{ data: catalogue }, { data: companies }] = await Promise.all([
     supabase.from("permissions").select("*").order("position"),

@@ -11,6 +11,8 @@ export type NavSection = { title?: string; items: NavItem[] };
 /** Extra facts the nav needs that a role alone cannot answer. */
 export type NavContext = {
   platformAdmin?: boolean;
+  /** Platform owner (`platform_super_admin`). The Platform section — Command Center and Access Control — is theirs alone. */
+  platformOwner?: boolean;
   /** Effective permission keys — lets the nav offer permission-gated screens without guessing from role. */
   permissions?: string[];
 };
@@ -18,11 +20,6 @@ export type NavContext = {
 export function navFor(role: RoleLevel, ctx: NavContext = {}): NavSection[] {
   const manager = isManagerPlus(role);
   const lead = isLeadPlus(role);
-  // Access Control is permission-gated, not role-gated: "admin" is a role, authority is a permission.
-  // Either the broad security key or the one that names the screen — a company may grant the
-  // second on its own so somebody can review access without being able to rewrite it.
-  const perms = ctx.permissions || [];
-  const security = perms.includes("security.manage") || perms.includes("access_control.view");
   return [
     {
       items: [
@@ -77,12 +74,12 @@ export function navFor(role: RoleLevel, ctx: NavContext = {}): NavSection[] {
         { href: "/ideas", label: "Ideas", icon: Lightbulb },
         { href: "/search", label: "Search", icon: Search },
         ...(lead ? [{ href: "/admin", label: "Admin", icon: Shield }] : []),
-        ...(security && !ctx.platformAdmin ? [{ href: "/platform/access", label: "Access Control", icon: KeyRound }] : []),
       ],
     },
-    // The platform layer sits above every company. Only `is_platform_admin()` people see it, and
-    // every page behind it re-checks that in the database — this section is convenience, not control.
-    ...(ctx.platformAdmin
+    // The platform layer sits above every company and belongs to the platform OWNERS only: they decide
+    // who has access to what and who sees what. Company administrators no longer get an Access Control
+    // link either. Every page behind it re-checks ownership server-side — this is convenience, not control.
+    ...(ctx.platformOwner
       ? [{ title: "Platform", items: [
           { href: "/platform", label: "Command Center", icon: Layers },
           { href: "/platform/access", label: "Access Control", icon: KeyRound },

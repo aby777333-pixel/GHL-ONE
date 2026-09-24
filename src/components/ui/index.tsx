@@ -4,6 +4,7 @@ import * as React from "react";
 import { createPortal } from "react-dom";
 import { X, Loader2, Search } from "lucide-react";
 import { cn, initials } from "@/lib/utils";
+import { viaProxy } from "@/lib/supabase/proxy";
 
 /* ----------------------------------------------------------------- Button */
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -48,7 +49,7 @@ export function Avatar({ name, src, size = 32, className, presence }: { name?: s
     <span className={cn("relative inline-flex shrink-0 rounded-full", className)} style={{ width: size, height: size }} title={name || undefined}>
       {src ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt={name || ""} className="rounded-full object-cover w-full h-full" />
+        <img src={viaProxy(src)} alt={name || ""} className="rounded-full object-cover w-full h-full" />
       ) : (
         <span className="rounded-full w-full h-full inline-flex items-center justify-center text-white font-semibold select-none" style={{ background: color, fontSize: Math.max(10, size * 0.38) }}>
           {initials(name)}

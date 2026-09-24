@@ -4,3 +4,10 @@
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
+
+# Same-origin proxy to Supabase for networks that block *.supabase.co (src/lib/supabase/proxy.ts).
+[[redirects]]
+  from = "/sb/*"
+  to = "https://rarlrohsybktcheyrhiv.supabase.co/:splat"
+  status = 200
+  force = true

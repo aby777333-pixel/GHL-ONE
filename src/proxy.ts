@@ -83,5 +83,5 @@ export const config = {
   // install time, and `cache.add` throws on a redirect. Governed, it would never be stored, and
   // the fallback would silently not exist on the one occasion it is needed. It carries no company
   // data — it is a static "you are offline" card — so there is nothing for the proxy to protect.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.json|sw.js|offline.html|icons|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
+  matcher: ["/((?!sb/|_next/static|_next/image|favicon.ico|manifest.json|sw.js|offline.html|icons|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
 };

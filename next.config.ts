@@ -16,6 +16,12 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Same-origin path to Supabase for networks that block *.supabase.co (see src/lib/supabase/proxy.ts).
+  // On Netlify the CDN answers /sb/* first (netlify.toml); this rewrite covers `next dev`.
+  async rewrites() {
+    const supabase = (process.env.NEXT_PUBLIC_SUPABASE_URL || "").replace(/\/+$/, "");
+    return supabase ? [{ source: "/sb/:path*", destination: `${supabase}/:path*` }] : [];
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

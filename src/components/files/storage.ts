@@ -1,6 +1,7 @@
 import { createElement } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
+import { viaProxy } from "@/lib/supabase/proxy";
 import {
   Archive, FileAudio, FileImage, FileSpreadsheet, FileText, FileVideo, File as FileIcon, Presentation, FileCode, type LucideIcon,
 } from "lucide-react";
@@ -109,12 +110,13 @@ export async function signedUrl(supabase: SB, bucket: string, path: string, ttlS
   if (hit && hit.expires > Date.now()) return hit.url;
   const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, ttlSeconds);
   if (error || !data?.signedUrl) return null;
-  urlCache.set(key, { url: data.signedUrl, expires: Date.now() + (ttlSeconds - 60) * 1000 });
-  return data.signedUrl;
+  const url = viaProxy(data.signedUrl);
+  urlCache.set(key, { url, expires: Date.now() + (ttlSeconds - 60) * 1000 });
+  return url;
 }
 
 export function publicUrl(supabase: SB, bucket: string, path: string) {
-  return supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+  return viaProxy(supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl);
 }
 
 /* ---------------------------------------------------------------- upload */

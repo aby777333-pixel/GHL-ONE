@@ -537,6 +537,12 @@ Three separate defects behind one report ("the query repeats itself, regional la
 - **Inbox → Archive.** The inbox lists unread only; reading moves an item to Archive; Archive has "Mark unread" (`read_at = null`, allowed by `notif_update`).
 - **Left behind**: 12 orphaned storage objects (8 `chat`, 1 `live`, 3 unused `avatars`) — SQL cannot delete storage; remove from the dashboard.
 
+## A sixth owner, invited before sign-up (2026-09-25, schema 0073)
+
+- **sarozone@gmail.com** is pre-authorised as an owner: `platform_admin_invites` → `platform_super_admin`, plus a company `invites` row at level `super_admin` (Founders department, like Aby's). No account existed yet.
+- **0073** extends `promote_platform_invite()`: for a `platform_super_admin` invite it also grants the `company_super_admin` security role at sign-up, so an invited owner arrives with all three owner facts (platform grant, level, role) instead of needing the role added by hand. The platform_admins insert is unchanged; the role insert has its own exception block. Only future owner invitees are affected — every existing invitee already has an account.
+- Verified with a rolled-back `auth.users` insert: sarozone → active, `super_admin`, `platform_super_admin`, `company_super_admin`, `has_perm('security.manage')` true; a control sign-up with no invite → inactive, employee, nothing. `platform_self_test()`: 32 passed, 0 failed.
+
 ## Platform is owners-only (2026-09-23)
 
 - The **Platform** section (Command Center, Access Control) and every page under `/platform` now require a platform **owner** (`platform_role() = 'platform_super_admin'`); anyone else gets `notFound()`. Previously any platform staff role reached Command Center, and company security administrators (`security.manage` / `access_control.view`) got an "Access Control" link under Company and could open `/platform/access`. The owners decide who has access to what. `navFor` takes `platformOwner`; the Company-section Access Control link is gone. The `roles.*` capability flags still gate each control inside the studio, and Postgres still re-checks every write.

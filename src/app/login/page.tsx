@@ -56,9 +56,23 @@ function LoginInner() {
       // Full navigation: the session cookie must reach the edge proxy and server render on a fresh request.
       window.location.assign(next.startsWith("/") ? next : "/");
     } else {
-      const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: name } } });
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        // Without this the confirmation link points at the project's Site URL, whichever host the person signed up on.
+        options: { data: { full_name: name }, emailRedirectTo: `${window.location.origin}/auth/callback?next=/` },
+      });
       setLoading(false);
       if (error) return setErr(error.message);
+      /*
+        An address that already has an account gets a 200 with a fake user and NO email (Supabase hides which
+        addresses exist). The tell is an empty `identities` array. Saying "check your email" there sends the
+        person to wait for a message that will never come.
+      */
+      if (data.user && !data.session && (data.user.identities?.length ?? 0) === 0) {
+        setMode("signin");
+        return setErr("This email already has an account. Sign in, or use “Forgot password?” to set a new password.");
+      }
       if (data.session) {
         // Same full navigation as sign-in above: `router.push` would soft-navigate before the new
         // session cookie has been seen by the proxy and the server render.

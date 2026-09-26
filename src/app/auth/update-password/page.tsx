@@ -11,6 +11,7 @@ import Link from "next/link";
 import { KeyRound } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button, Field, Input } from "@/components/ui";
+import { authErrorMessage } from "@/lib/authErrors";
 
 export default function UpdatePasswordPage() {
   const [state, setState] = React.useState<"checking" | "ready" | "no-session">("checking");
@@ -33,7 +34,7 @@ export default function UpdatePasswordPage() {
     setBusy(true);
     const { error } = await createClient().auth.updateUser({ password });
     setBusy(false);
-    if (error) return setErr(error.message);
+    if (error) return setErr(authErrorMessage(error.message));
     // Full navigation, as after sign-in: the proxy and server render must see the session on a fresh request.
     // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.assign("/");

@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { MailCheck } from "lucide-react";
 import { Button, Field, Input } from "@/components/ui";
+import { authErrorMessage, authErrorFromUrl } from "@/lib/authErrors";
 import { Suspense } from "react";
 
 function LoginInner() {
@@ -28,7 +29,13 @@ function LoginInner() {
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [name, setName] = React.useState("");
-  const [err, setErr] = React.useState<string | null>(null);
+  /*
+    An expired or already-used email link comes back here with the failure in the URL
+    (`?error_code=otp_expired&error_description=…`). The form used to ignore it and show nothing.
+    Read from the search params in the initialiser — they are the same on the server and the client,
+    so this cannot cause a hydration mismatch the way reading `window` would.
+  */
+  const [err, setErr] = React.useState<string | null>(() => authErrorFromUrl(params));
   const [loading, setLoading] = React.useState(false);
   /*
     Signing up used to leave the whole registration form on screen with a one-line "check your
@@ -45,14 +52,14 @@ function LoginInner() {
     if (mode === "reset") {
       const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/auth/callback?next=/auth/update-password` });
       setLoading(false);
-      if (error) return setErr(error.message);
+      if (error) return setErr(authErrorMessage(error.message, { email }));
       setResetSent(email);
       return;
     }
     if (mode === "signin") {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       setLoading(false);
-      if (error) return setErr(error.message);
+      if (error) return setErr(authErrorMessage(error.message, { email }));
       // Full navigation: the session cookie must reach the edge proxy and server render on a fresh request.
       window.location.assign(next.startsWith("/") ? next : "/");
     } else {
@@ -63,7 +70,7 @@ function LoginInner() {
         options: { data: { full_name: name }, emailRedirectTo: `${window.location.origin}/auth/callback?next=/` },
       });
       setLoading(false);
-      if (error) return setErr(error.message);
+      if (error) return setErr(authErrorMessage(error.message, { email }));
       /*
         An address that already has an account gets a 200 with a fake user and NO email (Supabase hides which
         addresses exist). The tell is an empty `identities` array. Saying "check your email" there sends the

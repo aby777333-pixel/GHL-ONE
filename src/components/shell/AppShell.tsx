@@ -24,6 +24,7 @@ import { ClockWidget } from "@/components/attendance";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 import { BreakGlassBanner } from "@/components/platform/BreakGlassDialog";
 import { PushRegistrar } from "@/components/notifications/PushOptIn";
+import { NotificationToaster } from "@/components/notifications/NotificationToaster";
 import { InstallAppMenuItem, InstallPrompt } from "@/components/shell/InstallApp";
 
 export type Counts = { inbox: number; approvals: number; chat: number };
@@ -535,6 +536,8 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
       <CollaborateMenu />
       {/* Registers /sw.js and keeps this device's push row pointed at the active workspace. Never prompts. */}
       <PushRegistrar />
+      {/* New notifications pop up while you are in the app; the badge alone was easy to miss. */}
+      <NotificationToaster />
     </ToastProvider>
   );
 }

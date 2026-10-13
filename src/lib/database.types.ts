@@ -6764,6 +6764,7 @@ export type Database = {
           invited_by: string | null
           manager_id: string | null
           org_id: string
+          phone: string | null
           role: Database["public"]["Enums"]["role_level"]
         }
         Insert: {
@@ -6777,6 +6778,7 @@ export type Database = {
           invited_by?: string | null
           manager_id?: string | null
           org_id: string
+          phone?: string | null
           role?: Database["public"]["Enums"]["role_level"]
         }
         Update: {
@@ -6790,6 +6792,7 @@ export type Database = {
           invited_by?: string | null
           manager_id?: string | null
           org_id?: string
+          phone?: string | null
           role?: Database["public"]["Enums"]["role_level"]
         }
         Relationships: [

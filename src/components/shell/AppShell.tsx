@@ -223,12 +223,34 @@ export function AppShell({ children, initialCounts }: { children: React.ReactNod
     return () => document.removeEventListener("keydown", onKey);
   }, [paletteOpen, askOpen]);
 
+  /*
+    The browser tab says how much is waiting: "(3) Inbox · GHL ONE". Next sets the title per page,
+    so the prefix is re-applied whenever the page's own title changes (a MutationObserver on
+    <title>), and stripped before we count so it never compounds.
+  */
+  const titleUnread = counts.inbox + counts.chat;
+  React.useEffect(() => {
+    const apply = () => {
+      const base = document.title.replace(/^\(\d+\+?\)\s*/, "");
+      const want = titleUnread > 0 ? `(${titleUnread > 99 ? "99+" : titleUnread}) ${base}` : base;
+      if (document.title !== want) document.title = want;
+    };
+    apply();
+    const el = document.querySelector("title");
+    const obs = el ? new MutationObserver(apply) : null;
+    if (el && obs) obs.observe(el, { childList: true, characterData: true, subtree: true });
+    return () => {
+      obs?.disconnect();
+      document.title = document.title.replace(/^\(\d+\+?\)\s*/, "");
+    };
+  }, [titleUnread]);
+
   // Realtime badge counts
   React.useEffect(() => {
     const supabase = createClient();
     const refresh = async () => {
       const [{ count: inbox }, { count: approvals }, { data: unread }] = await Promise.all([
-        supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", profile.id).is("read_at", null),
+        supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", profile.id).is("read_at", null).or(`snoozed_until.is.null,snoozed_until.lt.${new Date().toISOString()}`),
         supabase.from("approvals").select("id", { count: "exact", head: true }).eq("approver_id", profile.id).eq("status", "pending"),
         supabase.rpc("my_unread_counts"),
       ]);

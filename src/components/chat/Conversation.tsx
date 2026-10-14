@@ -9,9 +9,11 @@ import { createClient } from "@/lib/supabase/client";
 import { useSession } from "@/components/providers/SessionProvider";
 import { Avatar, AvatarStack, Button, Menu, MenuItem, Modal, Pill, Spinner, useToast } from "@/components/ui";
 import { QuickTaskForm } from "@/components/tasks/QuickTaskForm";
-import { cn, isManagerPlus, humanize, type Channel, type Message, type Tables } from "@/lib/utils";
-import { Composer } from "./Composer";
+import { cn, isManagerPlus, isLeadPlus, isAdminRole, humanize, type Channel, type Message, type Tables } from "@/lib/utils";
+import { Composer, type ComposerPermissions } from "./Composer";
 import { MessageItem, MessageActionSheet, MessageBody } from "./MessageItem";
+import { AckReportModal, tracksAck } from "./Acknowledge";
+import { announceNotificationsChanged } from "@/components/shell/NotificationsPanel";
 import { ThreadPanel } from "./ThreadPanel";
 import { RecordDecisionModal, ForwardModal, CatchUpModal, MembersDrawer } from "./ChatModals";
 import { ExtractTasksModal } from "@/components/ai/ExtractTasksModal";
@@ -23,7 +25,7 @@ import { BringInModal } from "./BringInModal";
 import { ConvertProjectModal } from "./ConvertProjectModal";
 import { VisibilityPill, OwnerChip } from "./VisibilityPill";
 import { PAGE_SIZE, INITIAL_PAGE, dayLabel, isContinuation, isNewDay, mergeMessages, personName, firstName, timeLabel, parseAttachments } from "./lib";
-import type { ChannelMember, ChatMessage, MessageAction, PersonLite, Reaction, SendPayload } from "./types";
+import type { AckStatus, ChannelMember, ChatMessage, MessageAction, MessageReceipt, PersonLite, Reaction, SendPayload } from "./types";
 
 type Row = Message & { message_reactions: Reaction[] | null };
 const toMessage = (r: Row): ChatMessage => {
@@ -58,7 +60,7 @@ function inQuietHours(q: QuietHours | null, nowMin: number) {
   const e = toMinutes(q.end, 8 * 60);
   return s < e ? nowMin >= s && nowMin < e : nowMin >= s || nowMin < e;
 }
-type ModalState = { kind: "task" | "extract" | "decision" | "forward" | "catchup" | "members" | "bringin" | "convert"; m?: ChatMessage } | null;
+type ModalState = { kind: "task" | "extract" | "decision" | "forward" | "catchup" | "members" | "bringin" | "convert" | "acks"; m?: ChatMessage } | null;
 
 function DateSeparator({ label }: { label: string }) {
   return (
@@ -129,6 +131,9 @@ export function Conversation({
   const [modal, setModal] = React.useState<ModalState>(null);
   const [online, setOnline] = React.useState<string[]>([]);
   const [typers, setTypers] = React.useState<string[]>([]);
+  /* Acknowledgement receipts (0075) for this channel that I may read: my own rows, every row for
+     messages I wrote, every row if I run communication. RLS decides; the map is by message id. */
+  const [receipts, setReceipts] = React.useState<Record<string, MessageReceipt[]>>({});
 
   const listRef = React.useRef<HTMLDivElement>(null);
   const topRef = React.useRef<HTMLDivElement>(null);
@@ -222,8 +227,58 @@ export function Conversation({
 
   /* ---------------------------------------------------------- mark read */
   const markRead = React.useCallback(() => {
-    createClient().rpc("mark_channel_read", { c: channel.id }).then(() => {});
+    // Also clears this channel's notifications and stamps receipts as seen (0075) - so tell the bell.
+    createClient().rpc("mark_channel_read", { c: channel.id }).then(() => announceNotificationsChanged());
   }, [channel.id]);
+
+  /* ----------------------------------------------------------- receipts */
+  React.useEffect(() => {
+    const supabase = createClient();
+    let cancelled = false;
+    const upsert = (r: MessageReceipt) =>
+      setReceipts((prev) => {
+        const list = prev[r.message_id] || [];
+        const next = list.some((x) => x.user_id === r.user_id) ? list.map((x) => (x.user_id === r.user_id ? r : x)) : [...list, r];
+        return { ...prev, [r.message_id]: next };
+      });
+    supabase
+      .from("message_receipts")
+      .select("message_id,user_id,channel_id,notified_at,seen_at,ack_status,acked_at,reminded_at,escalated_at")
+      .eq("channel_id", channel.id)
+      .then(({ data }) => {
+        if (cancelled || !data) return;
+        const map: Record<string, MessageReceipt[]> = {};
+        for (const r of data) (map[r.message_id] ||= []).push(r);
+        setReceipts(map);
+      });
+    const rt = supabase.channel(`receipts:${channel.id}`).on("postgres_changes", { event: "*", schema: "public", table: "message_receipts", filter: `channel_id=eq.${channel.id}` }, (p) => {
+      if (p.eventType === "DELETE") return;
+      upsert(p.new as MessageReceipt);
+    });
+    supabase.auth.getSession().then(({ data }) => {
+      if (cancelled) return;
+      if (data.session?.access_token) supabase.realtime.setAuth(data.session.access_token);
+      rt.subscribe();
+    });
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(rt);
+    };
+  }, [channel.id]);
+
+  const ackMessage = React.useCallback(
+    async (m: ChatMessage, status: AckStatus) => {
+      const { data, error } = await createClient().rpc("ack_message", { p_message: m.id, p_status: status });
+      if (error) {
+        toastRef.current.push(error.message, "danger");
+        return;
+      }
+      const r = data as unknown as MessageReceipt | null;
+      if (r?.message_id) setReceipts((prev) => ({ ...prev, [r.message_id]: [...(prev[r.message_id] || []).filter((x) => x.user_id !== r.user_id), r] }));
+      if (status !== "seen") toastRef.current.push(status === "acknowledged" ? "Acknowledged" : status === "will_respond" ? "Marked: will respond" : "The sender has been asked for clarification", "success");
+    },
+    []
+  );
 
   React.useEffect(() => {
     markRead();
@@ -536,7 +591,19 @@ export function Conversation({
     async (p: SendPayload, parentId: string | null = null) => {
       const { data, error } = await createClient()
         .from("messages")
-        .insert({ channel_id: channel.id, author_id: me, body: p.body, kind: p.kind, attachments: p.attachments, mentions: p.mentions, parent_id: parentId })
+        .insert({
+          channel_id: channel.id,
+          author_id: me,
+          body: p.body,
+          kind: p.kind,
+          attachments: p.attachments,
+          mentions: p.mentions,
+          parent_id: parentId,
+          priority: p.priority || "normal",
+          ack_required: !!p.ack_required,
+          remind_after_minutes: p.ack_required ? p.remind_after_minutes ?? null : null,
+          escalate: !!p.escalate,
+        })
         .select("*")
         .single();
       if (error || !data) {
@@ -624,7 +691,7 @@ export function Conversation({
     (a: MessageAction, m: ChatMessage) => {
       if (a === "sheet") setSheetFor(m);
       else if (a === "reply") openThread(m);
-      else if (a === "task" || a === "extract" || a === "decision" || a === "forward") setModal({ kind: a, m });
+      else if (a === "task" || a === "extract" || a === "decision" || a === "forward" || a === "acks") setModal({ kind: a, m });
       else if (a === "edit") setEditingId(m.id);
       else if (a === "copy") copyLink(m);
       else if (a === "pin") pinMessage(m);
@@ -699,6 +766,12 @@ export function Conversation({
   const canBringIn = !isDm && isMember;
   const canConvert = !isDm && channel.type !== "project" && channel.type !== "task" && channel.type !== "help" && !channel.project_id && (isOwner || managerPlus);
   const canPin = (m: ChatMessage) => m.author_id === me || managerPlus;
+  /* What this person may do to a message's priority here. The database (messages_priority_guard)
+     re-checks every one of these; the composer only decides what to offer. */
+  const leadHere = isLeadPlus(profile.role) || isOwner;
+  const maxPriority: ComposerPermissions["maxPriority"] = isAdminRole(profile.role) ? "critical" : managerPlus ? "urgent" : leadHere ? "important" : "normal";
+  const composerPermissions: ComposerPermissions | undefined = isDm || maxPriority === "normal" ? undefined : { maxPriority, canBroadcast: leadHere, canEscalate: managerPlus };
+  const canSeeReport = managerPlus;
   const lastMine = React.useMemo(() => [...messages].reverse().find((m) => m.author_id === me && !m.deleted_at && m.kind !== "system"), [messages, me]);
   const seenLabel = React.useMemo(() => {
     if (!lastMine) return null;
@@ -890,6 +963,9 @@ export function Conversation({
                       replyCount={replyCounts[m.id]}
                       seenBy={lastMine?.id === m.id ? seenLabel : null}
                       editing={editingId === m.id}
+                      receipts={tracksAck(m) ? receipts[m.id] : undefined}
+                      canSeeReport={canSeeReport}
+                      onAck={ackMessage}
                       onAction={onAction}
                       onReact={toggleReaction}
                       onSaveEdit={saveEdit}
@@ -927,7 +1003,7 @@ export function Conversation({
               <Lock size={12} className="inline mr-1 -mt-0.5" /> This channel is read-only. Only managers and above can post.
             </div>
           ) : (
-            <Composer channelId={channel.id} people={people} placeholder={isDm ? `Message ${firstName(other)}${awayNote ? (otherDnd ? " · on do not disturb" : " · outside working hours") : ""}` : `Message ${title}`} onSend={(p) => send(p, null)} onTyping={setTyping} />
+            <Composer channelId={channel.id} people={people} permissions={composerPermissions} placeholder={isDm ? `Message ${firstName(other)}${awayNote ? (otherDnd ? " · on do not disturb" : " · outside working hours") : ""}` : `Message ${title}`} onSend={(p) => send(p, null)} onTyping={setTyping} />
           )}
         </div>
 
@@ -1042,6 +1118,8 @@ export function Conversation({
       />
 
       <ConvertProjectModal open={modal?.kind === "convert"} onClose={() => setModal(null)} channel={channel} />
+
+      <AckReportModal m={modal?.kind === "acks" ? modal.m || null : null} onClose={() => setModal(null)} />
     </div>
   );
 }

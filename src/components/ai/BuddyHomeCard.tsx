@@ -72,7 +72,10 @@ export function BuddyHomeCard({ className }: { className?: string }) {
       supabase.from("tasks").select("id,title,due_date,assignee_id").eq("waiting_on_user_id", profile.id).not("status", "in", "(done,cancelled)").gte("due_date", startOfDay).lte("due_date", endOfDay).limit(5),
       supabase.from("notifications").select("id,title,link,created_at,actor_id").eq("user_id", profile.id).eq("kind", "mention").is("read_at", null).lte("created_at", dayAgo).order("created_at", { ascending: false }).limit(5),
       supabase.rpc("my_nudges"),
-    ]).then(([blocked, waited, mentions, server]) => {
+      // Unread messages from the people this person reports to (0075: chat is a notification now).
+      supabase.from("notifications").select("id,title,link,created_at,actor_id,priority,meta").eq("user_id", profile.id).eq("entity_type", "message").is("read_at", null).order("created_at", { ascending: false }).limit(40),
+      supabase.from("profiles").select("manager_id,functional_manager_id").eq("id", profile.id).maybeSingle(),
+    ]).then(([blocked, waited, mentions, server, chat, me]) => {
       if (!alive) return;
       const out: Nudge[] = [];
       // Server nudges first: they are about things that have already gone wrong, and the high ones
@@ -93,6 +96,37 @@ export function BuddyHomeCard({ className }: { className?: string }) {
           message: meta.message,
           link: r.link || undefined,
         });
+      }
+      {
+        const bosses = new Set([me.data?.manager_id, me.data?.functional_manager_id].filter(Boolean) as string[]);
+        const fromBoss = (chat.data || []).filter((n) => n.actor_id && bosses.has(n.actor_id));
+        const urgentChat = (chat.data || []).filter((n) => n.priority === "urgent" || n.priority === "critical");
+        if (urgentChat.length) {
+          const n = urgentChat[0]!;
+          out.push({
+            id: `urgent-chat:${n.id}`,
+            high: true,
+            icon: <AlertTriangle size={14} />,
+            title: urgentChat.length === 1 ? n.title : `${urgentChat.length} urgent messages are waiting`,
+            why: "Marked urgent by the sender and still unread. Open it first.",
+            cta: "Open it",
+            mode: "what_next",
+            link: n.link || "/inbox",
+          });
+        }
+        if (fromBoss.length) {
+          const n = fromBoss[0]!;
+          out.push({
+            id: `boss-chat:${n.id}`,
+            icon: <Users size={14} />,
+            title: fromBoss.length === 1 ? n.title : `${fromBoss.length} messages from your manager are waiting`,
+            why: `Unread since ${ago(n.created_at)}. Want to see what they need first?`,
+            cta: "What do they need?",
+            mode: "what_next",
+            message: "My manager has messaged me and I have not read it yet. Summarise what is waiting for me and what I should do first.",
+            link: n.link || "/chat",
+          });
+        }
       }
       for (const t of blocked.data || []) {
         out.push({

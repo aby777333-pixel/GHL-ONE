@@ -19,6 +19,8 @@ export type PushPayload = {
   link?: string | null;
   tag?: string | null;
   kind?: string | null;
+  /** normal | important | urgent | critical (0075). */
+  priority?: string | null;
   icon?: string | null;
   badge?: string | null;
   /** Ring-style notification: requireInteraction + Accept/Decline actions in the worker. */
@@ -184,6 +186,7 @@ export async function sendPushToUser(
     link: payload.link ?? undefined,
     tag: payload.tag ?? undefined,
     kind: payload.kind ?? undefined,
+    priority: payload.priority ?? undefined,
     icon: payload.icon ?? undefined,
     badge: payload.badge ?? undefined,
     call: payload.call === true,
@@ -203,7 +206,7 @@ export async function sendPushToUser(
         await webpush.sendNotification(
           { endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth } },
           body,
-          { TTL: payload.call ? 45 : 60 * 60 * 12, urgency: payload.call || payload.kind === "critical" ? "high" : "normal" }
+          { TTL: payload.call ? 45 : 60 * 60 * 12, urgency: payload.call || payload.kind === "critical" || payload.priority === "critical" || payload.priority === "urgent" ? "high" : "normal" }
         );
         delivered.push(row.id);
       } catch (e) {

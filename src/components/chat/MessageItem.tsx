@@ -2,14 +2,22 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { MessageSquare, SmilePlus, ListPlus, MoreHorizontal, Pin, Link2, Pencil, Trash2, Forward, Gavel, Check, X, Sparkles } from "lucide-react";
+import { MessageSquare, SmilePlus, ListPlus, MoreHorizontal, Pin, Link2, Pencil, Trash2, Forward, Gavel, Check, X, Sparkles, Flag } from "lucide-react";
 import { Avatar, Button, Menu, MenuItem, Modal } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { AttachmentView } from "./Attachment";
 import { QUICK_EMOJIS, MORE_EMOJIS, TOKEN_RE, groupReactions, parseAttachments, timeLabel, fullStamp, personName } from "./lib";
-import type { ChatMessage, MessageAction, PersonLite } from "./types";
+import type { AckStatus, ChatMessage, MessageAction, MessageReceipt, PersonLite } from "./types";
 import { AIMarkdown } from "@/components/ai/AIMarkdown";
 import { buddyBody, isBuddyMessage } from "@/components/ai/buddyChat";
+import { AckBar, tracksAck } from "./Acknowledge";
+
+/* Message priority (0075): a pill beside the time, and a tinted left edge for urgent / critical. */
+const PRIORITY_PILL: Record<string, { label: string; tone: string }> = {
+  important: { label: "Important", tone: "tone-brand" },
+  urgent: { label: "Urgent", tone: "tone-warn" },
+  critical: { label: "Critical", tone: "tone-danger" },
+};
 
 /* ----------------------------------------------------------- Message body */
 export function MessageBody({ body, me, className }: { body: string; me?: string; className?: string }) {
@@ -117,13 +125,18 @@ export type MessageItemProps = {
   replyCount?: number;
   seenBy?: string | null;
   editing?: boolean;
+  /** Receipts for this message the viewer may read (0075). Only consulted when the message tracks acknowledgement. */
+  receipts?: MessageReceipt[];
+  /** Viewer may open the acknowledgement report (sender, manager+, communication.manage). */
+  canSeeReport?: boolean;
+  onAck?: (m: ChatMessage, status: AckStatus) => Promise<void>;
   onAction: (action: MessageAction, m: ChatMessage) => void;
   onReact: (m: ChatMessage, emoji: string) => void;
   onSaveEdit?: (m: ChatMessage, body: string) => Promise<boolean>;
   onCancelEdit?: () => void;
 };
 
-export const MessageItem = React.memo(function MessageItem({ m, author, me, grouped, highlighted, inThread, canPin, replyCount, seenBy, editing, onAction, onReact, onSaveEdit, onCancelEdit }: MessageItemProps) {
+export const MessageItem = React.memo(function MessageItem({ m, author, me, grouped, highlighted, inThread, canPin, replyCount, seenBy, editing, receipts, canSeeReport, onAck, onAction, onReact, onSaveEdit, onCancelEdit }: MessageItemProps) {
   const [emoji, setEmoji] = React.useState(false);
   const [draft, setDraft] = React.useState(m.body);
   const [saving, setSaving] = React.useState(false);
@@ -132,6 +145,8 @@ export const MessageItem = React.memo(function MessageItem({ m, author, me, grou
   const buddy = isBuddyMessage(m.body);
   const attachments = React.useMemo(() => parseAttachments(m.attachments), [m.attachments]);
   const mentionsMe = m.mentions.includes(me);
+  const priorityPill = PRIORITY_PILL[m.priority];
+  const tracked = tracksAck(m);
 
   React.useEffect(() => {
     if (editing) {
@@ -175,7 +190,9 @@ export const MessageItem = React.memo(function MessageItem({ m, author, me, grou
       className={cn(
         "group relative flex gap-2.5 px-3 sm:px-4 transition-colors",
         grouped ? "py-0.5" : "pt-2 pb-0.5",
-        highlighted ? "bg-[color-mix(in_oklab,var(--brand)_12%,transparent)]" : mentionsMe && !deleted ? "bg-[color-mix(in_oklab,var(--accent)_9%,transparent)]" : "hover:bg-[color-mix(in_oklab,var(--neutral-bg)_60%,transparent)]"
+        highlighted ? "bg-[color-mix(in_oklab,var(--brand)_12%,transparent)]" : mentionsMe && !deleted ? "bg-[color-mix(in_oklab,var(--accent)_9%,transparent)]" : m.priority === "critical" && !deleted ? "bg-[color-mix(in_oklab,var(--danger)_8%,transparent)]" : m.priority === "urgent" && !deleted ? "bg-[color-mix(in_oklab,var(--warn)_8%,transparent)]" : "hover:bg-[color-mix(in_oklab,var(--neutral-bg)_60%,transparent)]",
+        m.priority === "critical" && !deleted && "border-l-2 border-[var(--danger)]",
+        m.priority === "urgent" && !deleted && "border-l-2 border-[var(--warn)]"
       )}
       onTouchStart={startPress}
       onTouchEnd={endPress}
@@ -216,7 +233,13 @@ export const MessageItem = React.memo(function MessageItem({ m, author, me, grou
                 <Pin size={10} /> pinned
               </span>
             )}
+            {priorityPill && !deleted && (
+              <span className={cn("pill", priorityPill.tone)}><Flag size={9} /> {priorityPill.label}</span>
+            )}
           </div>
+        )}
+        {grouped && priorityPill && !deleted && (
+          <span className={cn("pill mb-0.5", priorityPill.tone)}><Flag size={9} /> {priorityPill.label}</span>
         )}
 
         {deleted ? (
@@ -266,6 +289,10 @@ export const MessageItem = React.memo(function MessageItem({ m, author, me, grou
         )}
 
         {!deleted && <ReactionChips m={m} me={me} onReact={onReact} />}
+
+        {!deleted && tracked && onAck && (
+          <AckBar m={m} me={me} receipts={receipts || []} canSeeReport={!!canSeeReport} onAck={(status) => onAck(m, status)} onReport={() => onAction("acks", m)} />
+        )}
 
         {!inThread && !!replyCount && replyCount > 0 && (
           <button type="button" onClick={() => onAction("reply", m)} className="mt-1.5 inline-flex items-center gap-1.5 text-xs font-medium link">

@@ -6,7 +6,7 @@
  * remains the source of truth — anything that fails here must fail silently.
  *
  * Payload contract (see src/lib/push/server.ts):
- *   { title, body, link, tag, kind, icon, badge, call, inviteId, roomId, notificationId, orgId }
+ *   { title, body, link, tag, kind, priority, icon, badge, call, inviteId, roomId, notificationId, orgId }
  */
 
 const DEFAULT_ICON = "/icon-192.png";
@@ -93,7 +93,9 @@ self.addEventListener("push", (event) => {
   const p = readPayload(event);
   const title = p.title || "GHL ONE";
   const isCall = !!p.call;
-  const loud = isCall || LOUD_KINDS.indexOf(p.kind) !== -1;
+  // `priority` (0075) is the sender's own word: urgent and critical stay on screen until seen.
+  const urgent = p.priority === "urgent" || p.priority === "critical";
+  const loud = isCall || urgent || LOUD_KINDS.indexOf(p.kind) !== -1;
 
   const options = {
     body: p.body || undefined,
@@ -102,13 +104,14 @@ self.addEventListener("push", (event) => {
     // One tag per logical thing, so a re-ring or a repeated reminder replaces rather than stacks.
     tag: p.tag || (p.notificationId ? "notif:" + p.notificationId : "ghl-one"),
     renotify: loud,
-    requireInteraction: isCall,
+    requireInteraction: isCall || urgent,
     silent: false,
     timestamp: Date.now(),
-    vibrate: isCall ? [200, 100, 200, 100, 200] : loud ? [120, 60, 120] : undefined,
+    vibrate: isCall ? [200, 100, 200, 100, 200] : p.priority === "critical" ? [250, 80, 250, 80, 250] : loud ? [120, 60, 120] : undefined,
     data: {
       link: p.link || "/inbox",
       kind: p.kind || "information",
+      priority: p.priority || "normal",
       call: isCall,
       inviteId: p.inviteId || null,
       roomId: p.roomId || null,

@@ -52,6 +52,8 @@ type NotificationRow = {
   link: string | null;
   entity_type: string | null;
   entity_id: string | null;
+  priority?: string | null;
+  meta?: { channel_id?: string } | null;
 };
 
 /** A ring/knock notification carries `/live/<room>?invite=<id>` — turn it into a call payload. */
@@ -104,12 +106,16 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
     userId = row.user_id;
     orgId = row.org_id;
     const call = callBits(row);
+    // One tag per conversation: a burst from #techy replaces its own card instead of stacking,
+    // and the page-shown desktop notification (same tag) and this push collapse into one.
+    const channel = row.meta && typeof row.meta === "object" ? row.meta.channel_id : undefined;
     payload = {
       title: row.title,
       body: row.body,
       link: row.link,
       kind: row.kind,
-      tag: call ? `call:${call.roomId}` : `notif:${row.id}`,
+      priority: row.priority ?? null,
+      tag: call ? `call:${call.roomId}` : channel ? `chat:${channel}` : `notif:${row.id}`,
       notificationId: row.id,
       orgId: row.org_id,
       call: !!call,

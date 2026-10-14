@@ -551,6 +551,45 @@ export function buildTools(ctx: Ctx, assistant: AssistantRow, state: BuddyToolSt
       },
     }),
     tool({
+      name: "get_unread_communications",
+      description: "What is waiting for this person's attention in GHL ONE right now: unread notifications grouped by what they are about (direct messages, group messages, mentions, announcements, urgent items, approvals, tasks, meetings), unread chat per conversation with the sender of the latest message, pending approvals, and the next meeting. Use for 'what did I miss', 'anything important waiting', 'which conversation should I open first'. Only this person's own rows — RLS. Never invent urgency: report the counts and the priorities as they are.",
+      inputSchema: z.object({}),
+      run: async () => {
+        const nowIso = new Date().toISOString();
+        const [{ data: notes }, { data: unread }, { data: approvals }, { data: meetings }, { data: me }] = await Promise.all([
+          ctx.db.from("notifications").select("id,kind,priority,title,body,link,entity_type,actor_id,created_at,meta,snoozed_until").eq("user_id", ctx.userId).is("read_at", null).order("created_at", { ascending: false }).limit(60),
+          ctx.db.rpc("my_unread_counts"),
+          ctx.db.from("approvals").select("id,title,created_at").eq("approver_id", ctx.userId).eq("status", "pending").limit(10),
+          ctx.db.from("meetings").select("id,title,starts_at").gte("starts_at", nowIso).is("cancelled_at", null).order("starts_at").limit(3),
+          ctx.db.from("profiles").select("manager_id,functional_manager_id").eq("id", ctx.userId).maybeSingle(),
+        ]);
+        const live = (notes || []).filter((n) => !n.snoozed_until || Date.parse(n.snoozed_until) <= Date.now());
+        const { notifCategories, notifPriority } = await import("@/lib/notifications/classify");
+        const byCategory: Record<string, number> = {};
+        for (const n of live) for (const c of notifCategories(n)) byCategory[c] = (byCategory[c] || 0) + 1;
+        const managerIds = new Set([me?.manager_id, me?.functional_manager_id].filter(Boolean) as string[]);
+        const fromManager = live.filter((n) => n.actor_id && managerIds.has(n.actor_id));
+        const urgent = live.filter((n) => ["urgent", "critical"].includes(notifPriority(n)));
+        const channels = (unread || []).filter((u) => Number(u.unread) > 0);
+        let rooms: { channel_id: string; name: string; type: string; unread: number }[] = [];
+        if (channels.length) {
+          const { data: chs } = await ctx.db.from("channels").select("id,name,type").in("id", channels.map((c) => c.channel_id));
+          rooms = channels.map((c) => ({ channel_id: c.channel_id, name: chs?.find((x) => x.id === c.channel_id)?.name || "?", type: chs?.find((x) => x.id === c.channel_id)?.type || "group", unread: Number(c.unread) }));
+        }
+        push({ kind: "my_work", title: "Waiting for you", link: "/inbox" });
+        return JSON.stringify({
+          unread_notifications: live.length,
+          by_category: byCategory,
+          from_your_manager: fromManager.slice(0, 5).map((n) => ({ title: n.title, link: n.link, at: n.created_at })),
+          urgent: urgent.slice(0, 5).map((n) => ({ title: n.title, body: n.body, link: n.link, priority: n.priority, at: n.created_at })),
+          latest: live.slice(0, 8).map((n) => ({ kind: n.kind, priority: n.priority, title: n.title, link: n.link, at: n.created_at })),
+          unread_chat: rooms,
+          pending_approvals: (approvals || []).map((a) => ({ id: a.id, title: a.title, since: a.created_at })),
+          next_meetings: (meetings || []).map((m) => ({ id: m.id, title: m.title, starts_at: m.starts_at })),
+        });
+      },
+    }),
+    tool({
       name: "get_my_commitments",
       description: "Promises this person made and promises made to them (with due dates and overdue flags), plus their GHL Connect follow-ups/callbacks if they use Connect.",
       inputSchema: z.object({}),

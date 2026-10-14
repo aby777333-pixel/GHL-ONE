@@ -8911,8 +8911,78 @@ export type Database = {
           },
         ]
       }
+      message_receipts: {
+        Row: {
+          ack_status: string | null
+          acked_at: string | null
+          channel_id: string
+          escalated_at: string | null
+          message_id: string
+          notified_at: string
+          org_id: string
+          reminded_at: string | null
+          seen_at: string | null
+          user_id: string
+        }
+        Insert: {
+          ack_status?: string | null
+          acked_at?: string | null
+          channel_id: string
+          escalated_at?: string | null
+          message_id: string
+          notified_at?: string
+          org_id: string
+          reminded_at?: string | null
+          seen_at?: string | null
+          user_id: string
+        }
+        Update: {
+          ack_status?: string | null
+          acked_at?: string | null
+          channel_id?: string
+          escalated_at?: string | null
+          message_id?: string
+          notified_at?: string
+          org_id?: string
+          reminded_at?: string | null
+          seen_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_receipts_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_receipts_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_receipts_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_receipts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
+          ack_requested_at: string | null
+          ack_required: boolean
           attachments: Json
           author_id: string | null
           body: string
@@ -8920,13 +8990,18 @@ export type Database = {
           created_at: string
           deleted_at: string | null
           edited_at: string | null
+          escalate: boolean
           id: string
           is_pinned: boolean
           kind: Database["public"]["Enums"]["message_kind"]
           mentions: string[]
           parent_id: string | null
+          priority: string
+          remind_after_minutes: number | null
         }
         Insert: {
+          ack_requested_at?: string | null
+          ack_required?: boolean
           attachments?: Json
           author_id?: string | null
           body?: string
@@ -8934,13 +9009,18 @@ export type Database = {
           created_at?: string
           deleted_at?: string | null
           edited_at?: string | null
+          escalate?: boolean
           id?: string
           is_pinned?: boolean
           kind?: Database["public"]["Enums"]["message_kind"]
           mentions?: string[]
           parent_id?: string | null
+          priority?: string
+          remind_after_minutes?: number | null
         }
         Update: {
+          ack_requested_at?: string | null
+          ack_required?: boolean
           attachments?: Json
           author_id?: string | null
           body?: string
@@ -8948,11 +9028,14 @@ export type Database = {
           created_at?: string
           deleted_at?: string | null
           edited_at?: string | null
+          escalate?: boolean
           id?: string
           is_pinned?: boolean
           kind?: Database["public"]["Enums"]["message_kind"]
           mentions?: string[]
           parent_id?: string | null
+          priority?: string
+          remind_after_minutes?: number | null
         }
         Relationships: [
           {
@@ -9101,37 +9184,70 @@ export type Database = {
       }
       notification_prefs: {
         Row: {
+          batching: boolean
+          desktop: boolean
           digest_kinds: string[]
+          dm_alerts: boolean
           dnd_until: string | null
+          group_alerts: string
           mode: string
           muted_channels: string[]
+          previews: boolean
           priority_people: string[]
           quiet_end: string | null
           quiet_start: string | null
+          shared_device: boolean
+          sound: boolean
+          sound_volume: number
+          timezone: string | null
           updated_at: string
           user_id: string
+          working_end: string | null
+          working_start: string | null
         }
         Insert: {
+          batching?: boolean
+          desktop?: boolean
           digest_kinds?: string[]
+          dm_alerts?: boolean
           dnd_until?: string | null
+          group_alerts?: string
           mode?: string
           muted_channels?: string[]
+          previews?: boolean
           priority_people?: string[]
           quiet_end?: string | null
           quiet_start?: string | null
+          shared_device?: boolean
+          sound?: boolean
+          sound_volume?: number
+          timezone?: string | null
           updated_at?: string
           user_id: string
+          working_end?: string | null
+          working_start?: string | null
         }
         Update: {
+          batching?: boolean
+          desktop?: boolean
           digest_kinds?: string[]
+          dm_alerts?: boolean
           dnd_until?: string | null
+          group_alerts?: string
           mode?: string
           muted_channels?: string[]
+          previews?: boolean
           priority_people?: string[]
           quiet_end?: string | null
           quiet_start?: string | null
+          shared_device?: boolean
+          sound?: boolean
+          sound_volume?: number
+          timezone?: string | null
           updated_at?: string
           user_id?: string
+          working_end?: string | null
+          working_start?: string | null
         }
         Relationships: [
           {
@@ -9153,8 +9269,11 @@ export type Database = {
           id: string
           kind: Database["public"]["Enums"]["notification_kind"]
           link: string | null
+          meta: Json
           org_id: string | null
+          priority: string
           read_at: string | null
+          snoozed_until: string | null
           title: string
           user_id: string
         }
@@ -9167,8 +9286,11 @@ export type Database = {
           id?: string
           kind?: Database["public"]["Enums"]["notification_kind"]
           link?: string | null
+          meta?: Json
           org_id?: string | null
+          priority?: string
           read_at?: string | null
+          snoozed_until?: string | null
           title: string
           user_id: string
         }
@@ -9181,8 +9303,11 @@ export type Database = {
           id?: string
           kind?: Database["public"]["Enums"]["notification_kind"]
           link?: string | null
+          meta?: Json
           org_id?: string | null
+          priority?: string
           read_at?: string | null
+          snoozed_until?: string | null
           title?: string
           user_id?: string
         }
@@ -13585,6 +13710,7 @@ export type Database = {
         Args: { p_department?: string; p_org: string }
         Returns: string[]
       }
+      ack_message: { Args: { p_message: string; p_status: string }; Returns: Json }
       ack_task: {
         Args: { p_note?: string; p_status: string; p_task: string }
         Returns: undefined
@@ -14410,11 +14536,17 @@ export type Database = {
         }
         Returns: undefined
       }
+      max_priority: { Args: { a: string; b: string }; Returns: string }
       memory_provenance: { Args: { p_key: string }; Returns: Json }
       meeting_cost: { Args: { p_meeting: string }; Returns: Json }
       meeting_load: { Args: { p_day?: string; p_user?: string }; Returns: Json }
       meeting_org: { Args: { p_meeting: string }; Returns: string }
       meeting_project: { Args: { p_meeting: string }; Returns: string }
+      message_ack_report: { Args: { p_message: string }; Returns: Json }
+      message_priority_allowed: {
+        Args: { p_channel: string; p_priority: string }
+        Returns: boolean
+      }
       my_attendance: {
         Args: { p_from: string; p_to: string }
         Returns: {
@@ -14536,6 +14668,7 @@ export type Database = {
       prepare_shift_handover: { Args: { p_department: string }; Returns: Json }
       preview_role_access: { Args: { p_role: string }; Returns: Json }
       preview_user_access: { Args: { p_user: string }; Returns: Json }
+      priority_rank: { Args: { p: string }; Returns: number }
       probation_reminders: { Args: never; Returns: number }
       project_in_scope: {
         Args: { p_project: string; p_user?: string }
@@ -14629,6 +14762,7 @@ export type Database = {
         Args: { p_department?: string; p_designation?: string; p_note?: string }
         Returns: Json
       }
+      request_acks: { Args: { p_message: string }; Returns: number }
       request_federation: {
         Args: { p_days?: number; p_other_org: string; p_purpose: string }
         Returns: string

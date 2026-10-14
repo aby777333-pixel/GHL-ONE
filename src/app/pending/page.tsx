@@ -45,7 +45,7 @@ export default async function PendingPage() {
           />
         </div>
         <div className="mt-6 flex justify-center gap-2">
-          <Link href="/auth/signout" className="btn btn-secondary">Sign out</Link>
+          <Link href="/auth/signout" prefetch={false} className="btn btn-secondary">Sign out</Link>
           <Link href="/" className="btn btn-primary">Check again</Link>
         </div>
       </div>

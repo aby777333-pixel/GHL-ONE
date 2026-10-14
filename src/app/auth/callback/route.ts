@@ -26,5 +26,7 @@ export async function GET(request: Request) {
     const sent = data?.user?.recovery_sent_at ? Date.parse(data.user.recovery_sent_at) : 0;
     if (sent && Date.now() - sent < 60 * 60_000) next = "/auth/update-password";
   }
-  return NextResponse.redirect(new URL(next, request.url));
+  // Behind nginx on the droplet `request.url` is the internal localhost:3003 origin, so the
+  // redirect must be built on the public app URL when one is configured (each site sets its own).
+  return NextResponse.redirect(new URL(next, process.env.NEXT_PUBLIC_APP_URL || request.url));
 }

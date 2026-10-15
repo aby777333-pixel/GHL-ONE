@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { AlertTriangle, Building2, HardDrive, KeyRound, Layers, Megaphone, Plus, Radio, ShieldAlert, ShieldCheck, Sparkles, Users, Video } from "lucide-react";
+import { AlertTriangle, Building2, HardDrive, KeyRound, Layers, Megaphone, Plus, Radio, ShieldAlert, ShieldCheck, Sparkles, UserPlus, Users, Video } from "lucide-react";
 import { Button, Card, EmptyState, PageHeader, Pill, SearchInput, Stat, Tabs } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { BreakGlassBanner } from "./BreakGlassDialog";
@@ -10,6 +10,7 @@ import { CompanyCard } from "./CompanyCard";
 import { IsolationReport } from "./IsolationReport";
 import { PlatformAnnouncements } from "./PlatformAnnouncements";
 import { PlatformStaff } from "./PlatformStaff";
+import { RegistrationsConsole } from "./RegistrationsConsole";
 import { canCreateCompany, fmtMb, fmtNum, PLATFORM_ROLE_LABEL, STATUS_LABEL, STATUS_TONE, type PlatformOverview } from "./lib";
 
 const STATUS_COLOR: Record<string, string> = {
@@ -23,11 +24,13 @@ const STATUS_COLOR: Record<string, string> = {
   pending: "var(--neutral)",
 };
 
-type Tab = "companies" | "announcements" | "staff" | "isolation";
+type Tab = "companies" | "registrations" | "announcements" | "staff" | "isolation";
+const TABS: Tab[] = ["companies", "registrations", "announcements", "staff", "isolation"];
 
 /** The Platform Command Center (§120, §121, §175). One screen that answers: is every company healthy? */
-export function PlatformDashboard({ overview, platformRole }: { overview: PlatformOverview; platformRole: string | null }) {
-  const [tab, setTab] = React.useState<Tab>("companies");
+export function PlatformDashboard({ overview, platformRole, initialTab }: { overview: PlatformOverview; platformRole: string | null; initialTab?: string }) {
+  // `?tab=registrations` is where the "registered for a company that is not here yet" notices point.
+  const [tab, setTab] = React.useState<Tab>(TABS.includes(initialTab as Tab) ? (initialTab as Tab) : "companies");
   const [q, setQ] = React.useState("");
   const [status, setStatus] = React.useState<string | null>(null);
 
@@ -97,6 +100,7 @@ export function PlatformDashboard({ overview, platformRole }: { overview: Platfo
         onChange={(t) => setTab(t as Tab)}
         tabs={[
           { key: "companies", label: <span className="inline-flex items-center gap-1.5"><Building2 size={14} /> Companies</span>, count: companies.length },
+          { key: "registrations", label: <span className="inline-flex items-center gap-1.5"><UserPlus size={14} /> Registrations</span> },
           { key: "announcements", label: <span className="inline-flex items-center gap-1.5"><Megaphone size={14} /> Announcements</span> },
           { key: "staff", label: <span className="inline-flex items-center gap-1.5"><ShieldCheck size={14} /> Platform staff</span> },
           { key: "isolation", label: <span className="inline-flex items-center gap-1.5"><Radio size={14} /> Isolation</span> },
@@ -193,6 +197,7 @@ export function PlatformDashboard({ overview, platformRole }: { overview: Platfo
         </div>
       )}
 
+      {tab === "registrations" && <RegistrationsConsole />}
       {tab === "announcements" && <PlatformAnnouncements companies={pickList} platformRole={platformRole} />}
       {tab === "staff" && <PlatformStaff companies={pickList} platformRole={platformRole} />}
       {tab === "isolation" && <IsolationReport companies={pickList} />}

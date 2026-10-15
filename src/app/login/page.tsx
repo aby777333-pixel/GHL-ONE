@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { MailCheck } from "lucide-react";
 import { Button, Field, Input } from "@/components/ui";
 import { authErrorMessage, authErrorFromUrl } from "@/lib/authErrors";
+import { SignupForm } from "@/components/auth/SignupForm";
 import { Suspense } from "react";
 
 function LoginInner() {
@@ -28,7 +29,6 @@ function LoginInner() {
   }, [code, next]);
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
-  const [name, setName] = React.useState("");
   /*
     An expired or already-used email link comes back here with the failure in the URL
     (`?error_code=otp_expired&error_description=…`). The form used to ignore it and show nothing.
@@ -62,33 +62,9 @@ function LoginInner() {
       if (error) return setErr(authErrorMessage(error.message, { email }));
       // Full navigation: the session cookie must reach the edge proxy and server render on a fresh request.
       window.location.assign(next.startsWith("/") ? next : "/");
-    } else {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        // Without this the confirmation link points at the project's Site URL, whichever host the person signed up on.
-        options: { data: { full_name: name }, emailRedirectTo: `${window.location.origin}/auth/callback?next=/` },
-      });
-      setLoading(false);
-      if (error) return setErr(authErrorMessage(error.message, { email }));
-      /*
-        An address that already has an account gets a 200 with a fake user and NO email (Supabase hides which
-        addresses exist). The tell is an empty `identities` array. Saying "check your email" there sends the
-        person to wait for a message that will never come.
-      */
-      if (data.user && !data.session && (data.user.identities?.length ?? 0) === 0) {
-        setMode("signin");
-        return setErr("This email already has an account. Sign in, or use “Forgot password?” to set a new password.");
-      }
-      if (data.session) {
-        // Same full navigation as sign-in above: `router.push` would soft-navigate before the new
-        // session cookie has been seen by the proxy and the server render.
-        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-        window.location.assign("/");
-      } else {
-        setSentTo(email);
-      }
     }
+    // Sign-up has its own form (SignupForm), which reads the company from the email domain.
+    setLoading(false);
   }
 
   return (
@@ -106,7 +82,7 @@ function LoginInner() {
           style={{ background: "linear-gradient(180deg, rgba(2,6,23,0.66) 0%, rgba(2,6,23,0.5) 38%, rgba(2,6,23,0.74) 100%)" }}
         />
       </div>
-      <div className="w-full max-w-[400px] anim-fade-up">
+      <div className={`w-full ${mode === "signup" && !sentTo ? "max-w-[480px]" : "max-w-[400px]"} anim-fade-up`}>
         <div className="flex items-center gap-3 mb-8">
           <div className="w-11 h-11 rounded-[13px] flex items-center justify-center text-white font-bold text-lg" style={{ background: "linear-gradient(135deg, var(--brand), #0f172a)", boxShadow: "0 6px 20px rgba(0,0,0,.35)" }}>G</div>
           <div>
@@ -139,14 +115,14 @@ function LoginInner() {
               activate your account, then sign in.
             </p>
             <p className="text-xs text-muted mt-3">
-              Nothing arrived? Give it a minute and check your spam folder. A @ghlindiaventures.com address gets straight in
-              once confirmed; any other address waits for an administrator to approve it.
+              Nothing arrived? Give it a minute and check your spam folder. Once you confirm, sign in to see your account
+              status: you will either go straight to your company&apos;s workspace or see what you are waiting for.
             </p>
             <Button
               variant="primary"
               size="lg"
               className="w-full mt-[var(--s4)]"
-              onClick={() => { setSentTo(null); setMode("signin"); setPassword(""); setName(""); }}
+              onClick={() => { setSentTo(null); setMode("signin"); setPassword(""); }}
             >
               Back to sign in
             </Button>
@@ -154,13 +130,14 @@ function LoginInner() {
         ) : (
           <>
           <div className="h2 mb-1">{mode === "signin" ? "Sign in" : mode === "reset" ? "Reset your password" : "Create your account"}</div>
-          <div className="text-sm text-muted mb-5">{mode === "signin" ? "Use your GHL India Ventures work email." : mode === "reset" ? "We will email you a link to choose a new password." : "Use your @ghlindiaventures.com email to get straight in once you confirm it. Other addresses wait for approval."}</div>
+          <div className="text-sm text-muted mb-5">{mode === "signin" ? "Use your official work email." : mode === "reset" ? "We will email you a link to choose a new password." : "Use your official company email. We recognise your company from it, so you never choose one."}</div>
+          {mode === "signup" ? (
+            <SignupForm
+              onSent={(addr) => { setSentTo(addr); setPassword(""); }}
+              onExisting={() => { setMode("signin"); setErr("This email already has an account. Sign in, or use “Forgot password?” to set a new password."); }}
+            />
+          ) : (
           <form onSubmit={submit} className="space-y-3">
-            {mode === "signup" && (
-              <Field label="Full name">
-                <Input value={name} onChange={(e) => setName(e.target.value)} required placeholder="Your name" autoComplete="name" />
-              </Field>
-            )}
             <Field label="Work email">
               <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@company.com" autoComplete="email" />
             </Field>
@@ -176,9 +153,10 @@ function LoginInner() {
             )}
             {err && <div className="text-sm text-danger">{err}</div>}
             <Button type="submit" variant="primary" size="lg" className="w-full mt-2" loading={loading}>
-              {mode === "signin" ? "Sign in" : mode === "reset" ? "Send reset link" : "Create account"}
+              {mode === "signin" ? "Sign in" : "Send reset link"}
             </Button>
           </form>
+          )}
           <div className="text-sm text-muted mt-4 text-center">
             {mode === "signin" ? (
               <>
@@ -195,7 +173,7 @@ function LoginInner() {
           </>
         )}
         </div>
-        <div className="text-[11px] text-muted text-center mt-6">GHL India Ventures · Internal system. Authorised personnel only.</div>
+        <div className="text-[11px] text-muted text-center mt-6">GHL ONE · Internal system. Authorised personnel only.</div>
       </div>
     </div>
   );

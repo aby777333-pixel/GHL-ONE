@@ -11,8 +11,9 @@ export const metadata = { title: "Platform Command Center" };
  * The platform layer is gated in the database (`is_platform_admin()` guards every RPC and policy).
  * This page re-checks it server-side before rendering anything: hiding a menu item is never the control.
  */
-export default async function PlatformPage() {
+export default async function PlatformPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   await getSession();
+  const sp = await searchParams;
   const supabase = await createClient();
 
   const [{ data: isPlatformAdmin }, { data: platformRole }] = await Promise.all([supabase.rpc("is_platform_admin"), supabase.rpc("platform_role")]);
@@ -22,5 +23,5 @@ export default async function PlatformPage() {
   const { data, error } = await supabase.rpc("platform_overview");
   if (error || !data) return <PlatformError title="The platform overview could not be loaded" message={error?.message} backHref="/" backLabel="Back to Home" />;
 
-  return <PlatformDashboard overview={data as unknown as PlatformOverview} platformRole={(platformRole as string | null) ?? null} />;
+  return <PlatformDashboard overview={data as unknown as PlatformOverview} platformRole={(platformRole as string | null) ?? null} initialTab={typeof sp.tab === "string" ? sp.tab : undefined} />;
 }

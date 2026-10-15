@@ -22,6 +22,14 @@ export type PendingAccount = {
   note: string | null;
   requested_at: string | null;
   asked: boolean;
+  // 0078 — what the person entered at registration. Optional: older servers do not send them.
+  requested_department?: string | null;
+  employee_ref?: string | null;
+  phone?: string | null;
+  manager_name?: string | null;
+  manager_id?: string | null;
+  email_verified?: boolean;
+  via?: string | null;
 };
 
 /** Hierarchy order — index 0 is the highest. `approve_account` refuses a level above your own. */
@@ -75,10 +83,18 @@ export function AccountRequests({ initial, may }: { initial: PendingAccount[]; m
                     {p.email} · signed up {fmtDate(p.created_at)}
                     {p.designation ? ` · ${p.designation}` : ""}
                   </div>
+                  {(p.employee_ref || p.phone || p.manager_name) && (
+                    <div className="text-xs text-muted truncate">
+                      {[p.employee_ref && `Employee ID ${p.employee_ref}`, p.phone, p.manager_name && `Reports to ${p.manager_name}`].filter(Boolean).join(" · ")}
+                    </div>
+                  )}
                   {p.note && <div className="text-xs text-muted mt-1 inline-flex items-start gap-1"><Info size={12} className="mt-[2px] shrink-0" />{p.note}</div>}
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {p.department ? <Pill tone="tone-info">{p.department}</Pill> : <Pill tone="tone-warn">{p.asked ? "No department named" : "Has not asked yet"}</Pill>}
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  {p.email_verified === false && <Pill tone="tone-neutral" title="They have not opened the verification link yet, so they cannot sign in even if approved.">Email not verified</Pill>}
+                  {p.department ? <Pill tone="tone-info">{p.department}</Pill>
+                    : p.requested_department ? <Pill tone="tone-warn" title="This department is not set up yet. Choose or create one when you approve.">Asked for {p.requested_department}</Pill>
+                    : <Pill tone="tone-warn">{p.asked ? "No department named" : "Has not asked yet"}</Pill>}
                   <Button size="sm" variant="ghost" onClick={() => setDeclining(p)}><UserX size={14} /> Decline</Button>
                   <Button size="sm" variant="primary" onClick={() => setApproving(p)}><UserCheck size={14} /> Approve</Button>
                 </div>
@@ -100,7 +116,7 @@ function ApproveModal({ person, myRole, onClose, onDone }: { person: PendingAcco
   const [departmentId, setDepartmentId] = React.useState(person.department_id || "");
   const [role, setRole] = React.useState<RoleLevel>(person.role || "employee");
   const [designation, setDesignation] = React.useState(person.designation || "");
-  const [managerId, setManagerId] = React.useState("");
+  const [managerId, setManagerId] = React.useState(person.manager_id || "");
   const [note, setNote] = React.useState("");
   const [busy, setBusy] = React.useState(false);
 
@@ -138,6 +154,8 @@ function ApproveModal({ person, myRole, onClose, onDone }: { person: PendingAcco
         <div className="text-sm text-muted">
           {person.email} gets access immediately and is told who approved them.
           {person.department ? <> They asked to join <span className="font-medium text-[var(--fg)]">{person.department}</span>.</> : null}
+          {!person.department && person.requested_department ? <> They named <span className="font-medium text-[var(--fg)]">{person.requested_department}</span>, which is not set up yet — choose the department they belong in.</> : null}
+          {person.manager_name && !person.manager_id ? <> They said they report to {person.manager_name}.</> : null}
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Department"><DepartmentPicker value={departmentId} onChange={setDepartmentId} /></Field>

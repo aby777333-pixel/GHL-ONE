@@ -5,7 +5,7 @@ Generated from the codebase by `npm run system-map`. Structure only — no sourc
 because a name is not an implementation.
 
 Stack: Next.js 16 (App Router, `src/`), React 19, Tailwind v4, Supabase/Postgres with RLS.
-Counted at generation: 92 pages, 27 API endpoints, 204 tables, 436 database functions, 75 migrations.
+Counted at generation: 92 pages, 29 API endpoints, 204 tables, 436 database functions, 79 migrations.
 
 ## Screens (92)
 - /
@@ -101,7 +101,7 @@ Counted at generation: 92 pages, 27 API endpoints, 204 tables, 436 database func
 - /wiki/questions/[id]
 - /workforce
 
-## API endpoints (27)
+## API endpoints (29)
 - /api/ai/ask
 - /api/ai/brief
 - /api/ai/buddy
@@ -119,11 +119,13 @@ Counted at generation: 92 pages, 27 API endpoints, 204 tables, 436 database func
 - /api/calendar/[token]
 - /api/connect/send
 - /api/hooks/[token]
+- /api/hooks/account-mail/[token]
 - /api/hooks/email/[token]
 - /api/hooks/message/[token]
 - /api/hooks/push/[token]
 - /api/live/moderate
 - /api/live/token
+- /api/platform/domains/verify
 - /api/push/decline
 - /api/push/subscribe
 - /api/push/unsubscribe
@@ -136,7 +138,7 @@ access_events, access_grants, access_requests, access_review_items, access_revie
 ## Database functions (436)
 access_event_summary, access_findings, access_request_after_change, access_request_route, account_approvers, ack_message, ack_task, action_verification, activity_timeline, add_promise, admin_assignment_audit, admin_role_audit, admin_sessions, ai_conversation_org_default, ai_cost_summary, ai_feedback_excerpt, ai_feedback_route, ai_knowledge_guard, ai_memory_keep_history, ai_memory_org_default, ai_requests_today, announcement_notify, answer_quality, answer_vote_sync, answers_notify, apply_access_review, apply_inbox_rules, apply_role_change, apply_transfer, approval_after_change, approvals_automation_events, approvals_route_delegation, approve_account, approve_message, asset_assignment_sync, asset_request_route, assign_conversation, assign_employee_code, assignment_warnings, assistant_performance, attendance_after_event, attendance_auto_checkout, attendance_board, attendance_cron_tick, attendance_daily_summary, attendance_exceptions, attendance_patterns, attendance_recompute, attendance_settings, attendance_summary, audit_immutable, auto_onboarding, autojoin_common, automation_ctx, automations_schedule_touch, blocker_chain, board_comment_notify, board_element_task, board_restore, board_snapshot, board_to_project, break_policy_for, bring_in, broadcast_send, buddy_scan, buddy_scan_all, calendar_feed, call_person, can_approve_account, can_approve_accounts, can_assign, can_broadcast_in, can_edit_board, can_edit_task, can_see_ai_console, can_see_workforce, can_view_board, can_view_channel, can_view_classification, can_view_contact, can_view_conversation, can_view_live_doc, can_view_live_room, can_view_project, can_view_recording, can_view_screen, can_view_task, can_view_workflow_run, candidate_org, candidate_owner, capacity_calendar, change_impact, change_manager, claim_conversation, claim_help_request, clear_expired_dnd, clock, close_join_request_on_activation, collab_can, collaboration_map, commitment_reminders, company_go_live_blockers, company_now, company_pulse, company_setup_health, complete_follow_up, config_history_log, connect_dashboard, connect_settings, connect_sla_tick, contact_timeline, conversations_after, conversations_before, convert_channel_to_project, correct_attendance, coverage_after_break, coverage_forecast, create_breakouts, create_company, create_delegation, create_project_from_template, current_department, current_org, current_role_level, decision_audit, decisions_automation_events, decline_account, default_onboarding_steps, delegate_for, delegations_notify, delete_collab_policy, department_availability, department_brief, department_coverage, department_guard, department_health, dismiss_nudge, effective_approver, effective_level, effective_nav, effective_screens, end_break_glass, end_breakouts, end_live_room, enrollment_notify, escalate_help_requests, escalate_requests, eval_condition, events_calendar, expert_slot_notify, expire_access_grants, expire_collaboration, expire_delegations_and_roles, explain_access, feature_enabled, feedback_notify, file_version_audit, file_versions_automation_events, find_experts, find_or_create_contact, fire_automations, forget_memory, freeze_department, freeze_user, grant_support_access, handle_new_user, handoff_after_change, has_admin_perm, has_admin_perm_user, has_break_glass, has_grant, has_perm, help_request_after_change, help_request_live_archive, hire_candidate, huddle_suggestion, idea_votes_sync, imm_array_to_string, import_people, in_federation, in_focus_window, in_quiet_hours, ingest_email, ingest_message, ingest_webhook, invite_department, is_active_member, is_admin, is_candidate_panelist, is_channel_member, is_hr, is_inbox_member, is_inbox_supervisor, is_internal, is_internal_user, is_knowledge_owner, is_lead_plus, is_live_host, is_manager_of, is_manager_of_user, is_manager_plus, is_meeting_participant, is_platform_admin, is_platform_admin_user, is_platform_owner, is_primary_admin, is_primary_admin_user, is_project_member, is_run_step_owner, join_live_room, join_request_org_default, knock, knowledge_health, knowledge_signal, kudos_after_insert, leave_before_change, leave_collisions, leave_days, leave_impact, leave_live_room, leave_notify, leaves_route_delegation, lesson_progress_sync, live_bookmark, live_doc_comment_notify, live_doc_snapshot, live_doc_task, live_governance, live_guest_consume, live_guest_link, live_guest_lookup, live_history, live_invite, live_invite_department, live_invite_notify, live_moderate, live_raise_hand, live_recording_share_notify, live_room_decision, live_room_task, live_running_late, live_tick, live_to_knowledge, lock_feature, log_access_event, log_call, mark_channel_read, mark_message_sent, max_priority, meeting_calendar, meeting_cost, meeting_hygiene, meeting_load, meeting_org, meeting_participant_notify, meeting_project, membership_sync, memory_provenance, mentorship_notify, message_ack_report, message_after_insert, message_edit_guard, message_followups, message_priority_allowed, message_priority_allowed_for, message_priority_guard, messages_after, messages_automation_events, milestone_calendar, my_attendance, my_attendance_exceptions, my_calendar_token, my_commitments, my_connect_queue, my_leave_balances, my_memory, my_nudges, my_pending_policies, my_unread_counts, my_workspaces, needs_send_approval, notification_org_default, notification_push_fanout, notify_account_change, notify_account_pending, nudge_workflow_step, offboard_user, one_on_one_notify, open_dm, operational_inactivity, org_completeness_audit, org_feature_enabled, org_health, pending_accounts, people_intelligence, person_name, pick_agent, platform_can_touch, platform_company, platform_overview, platform_role, platform_self_test, policy_publish, prepare_handover, prepare_shift_handover, priority_rank, probation_reminders, profile_audit, profile_change_history, profile_guard, profile_status_sync, project_after_insert, project_member_after_insert, projects_automation_events, publish_platform_announcement, purge_access_events, push_notification, push_settle, push_subscription_org_default, push_targets, queue_message, recall_memory, related_to, remember_fact, remove_push_subscription, render_tpl, reports_of, request_account_activation, request_acks, request_federation, request_route, resolve_conversation, resolve_step_department, resolve_step_owner, resolve_targets, respond_federation, respond_live_invite, restore_handovers, restricted_hits, revoke_everywhere, revoke_grant, revoke_session, revoke_support_access, role_rank, roster, rotate_calendar_token, run_automation_action, run_digests, run_escalations, run_scheduled_automations, save_push_subscription, schedule_next_run, search_all, search_contacts, search_knowledge, seen_nudges, selftest_allowed, selftest_global_tables, selftest_isolation_report, selftest_jwt_role, selftest_platform_only_tables, selftest_result, service_status_notify, session_login_alert, set_active_workspace, set_attendance_settings, set_collab_policy, set_company_status, set_connect_settings, set_employee_status, set_live_state, set_org_feature, set_updated_at, shift_handover_notify, shift_swap_apply, similar_help_requests, similar_knowledge, similar_tasks, since_last_visit, skill_endorsement_verify, skip_workflow_step, snooze_conversation, start_access_review, start_break_glass, start_conversation, start_focus, start_live_room, start_war_room, start_workflow, stop_focus, storage_org_ok, task_after_change, task_assignment_guard, task_comment_notify, task_dependency_release, task_from_message, task_quality_gate, task_recurrence_next, task_recurrence_spawn, tasks_automation_events … and 36 more
 
-## Scheduled jobs (23)
+## Scheduled jobs (24)
 - ghl_access_purge (15 21 * * *)
 - ghl_attendance_daily (35 3 * * 1-6)
 - ghl_attendance_tick (*/10 * * * *)
@@ -155,6 +157,7 @@ access_event_summary, access_findings, access_request_after_change, access_reque
 - ghl_message_followups (*/10 * * * *)
 - ghl_org_audit (45 3 * * *)
 - ghl_probation (15 3 * * *)
+- ghl_registration_reminders (45 3 * * *)
 - ghl_request_sla (*/30 * * * *)
 - ghl_restore_handovers (30 0 * * *)
 - ghl_scheduled_automations (*/5 * * * *)
@@ -163,10 +166,10 @@ access_event_summary, access_findings, access_request_after_change, access_reque
 
 ## Front-end areas
 Components by area: academy, access, admin, ai, approvals, attendance, auth, automations, board, bookings, broadcasts, calendar, chat, command, commitments, common, connect, decisions, departments, docs, events, experiments, files, goals, growth, help, home, ideas, inbox, intel, jobs, leave, live, meetings, mywork, notifications, officehours, people, platform, policies, projects, providers, pulse, questions, recordings, requests, retros, shell, standups, status, tasks, ui, visitors, wiki, workforce
-Shared libraries: ai/buddy.ts, ai/buddyPrompts.ts, ai/client.ts, ai/context.ts, ai/memory.ts, ai/models.ts, ai/orchestrator.ts, ai/pricing.ts, ai/prompts.ts, ai/route.ts, ai/systemMap.ts, ai/types.ts, authErrors.ts, connectPerms.ts, database.types.ts, live/client.ts, live/livekit.ts, live/types.ts, notifications/classify.ts, notifications/desktop.ts, notifications/leader.ts, notifications/prefs.ts, notifications/sound.ts, permissions.ts, push/client.ts, push/server.ts, screens.ts, session.ts, skills.ts, speech.ts, supabase/client.ts, supabase/proxy.ts, supabase/server.ts, utils.ts
+Shared libraries: accountStatus.ts, ai/buddy.ts, ai/buddyPrompts.ts, ai/client.ts, ai/context.ts, ai/memory.ts, ai/models.ts, ai/orchestrator.ts, ai/pricing.ts, ai/prompts.ts, ai/route.ts, ai/systemMap.ts, ai/types.ts, authErrors.ts, connectPerms.ts, database.types.ts, live/client.ts, live/livekit.ts, live/types.ts, notifications/classify.ts, notifications/desktop.ts, notifications/leader.ts, notifications/prefs.ts, notifications/sound.ts, permissions.ts, push/client.ts, push/server.ts, screens.ts, session.ts, skills.ts, speech.ts, supabase/client.ts, supabase/proxy.ts, supabase/server.ts, utils.ts
 
 ## Environment variables read by the app
-AI_MODEL, AI_ROUTER, ANTHROPIC_API_KEY, CONNECT_FROM_EMAIL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET, LIVEKIT_URL, NEXT_PUBLIC_APP_TIMEZONE, NEXT_PUBLIC_APP_URL, NEXT_PUBLIC_LIVEKIT_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_VAPID_PUBLIC_KEY, PUSH_HOOK_SECRET, RESEND_API_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT
+ACCOUNT_FROM_EMAIL, AI_MODEL, AI_ROUTER, ANTHROPIC_API_KEY, CONNECT_FROM_EMAIL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET, LIVEKIT_URL, NEXT_PUBLIC_APP_TIMEZONE, NEXT_PUBLIC_APP_URL, NEXT_PUBLIC_LIVEKIT_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_VAPID_PUBLIC_KEY, PUSH_HOOK_SECRET, RESEND_API_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT
 
 ## How each area works
 The project's own engineering record is `CLAUDE.md`, whose sections are:
@@ -230,3 +233,5 @@ The project's own engineering record is `CLAUDE.md`, whose sections are:
 - one.ghlindiaventures.com runs on a droplet, not Netlify (2026-09-24)
 - "email rate limit exceeded" — Supabase's built-in mailer is the bottleneck (2026-09-26)
 - Two more owners, invites carry a phone, and notifications pop up (2026-10-13, schema 0074)
+- A message to a channel was never a notification (2026-10-14, schema 0075)
+- "X is under-covered", 1,738 times (2026-10-14, schema 0076)

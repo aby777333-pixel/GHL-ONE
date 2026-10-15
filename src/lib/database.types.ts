@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
@@ -540,6 +540,8 @@ export type Database = {
           result: Json | null
           status: string
           user_id: string
+          verification: Json | null
+          verified_at: string | null
         }
         Insert: {
           confirmed_at?: string | null
@@ -554,6 +556,8 @@ export type Database = {
           result?: Json | null
           status?: string
           user_id: string
+          verification?: Json | null
+          verified_at?: string | null
         }
         Update: {
           confirmed_at?: string | null
@@ -568,6 +572,8 @@ export type Database = {
           result?: Json | null
           status?: string
           user_id?: string
+          verification?: Json | null
+          verified_at?: string | null
         }
         Relationships: [
           {
@@ -1010,10 +1016,31 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "ai_memory_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "ai_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_memory_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "ai_memory_org_id_fkey"
             columns: ["org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_memory_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
           {
@@ -2710,6 +2737,75 @@ export type Database = {
           },
         ]
       }
+      buddy_nudges: {
+        Row: {
+          body: string | null
+          created_at: string
+          dedupe_key: string
+          dismissed_at: string | null
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          kind: string
+          link: string | null
+          org_id: string
+          seen_at: string | null
+          severity: string
+          snoozed_until: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          dedupe_key: string
+          dismissed_at?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          kind: string
+          link?: string | null
+          org_id: string
+          seen_at?: string | null
+          severity?: string
+          snoozed_until?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          dedupe_key?: string
+          dismissed_at?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          kind?: string
+          link?: string | null
+          org_id?: string
+          seen_at?: string | null
+          severity?: string
+          snoozed_until?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "buddy_nudges_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "buddy_nudges_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calendar_events: {
         Row: {
           all_day: boolean
@@ -3682,6 +3778,77 @@ export type Database = {
             columns: ["set_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_domains: {
+        Row: {
+          auto_approve: boolean
+          company_name: string
+          created_at: string
+          created_by: string | null
+          created_label: string | null
+          domain: string
+          id: string
+          notes: string | null
+          org_id: string | null
+          status: string
+          updated_at: string
+          verification_method: string | null
+          verification_note: string | null
+          verification_token: string
+          verified: boolean
+          verified_at: string | null
+          verified_by: string | null
+          verified_label: string | null
+        }
+        Insert: {
+          auto_approve?: boolean
+          company_name: string
+          created_at?: string
+          created_by?: string | null
+          created_label?: string | null
+          domain: string
+          id?: string
+          notes?: string | null
+          org_id?: string | null
+          status?: string
+          updated_at?: string
+          verification_method?: string | null
+          verification_note?: string | null
+          verification_token?: string
+          verified?: boolean
+          verified_at?: string | null
+          verified_by?: string | null
+          verified_label?: string | null
+        }
+        Update: {
+          auto_approve?: boolean
+          company_name?: string
+          created_at?: string
+          created_by?: string | null
+          created_label?: string | null
+          domain?: string
+          id?: string
+          notes?: string | null
+          org_id?: string | null
+          status?: string
+          updated_at?: string
+          verification_method?: string | null
+          verification_note?: string | null
+          verification_token?: string
+          verified?: boolean
+          verified_at?: string | null
+          verified_by?: string | null
+          verified_label?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_domains_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -6826,76 +6993,6 @@ export type Database = {
           },
         ]
       }
-      join_requests: {
-        Row: {
-          created_at: string
-          decided_at: string | null
-          decided_by: string | null
-          decided_label: string | null
-          decision_note: string | null
-          department_id: string | null
-          designation: string | null
-          id: string
-          note: string | null
-          org_id: string
-          status: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          decided_at?: string | null
-          decided_by?: string | null
-          decided_label?: string | null
-          decision_note?: string | null
-          department_id?: string | null
-          designation?: string | null
-          id?: string
-          note?: string | null
-          org_id?: string
-          status?: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          decided_at?: string | null
-          decided_by?: string | null
-          decided_label?: string | null
-          decision_note?: string | null
-          department_id?: string | null
-          designation?: string | null
-          id?: string
-          note?: string | null
-          org_id?: string
-          status?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "join_requests_department_id_fkey"
-            columns: ["department_id"]
-            isOneToOne: false
-            referencedRelation: "departments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "join_requests_org_id_fkey"
-            columns: ["org_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "join_requests_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       job_openings: {
         Row: {
           closes_on: string | null
@@ -6966,6 +7063,79 @@ export type Database = {
             columns: ["org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      join_requests: {
+        Row: {
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decided_label: string | null
+          decision_note: string | null
+          department_id: string | null
+          designation: string | null
+          id: string
+          note: string | null
+          org_id: string
+          requested_department: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decided_label?: string | null
+          decision_note?: string | null
+          department_id?: string | null
+          designation?: string | null
+          id?: string
+          note?: string | null
+          org_id?: string
+          requested_department?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decided_label?: string | null
+          decision_note?: string | null
+          department_id?: string | null
+          designation?: string | null
+          id?: string
+          note?: string | null
+          org_id?: string
+          requested_department?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "join_requests_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "join_requests_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "join_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -10971,6 +11141,125 @@ export type Database = {
           },
         ]
       }
+      registrations: {
+        Row: {
+          company_domain_id: string | null
+          company_label: string | null
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decided_label: string | null
+          decision_note: string | null
+          designation: string | null
+          domain: string
+          email: string
+          email_verified_at: string | null
+          employee_ref: string | null
+          full_name: string | null
+          manager_id: string | null
+          manager_name: string | null
+          materialized_at: string | null
+          note: string | null
+          org_id: string | null
+          phone: string | null
+          policies_accepted_at: string | null
+          recognized: boolean
+          requested_department: string | null
+          requested_department_id: string | null
+          state: string
+          updated_at: string
+          user_id: string
+          via: string
+        }
+        Insert: {
+          company_domain_id?: string | null
+          company_label?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decided_label?: string | null
+          decision_note?: string | null
+          designation?: string | null
+          domain: string
+          email: string
+          email_verified_at?: string | null
+          employee_ref?: string | null
+          full_name?: string | null
+          manager_id?: string | null
+          manager_name?: string | null
+          materialized_at?: string | null
+          note?: string | null
+          org_id?: string | null
+          phone?: string | null
+          policies_accepted_at?: string | null
+          recognized?: boolean
+          requested_department?: string | null
+          requested_department_id?: string | null
+          state?: string
+          updated_at?: string
+          user_id: string
+          via?: string
+        }
+        Update: {
+          company_domain_id?: string | null
+          company_label?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decided_label?: string | null
+          decision_note?: string | null
+          designation?: string | null
+          domain?: string
+          email?: string
+          email_verified_at?: string | null
+          employee_ref?: string | null
+          full_name?: string | null
+          manager_id?: string | null
+          manager_name?: string | null
+          materialized_at?: string | null
+          note?: string | null
+          org_id?: string | null
+          phone?: string | null
+          policies_accepted_at?: string | null
+          recognized?: boolean
+          requested_department?: string | null
+          requested_department_id?: string | null
+          state?: string
+          updated_at?: string
+          user_id?: string
+          via?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "registrations_company_domain_id_fkey"
+            columns: ["company_domain_id"]
+            isOneToOne: false
+            referencedRelation: "company_domains"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registrations_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registrations_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registrations_requested_department_id_fkey"
+            columns: ["requested_department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       requests: {
         Row: {
           amount: number | null
@@ -13710,7 +13999,12 @@ export type Database = {
         Args: { p_department?: string; p_org: string }
         Returns: string[]
       }
-      ack_message: { Args: { p_message: string; p_status: string }; Returns: Json }
+      account_mail: { Args: { p_id: string; p_secret: string }; Returns: Json }
+      account_status_of: { Args: { p_user: string }; Returns: Json }
+      ack_message: {
+        Args: { p_message: string; p_status: string }
+        Returns: Json
+      }
       ack_task: {
         Args: { p_note?: string; p_status: string; p_task: string }
         Returns: undefined
@@ -13743,6 +14037,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      ai_cost_summary: { Args: { p_days?: number }; Returns: Json }
       ai_feedback_excerpt: { Args: { p_feedback: string }; Returns: Json }
       ai_requests_today: { Args: never; Returns: number }
       amend_grant: {
@@ -13755,6 +14050,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      answer_quality: { Args: { p_days?: number }; Returns: Json }
       apply_access_review: { Args: { p_review: string }; Returns: Json }
       apply_inbox_rules: {
         Args: {
@@ -13767,7 +14063,6 @@ export type Database = {
       }
       apply_role_change: { Args: { p_change: string }; Returns: undefined }
       apply_transfer: { Args: { p_transfer: string }; Returns: undefined }
-      answer_quality: { Args: { p_days?: number }; Returns: Json }
       approve_account: {
         Args: {
           p_department?: string
@@ -13791,8 +14086,8 @@ export type Database = {
         Args: { p_assignee: string; p_due?: string }
         Returns: Json
       }
-      attendance_auto_checkout: { Args: never; Returns: number }
       assistant_performance: { Args: { p_days?: number }; Returns: Json }
+      attendance_auto_checkout: { Args: never; Returns: number }
       attendance_board: {
         Args: { p_day?: string }
         Returns: {
@@ -13915,6 +14210,8 @@ export type Database = {
         }
         Returns: undefined
       }
+      buddy_scan: { Args: { p_max?: number; p_user: string }; Returns: number }
+      buddy_scan_all: { Args: never; Returns: number }
       calendar_feed: {
         Args: { p_token: string }
         Returns: {
@@ -13931,17 +14228,21 @@ export type Database = {
         Args: { p_user: string; p_video?: boolean }
         Returns: string
       }
-      ai_cost_summary: { Args: { p_days?: number }; Returns: Json }
-      can_see_ai_console: { Args: never; Returns: boolean }
-      buddy_scan: { Args: { p_max?: number; p_user: string }; Returns: number }
-      buddy_scan_all: { Args: never; Returns: number }
       can_approve_account: {
         Args: { p_department?: string; p_user: string }
+        Returns: boolean
+      }
+      can_approve_account_as: {
+        Args: { p_approver: string; p_department?: string; p_user: string }
         Returns: boolean
       }
       can_approve_accounts: { Args: never; Returns: boolean }
       can_assign: {
         Args: { p_assignee: string; p_assigner?: string }
+        Returns: boolean
+      }
+      can_broadcast_in: {
+        Args: { p_channel: string; p_user: string }
         Returns: boolean
       }
       can_edit_board: { Args: { b: string }; Returns: boolean }
@@ -13951,6 +14252,7 @@ export type Database = {
         Returns: boolean
       }
       can_review_access: { Args: { p_user: string }; Returns: boolean }
+      can_see_ai_console: { Args: never; Returns: boolean }
       can_see_workforce: { Args: { p_department?: string }; Returns: boolean }
       can_view_board: { Args: { b: string }; Returns: boolean }
       can_view_channel: { Args: { c: string }; Returns: boolean }
@@ -14031,6 +14333,8 @@ export type Database = {
         }[]
       }
       commitment_reminders: { Args: never; Returns: number }
+      company_activated: { Args: { p_org: string }; Returns: Json }
+      company_available: { Args: { p_org: string }; Returns: boolean }
       company_go_live_blockers: { Args: { p_org: string }; Returns: Json }
       company_now: { Args: never; Returns: Json }
       company_pulse: { Args: never; Returns: Json }
@@ -14122,17 +14426,16 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["role_level"]
       }
+      decline_account: {
+        Args: { p_reason?: string; p_user: string }
+        Returns: Json
+      }
       default_onboarding_steps: { Args: never; Returns: Json }
       delegate_for: {
         Args: { p_kind: string; p_user: string }
         Returns: string
       }
       delegation_enforced_permissions: { Args: never; Returns: string[] }
-      decline_account: {
-        Args: { p_reason?: string; p_user: string }
-        Returns: Json
-      }
-      dismiss_nudge: { Args: { p_id: string; p_snooze_hours?: number }; Returns: Json }
       delete_collab_policy: { Args: { p_id: string }; Returns: undefined }
       department_availability: {
         Args: never
@@ -14187,6 +14490,10 @@ export type Database = {
           projects: number
           slug: string
         }[]
+      }
+      dismiss_nudge: {
+        Args: { p_id: string; p_snooze_hours?: number }
+        Returns: Json
       }
       effective_approver: {
         Args: { p_kind?: string; p_user: string }
@@ -14378,6 +14685,7 @@ export type Database = {
       is_primary_admin: { Args: never; Returns: boolean }
       is_primary_admin_user: { Args: { p_user: string }; Returns: boolean }
       is_project_member: { Args: { p: string }; Returns: boolean }
+      is_public_email_domain: { Args: { p: string }; Returns: boolean }
       is_run_step_owner: {
         Args: { p_run: string; p_user?: string }
         Returns: boolean
@@ -14399,6 +14707,10 @@ export type Database = {
         Returns: Json
       }
       leave_live_room: { Args: { p_room: string }; Returns: undefined }
+      link_company_domain: {
+        Args: { p_id: string; p_include_aliases?: boolean; p_org: string }
+        Returns: Json
+      }
       live_bookmark: {
         Args: { p_label?: string; p_offset_ms?: number; p_room: string }
         Returns: undefined
@@ -14536,17 +14848,27 @@ export type Database = {
         }
         Returns: undefined
       }
+      materialize_registrations: {
+        Args: { p_domain_ids: string[] }
+        Returns: number
+      }
       max_priority: { Args: { a: string; b: string }; Returns: string }
-      memory_provenance: { Args: { p_key: string }; Returns: Json }
       meeting_cost: { Args: { p_meeting: string }; Returns: Json }
       meeting_load: { Args: { p_day?: string; p_user?: string }; Returns: Json }
       meeting_org: { Args: { p_meeting: string }; Returns: string }
       meeting_project: { Args: { p_meeting: string }; Returns: string }
+      memory_provenance: { Args: { p_key: string }; Returns: Json }
       message_ack_report: { Args: { p_message: string }; Returns: Json }
+      message_followups: { Args: never; Returns: number }
       message_priority_allowed: {
         Args: { p_channel: string; p_priority: string }
         Returns: boolean
       }
+      message_priority_allowed_for: {
+        Args: { p_channel: string; p_priority: string; p_user: string }
+        Returns: boolean
+      }
+      my_account_status: { Args: never; Returns: Json }
       my_attendance: {
         Args: { p_from: string; p_to: string }
         Returns: {
@@ -14618,6 +14940,7 @@ export type Database = {
       }
       my_workspaces: { Args: never; Returns: Json }
       needs_send_approval: { Args: { p_user?: string }; Returns: boolean }
+      normalize_email_domain: { Args: { p: string }; Returns: string }
       nudge_workflow_step: {
         Args: { p_note?: string; p_step: string }
         Returns: undefined
@@ -14639,23 +14962,58 @@ export type Database = {
         Returns: boolean
       }
       org_health: { Args: never; Returns: Json }
+      pending_accounts: { Args: never; Returns: Json }
       people_intelligence: { Args: { p_days?: number }; Returns: Json }
       permission_holders: { Args: { p_perm: string }; Returns: Json }
       permission_scope: {
         Args: { p_perm: string; p_user?: string }
         Returns: Json
       }
-      pending_accounts: { Args: never; Returns: Json }
       person_name: { Args: { uid: string }; Returns: string }
       pick_agent: { Args: { p_inbox: string }; Returns: string }
+      platform_account_action: {
+        Args: {
+          p_action: string
+          p_department?: string
+          p_designation?: string
+          p_manager?: string
+          p_reason?: string
+          p_role?: Database["public"]["Enums"]["role_level"]
+          p_user: string
+        }
+        Returns: Json
+      }
       platform_can_touch: {
         Args: { p_org: string; p_user?: string }
         Returns: boolean
       }
       platform_company: { Args: { p_org: string }; Returns: Json }
       platform_overview: { Args: never; Returns: Json }
+      platform_owner_ids: { Args: never; Returns: string[] }
+      platform_person_access: { Args: { p_email: string }; Returns: Json }
+      platform_registrations: { Args: never; Returns: Json }
       platform_role: { Args: { p_user?: string }; Returns: string }
       platform_self_test: { Args: never; Returns: Json }
+      platform_set_membership: {
+        Args: {
+          p_active?: boolean
+          p_org: string
+          p_reason?: string
+          p_role?: Database["public"]["Enums"]["role_level"]
+          p_user: string
+        }
+        Returns: Json
+      }
+      platform_transfer_company: {
+        Args: {
+          p_department?: string
+          p_keep_access?: boolean
+          p_org: string
+          p_reason?: string
+          p_user: string
+        }
+        Returns: Json
+      }
       prepare_handover: {
         Args: {
           p_backup: string
@@ -14722,6 +15080,10 @@ export type Database = {
         }
         Returns: Json
       }
+      registration_announce: { Args: { p_user: string }; Returns: undefined }
+      registration_preview: { Args: { p_email: string }; Returns: Json }
+      registration_reminders: { Args: never; Returns: Json }
+      registration_settings: { Args: { p_org: string }; Returns: Json }
       related_to: { Args: { eid: string; entity: string }; Returns: Json }
       remember_fact: {
         Args: {
@@ -14759,7 +15121,12 @@ export type Database = {
         }[]
       }
       request_account_activation: {
-        Args: { p_department?: string; p_designation?: string; p_note?: string }
+        Args: {
+          p_department?: string
+          p_designation?: string
+          p_note?: string
+          p_requested_department?: string
+        }
         Returns: Json
       }
       request_acks: { Args: { p_message: string }; Returns: number }
@@ -14906,13 +15273,13 @@ export type Database = {
           title: string
         }[]
       }
+      seen_nudges: { Args: never; Returns: Json }
       selftest_allowed: { Args: never; Returns: boolean }
       selftest_global_tables: { Args: never; Returns: string[] }
       selftest_isolation_report: { Args: never; Returns: Json }
       selftest_jwt_role: { Args: never; Returns: string }
       selftest_platform_only_tables: { Args: never; Returns: string[] }
       selftest_result: { Args: { p_checks: Json }; Returns: Json }
-      seen_nudges: { Args: never; Returns: Json }
       set_active_workspace: {
         Args: { p_org: string; p_reason?: string }
         Returns: Json
@@ -14945,6 +15312,10 @@ export type Database = {
           p_org: string
         }
         Returns: undefined
+      }
+      set_registration_settings: {
+        Args: { p_org: string; p_settings: Json }
+        Returns: Json
       }
       similar_help_requests: {
         Args: { p_department: string; p_limit?: number; p_title: string }
@@ -15081,9 +15452,12 @@ export type Database = {
       test_entitlements: { Args: never; Returns: Json }
       test_enum_casts: { Args: never; Returns: Json }
       test_function_volatility: { Args: never; Returns: Json }
+      test_messaging: { Args: never; Returns: Json }
       test_policy_recursion: { Args: never; Returns: Json }
+      test_registration: { Args: never; Returns: Json }
       test_returning_policies: { Args: never; Returns: Json }
       test_rls_role_sweep: { Args: never; Returns: Json }
+      test_runtime_health: { Args: never; Returns: Json }
       test_tenant_scoping: { Args: never; Returns: Json }
       timesheet_suggestions: { Args: { p_day: string }; Returns: Json }
       tool_health: { Args: { p_days?: number }; Returns: Json }
@@ -15095,12 +15469,36 @@ export type Database = {
       }
       undo_config: { Args: { p_history: number }; Returns: undefined }
       unfreeze_user: { Args: { p_user: string }; Returns: undefined }
+      update_my_registration: {
+        Args: {
+          p_designation?: string
+          p_employee_ref?: string
+          p_full_name?: string
+          p_manager?: string
+          p_phone?: string
+        }
+        Returns: Json
+      }
+      upsert_company_domain: {
+        Args: {
+          p_auto_approve?: boolean
+          p_company_name: string
+          p_domain: string
+          p_notes?: string
+          p_status?: string
+        }
+        Returns: string
+      }
       urgent_assistance: {
         Args: { p_kind: string; p_message: string }
         Returns: string
       }
       verify_ai_action: {
         Args: { p_action: string; p_entity: string; p_id: string }
+        Returns: Json
+      }
+      verify_company_domain: {
+        Args: { p_id: string; p_method: string; p_note?: string }
         Returns: Json
       }
       view_as: { Args: { p_user: string }; Returns: Json }
@@ -15112,7 +15510,6 @@ export type Database = {
       while_you_were_away: { Args: { p_since: string }; Returns: Json }
       who_can_see: { Args: { p_id: string; p_type: string }; Returns: Json }
       who_has_ball: { Args: { p_id: string; p_type: string }; Returns: Json }
-      why_delayed: { Args: { p_project: string }; Returns: Json }
       who_owns: {
         Args: { p_q: string }
         Returns: {
@@ -15127,6 +15524,7 @@ export type Database = {
           owner_name: string
         }[]
       }
+      why_delayed: { Args: { p_project: string }; Returns: Json }
       wiki_in_scope: {
         Args: { p_page: string; p_user?: string }
         Returns: boolean
